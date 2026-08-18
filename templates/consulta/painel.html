@@ -1,0 +1,1678 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel SEAMI &bull; Consulta Externa Oficial</title>
+
+    <!-- Google Fonts: Outfit & Inter (Fontes Oficiais do SEAMI) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons via CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Chart.js para Gráficos Analíticos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- SheetJS & jsPDF para Exportação de Relatórios -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- Estilos do SEAMI -->
+    <link rel="stylesheet" href="{% static 'css/index.css' %}?v=2.0">
+
+    <style>
+        .public-navbar {
+            background-color: var(--bg-card);
+            border-bottom: 1px solid var(--border-color);
+            padding: 14px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: var(--shadow-sm);
+        }
+        .public-tab-link {
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        .public-tab-link.active {
+            background-color: var(--color-primary);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+        }
+        .public-tab-link:hover:not(.active) {
+            background-color: var(--bg-input);
+            color: var(--text-primary);
+        }
+        .readonly-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 11.5px;
+            font-weight: 700;
+            background-color: #ecfdf5;
+            color: #047857;
+            border: 1px solid #a7f3d0;
+        }
+        .subtab-pill {
+            text-decoration: none;
+            padding: 9px 16px;
+            border-radius: 10px;
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            transition: all 0.2s;
+        }
+        .subtab-pill.active {
+            background: var(--color-primary);
+            color: #ffffff;
+            border-color: var(--color-primary);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+        }
+    </style>
+</head>
+<body style="background-color: var(--bg-body); color: var(--text-primary); min-height: 100vh; font-family: var(--font-main);">
+
+    <!-- NAVBAR PÚBLICA DE CONSULTA -->
+    <header class="public-navbar">
+        <div style="display: flex; align-items: center; gap: 14px;">
+            <div style="font-size: 30px; line-height: 1;">🧸</div>
+            <div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-family: var(--font-title); font-size: 19px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.5px;">
+                        SEAMI <span style="color: var(--color-primary);">&bull;</span> Consulta Externa
+                    </span>
+                    <span class="readonly-badge">
+                        <i data-lucide="eye" style="width: 13px; height: 13px;"></i> Modo Leitura
+                    </span>
+                </div>
+                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                    Portal de Transparência, Indicadores e Relatórios do Caderno SEAMI
+                </div>
+            </div>
+        </div>
+
+        <!-- AS 2 ABAS SOLICITADAS: DASHBOARD E RELATÓRIOS ANALÍTICOS -->
+        <nav style="display: flex; align-items: center; gap: 10px;">
+            <a href="?tab=dashboard" class="public-tab-link {% if active_tab == 'dashboard' %}active{% endif %}">
+                <i data-lucide="layout-dashboard" style="width: 18px; height: 18px;"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="?tab=relatorios" class="public-tab-link {% if active_tab == 'relatorios' %}active{% endif %}">
+                <i data-lucide="file-bar-chart-2" style="width: 18px; height: 18px;"></i>
+                <span>Relatórios Analíticos</span>
+            </a>
+
+            <!-- ALTERNAR TEMA CLARO / ESCURO -->
+            <button type="button" onclick="togglePublicTheme()" class="secondary-btn" title="Alternar Modo Claro / Escuro" style="padding: 9px 13px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); cursor: pointer; color: var(--text-primary); margin-left: 8px;">
+                <i data-lucide="moon" id="theme-icon-moon" style="width: 17px; height: 17px;"></i>
+            </button>
+        </nav>
+    </header>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main style="max-width: 1440px; margin: 0 auto; padding: 24px 20px; display: flex; flex-direction: column; gap: 24px;">
+
+        <!-- ============================================================= -->
+        <!-- 1. DASHBOARD DA PÁGINA INICIAL (100% IDÊNTICO AO SEAMI)       -->
+        <!-- ============================================================= -->
+        {% if active_tab == 'dashboard' %}
+        <section class="panel-section active">
+
+            <!-- 1. FILTROS DO PAINEL GERAL -->
+            <div class="filter-card">
+                <div class="filter-card-header">
+                    <div class="filter-card-title">
+                        <i data-lucide="sliders-horizontal" style="width: 18px; height: 18px; color: var(--brand-primary);"></i>
+                        <span>Filtros do Painel Geral</span>
+                    </div>
+                    <a href="?tab=dashboard" class="clear-filters-btn" style="text-decoration: none;">
+                        Limpar Filtros
+                    </a>
+                </div>
+
+                <form method="get" id="dashboard-filter-form">
+                    <input type="hidden" name="tab" value="dashboard">
+                    <div class="filter-grid">
+                        <div class="filter-group">
+                            <label>Data Inicial</label>
+                            <input type="date" name="date_start" value="{{ date_start }}" onchange="this.form.submit()">
+                        </div>
+                        <div class="filter-group">
+                            <label>Data Final</label>
+                            <input type="date" name="date_end" value="{{ date_end }}" onchange="this.form.submit()">
+                        </div>
+                        <div class="filter-group">
+                            <label>Sala/Turma</label>
+                            <select name="classroom" onchange="this.form.submit()">
+                                <option value="">Todas as salas</option>
+                                <option value="Alegria" {% if classroom_filter == 'Alegria' %}selected{% endif %}>Alegria</option>
+                                <option value="Carinho" {% if classroom_filter == 'Carinho' %}selected{% endif %}>Carinho</option>
+                                <option value="União" {% if classroom_filter == 'União' %}selected{% endif %}>União</option>
+                                <option value="Amizade" {% if classroom_filter == 'Amizade' %}selected{% endif %}>Amizade</option>
+                                <option value="Felicidade" {% if classroom_filter == 'Felicidade' %}selected{% endif %}>Felicidade</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Criança</label>
+                            <select name="student_id" onchange="this.form.submit()">
+                                <option value="">Todas as crianças</option>
+                                {% for st in all_active_students %}
+                                    <option value="{{ st.id }}" {% if student_id_filter == st.id %}selected{% endif %}>{{ st.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Atalhos Rápidos de Data -->
+                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-color); flex-wrap: wrap;">
+                        <span style="font-size: 12px; font-weight: 700; color: var(--slate-600); display: flex; align-items: center; gap: 4px;">
+                            <i data-lucide="calendar" style="width: 14px; height: 14px; color: var(--brand-primary);"></i> Atalhos Rápidos:
+                        </span>
+                        <button type="button" onclick="setPreset('today')" class="preset-btn {% if preset == 'today' %}active{% endif %}">Hoje</button>
+                        <button type="button" onclick="setPreset('thisMonth')" class="preset-btn {% if preset == 'thisMonth' %}active{% endif %}">Este Mês</button>
+                        <button type="button" onclick="setPreset('lastMonth')" class="preset-btn {% if preset == 'lastMonth' %}active{% endif %}">Mês Passado</button>
+                        <button type="button" onclick="setPreset('semester')" class="preset-btn {% if preset == 'semester' %}active{% endif %}">Semestre Atual</button>
+                        <button type="button" onclick="setPreset('year')" class="preset-btn {% if preset == 'year' %}active{% endif %}">Ano Atual</button>
+                    </div>
+                    <input type="hidden" name="preset" id="preset-input" value="{{ preset }}">
+                </form>
+            </div>
+
+            <!-- 2. RESUMO GERAL DO PERÍODO (3 CARDS NO TOPO) -->
+            <div style="margin-top: 24px; margin-bottom: 24px;">
+                <h3 style="font-family: 'Outfit', sans-serif; font-size: 18px; font-weight: 700; color: var(--slate-800); display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                    <i data-lucide="trending-up" style="width: 20px; height: 20px; color: var(--brand-primary);"></i>
+                    Resumo Geral do Período
+                </h3>
+
+                <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+                    <!-- Card 1: Total Geral de Alunos Ativos -->
+                    <div class="metric-card" onclick="openClassModal('TODOS')" style="border-left: 4px solid var(--brand-primary); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">
+                        <div class="metric-header">
+                            <span class="metric-title" style="font-weight: 700;">Total Geral de Alunos</span>
+                            <div class="metric-icon-box" style="background-color: var(--brand-light); color: var(--brand-primary); font-size: 16px;">🏫</div>
+                        </div>
+                        <div class="metric-value" style="font-size: 32px; font-weight: 800;">{{ metrics.total_alunos }}</div>
+                        <div class="metric-footer text-secondary"><span>Alunos matriculados ativos &middot; Clique para ver</span></div>
+                    </div>
+
+                    <!-- Card 2: Novas Matrículas no Período Filtrado -->
+                    <div class="metric-card" onclick="openEnrollmentModal()" style="border-left: 4px solid #10b981; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; {% if novas_matriculas_count > 0 %}background-color: #ecfdf5;{% endif %}">
+                        <div class="metric-header">
+                            <span class="metric-title" style="font-weight: 700; color: #047857;">Novas Matrículas no Período</span>
+                            <div class="metric-icon-box" style="background-color: #d1fae5; color: #10b981; font-size: 16px;">🎒</div>
+                        </div>
+                        <div class="metric-value" style="font-size: 32px; font-weight: 800; color: #047857;">
+                            {{ novas_matriculas_count }}
+                        </div>
+                        <div class="metric-footer" style="color: #047857;">
+                            <span>{% if novas_matriculas_count == 1 %}1 nova matrícula no período{% else %}{{ novas_matriculas_count }} novas matrículas no período{% endif %} &middot; Clique para ver</span>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Desligamentos no Período Filtrado -->
+                    <div class="metric-card" onclick="openDeactivationModal()" style="border-left: 4px solid #f59e0b; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; {% if desligamentos_count > 0 %}background-color: #fffbeb;{% endif %}">
+                        <div class="metric-header">
+                            <span class="metric-title" style="font-weight: 700; color: #92400e;">Desligamentos no Período</span>
+                            <div class="metric-icon-box" style="background-color: #fef3c7; color: #b45309; font-size: 16px;">⚠️</div>
+                        </div>
+                        <div class="metric-value" style="font-size: 32px; font-weight: 800; color: #b45309;">
+                            {{ desligamentos_count }}
+                        </div>
+                        <div class="metric-footer" style="color: #b45309;">
+                            <span>{% if desligamentos_count == 1 %}1 desligamento agendado{% else %}{{ desligamentos_count }} desligamentos agendados{% endif %} &middot; Clique para ver</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. CARDS DAS TURMAS (ALUNOS POR SALA DE AULA) -->
+            <div style="margin-bottom: 32px;">
+                <h3 style="font-family: 'Outfit', sans-serif; font-size: 18px; font-weight: 700; color: var(--slate-800); display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                    <i data-lucide="baby" style="width: 20px; height: 20px; color: var(--brand-primary);"></i>
+                    Visão Geral: Alunos por Sala de Aula
+                </h3>
+                
+                <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px;">
+                    {% for sala in salas_cards_data %}
+                    <div class="metric-card" onclick="openClassModal('{{ sala.nome }}')" style="border-left: 4px solid {{ sala.border }}; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">
+                        <div class="metric-header">
+                            <span class="metric-title">Sala {{ sala.nome }}</span>
+                            <div class="metric-icon-box" style="background-color: {{ sala.bg_icon }}; color: {{ sala.border }}; font-size: 16px;">{{ sala.emoji }}</div>
+                        </div>
+                        <div class="metric-value" style="color: {{ sala.color_val }};">{{ sala.count }}</div>
+                        <div class="metric-footer" style="color: {{ sala.color_foot }};"><span>{{ sala.etapa }} &middot; Clique para ver</span></div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- 4. MÓDULO I: CONTROLE DE FREQUÊNCIA -->
+            <div style="margin-bottom: 32px;">
+                <h3 style="font-family: 'Outfit', sans-serif; font-size: 18px; font-weight: 700; color: var(--slate-800); display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                    <i data-lucide="clipboard-check" style="width: 20px; height: 20px; color: var(--brand-primary);"></i>
+                    Módulo I: Controle de Frequência
+                </h3>
+                <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+                    <div class="metric-card" style="border-left: 4px solid #10b981;">
+                        <div class="metric-header">
+                            <span class="metric-title">Taxa de Assiduidade Geral</span>
+                            <div class="metric-icon-box" style="background-color: #ecfdf5; color: #10b981;"><i data-lucide="percent" style="width: 18px; height: 18px;"></i></div>
+                        </div>
+                        <div class="metric-value" style="color: #065f46;">{{ metrics.assiduidade_rate }}%</div>
+                        <div class="metric-footer" style="color: #047857;"><span>Presença média acumulada</span></div>
+                    </div>
+
+                    <div class="metric-card" style="border-left: 4px solid var(--brand-primary);">
+                        <div class="metric-header">
+                            <span class="metric-title">Chamadas Registradas</span>
+                            <div class="metric-icon-box" style="background-color: var(--brand-light); color: var(--brand-primary);"><i data-lucide="clipboard-check" style="width: 18px; height: 18px;"></i></div>
+                        </div>
+                        <div class="metric-value">{{ metrics.total_registros }}</div>
+                        <div class="metric-footer text-secondary"><span>{{ metrics.total_presencas }} presentes e {{ metrics.total_faltas }} faltas</span></div>
+                    </div>
+
+                    <div class="metric-card" style="border-left: 4px solid #f59e0b;">
+                        <div class="metric-header">
+                            <span class="metric-title">Faltas Justificadas</span>
+                            <div class="metric-icon-box" style="background-color: #fffbeb; color: #f59e0b;"><i data-lucide="check-square" style="width: 18px; height: 18px;"></i></div>
+                        </div>
+                        <div class="metric-value" style="color: #b45309;">{{ metrics.total_justificadas }}</div>
+                        <div class="metric-footer" style="color: #b45309;"><span>com justificativa comunicada</span></div>
+                    </div>
+
+                    <div class="metric-card" style="border-left: 4px solid #ef4444;">
+                        <div class="metric-header">
+                            <span class="metric-title">Faltas Não Justificadas</span>
+                            <div class="metric-icon-box" style="background-color: #fef2f2; color: #ef4444;"><i data-lucide="x" style="width: 18px; height: 18px;"></i></div>
+                        </div>
+                        <div class="metric-value" style="color: #991b1b;">{{ metrics.total_faltas_injust }}</div>
+                        <div class="metric-footer" style="color: #991b1b;"><span>sem justificativa comunicada</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. MÓDULO II: CADERNO DE REGISTROS SEAMI -->
+            <div style="margin-bottom: 32px;">
+                <h3 style="font-family: 'Outfit', sans-serif; font-size: 18px; font-weight: 700; color: var(--slate-800); display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                    <i data-lucide="book-open" style="width: 20px; height: 20px; color: #be185d;"></i>
+                    Módulo II: Caderno de Registros SEAMI
+                </h3>
+                <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                    <div class="metric-card metric-atrasos">
+                        <div class="metric-header"><span class="metric-title">Atrasos</span><div class="metric-icon-box"><i data-lucide="clock" style="width: 18px; height: 18px;"></i></div></div>
+                        <div class="metric-value">{{ metrics.delays_count }}</div>
+                        <div class="metric-footer text-atrasos"><i data-lucide="trending-up" style="width: 14px; height: 14px;"></i><span>{{ metrics.delays_minutes }} min acumulados</span></div>
+                    </div>
+
+                    <div class="metric-card metric-faltas">
+                        <div class="metric-header"><span class="metric-title">Faltas no Caderno</span><div class="metric-icon-box"><i data-lucide="calendar-x" style="width: 18px; height: 18px;"></i></div></div>
+                        <div class="metric-value">{{ metrics.total_faltas }}</div>
+                        <div class="metric-footer text-faltas"><span>{{ metrics.total_justificadas }} justificadas no caderno</span></div>
+                    </div>
+
+                    <div class="metric-card metric-atestados">
+                        <div class="metric-header"><span class="metric-title">Atestados Médicos</span><div class="metric-icon-box"><i data-lucide="activity" style="width: 18px; height: 18px;"></i></div></div>
+                        <div class="metric-value">{{ metrics.atestados_count }}</div>
+                        <div class="metric-footer text-atestados"><span>{{ metrics.atestados_ativos_hoje }} atestados ativos no período</span></div>
+                    </div>
+
+                    <div class="metric-card metric-saidas">
+                        <div class="metric-header"><span class="metric-title">Saídas Antecipadas</span><div class="metric-icon-box"><i data-lucide="log-out" style="width: 18px; height: 18px;"></i></div></div>
+                        <div class="metric-value">{{ metrics.saidas_count }}</div>
+                        <div class="metric-footer text-saidas"><span>{{ metrics.saidas_retornos }} com retorno programado</span></div>
+                    </div>
+
+                    <div class="metric-card metric-amamentacao">
+                        <div class="metric-header"><span class="metric-title">Amamentação</span><div class="metric-icon-box"><i data-lucide="heart" style="width: 18px; height: 18px;"></i></div></div>
+                        <div class="metric-value">{{ metrics.amamentacao_count }}</div>
+                        <div class="metric-footer text-amamentacao"><span>Permanência média: {{ metrics.amamentacao_avg }} min</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. MÓDULO I: GRÁFICOS DE FREQUÊNCIA & ASSIDUIDADE -->
+            <div style="margin-top: 24px; margin-bottom: 32px;">
+                <h3 style="font-family: 'Outfit', sans-serif; font-size: 18px; font-weight: 700; color: var(--slate-800); display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                    <i data-lucide="bar-chart-2" style="width: 20px; height: 20px; color: var(--brand-primary);"></i>
+                    Módulo I: Gráficos de Frequência & Assiduidade
+                </h3>
+                
+                <div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 20px;">
+                    <!-- 1. Taxa de Assiduidade por Sala (Bar) -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i data-lucide="bar-chart-2"></i><span>Taxa de Assiduidade por Sala</span></div>
+                        </div>
+                        <div class="chart-container" style="height: 280px; position: relative;">
+                            <canvas id="chart-1"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 2. Evolução Diária da Frequência (Line Area) -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i data-lucide="trending-up"></i><span>Evolução Diária da Frequência</span></div>
+                        </div>
+                        <div class="chart-container" style="height: 280px; position: relative;">
+                            <canvas id="chart-2"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 3. Faltas por Aluno no Período (Stacked Bar) -->
+                    <div class="chart-card" style="grid-column: 1 / -1;">
+                        <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center;">
+                            <div class="chart-title"><i data-lucide="calendar-x"></i><span>Faltas por Aluno no Período — Justificadas vs Não Justificadas</span></div>
+                        </div>
+                        <div class="chart-container" style="height: 300px; position: relative;">
+                            <canvas id="chart-7"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 4. Atrasos por Aluno no Período (Stacked Bar) -->
+                    <div class="chart-card" style="grid-column: 1 / -1;">
+                        <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center;">
+                            <div class="chart-title"><i data-lucide="clock"></i><span>Atrasos por Aluno no Período — Justificadas vs Não Justificadas</span></div>
+                        </div>
+                        <div class="chart-container" style="height: 300px; position: relative;">
+                            <canvas id="chart-8"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 5. Atestados Médicos por Aluno no Período (Bar) -->
+                    <div class="chart-card" style="grid-column: 1 / -1;">
+                        <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center;">
+                            <div class="chart-title"><i data-lucide="activity"></i><span>Atestados Médicos por Aluno no Período</span></div>
+                        </div>
+                        <div class="chart-container" style="height: 300px; position: relative;">
+                            <canvas id="chart-9"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 7. MÓDULO II: GRÁFICOS DO CADERNO DE REGISTROS SEAMI -->
+            <div style="margin-top: 24px; margin-bottom: 40px;">
+                <h3 style="font-family: 'Outfit', sans-serif; font-size: 18px; font-weight: 700; color: var(--slate-800); display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                    <i data-lucide="book-open" style="width: 20px; height: 20px; color: #be185d;"></i>
+                    Módulo II: Gráficos do Caderno de Registros SEAMI
+                </h3>
+
+                <div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 20px;">
+                    <!-- 1. Volume de Atrasos Mensal (Line) -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i data-lucide="clock"></i><span>Volume de Atrasos Mensal</span></div>
+                        </div>
+                        <div class="chart-container" style="height: 280px; position: relative;">
+                            <canvas id="chart-3"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 2. Distribuição de Ocorrências (Donut) -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i data-lucide="pie-chart"></i><span>Distribuição de Ocorrências</span></div>
+                        </div>
+                        <div class="chart-container" style="height: 280px; position: relative;">
+                            <canvas id="chart-4"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 3. Crianças com Mais Ocorrências no Caderno (Horizontal Bar) -->
+                    <div class="chart-card" style="grid-column: 1 / -1;">
+                        <div class="chart-header">
+                            <div class="chart-title"><i data-lucide="users"></i><span>Crianças com Mais Ocorrências no Caderno</span></div>
+                        </div>
+                        <div class="chart-container" style="height: 300px; position: relative;">
+                            <canvas id="chart-5"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 4. Alunos Matriculados por Mês & Calendário de Frequência Diária -->
+                    <div style="grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 20px;">
+                        <!-- Coluna 1: 📈 Alunos Matriculados por Mês -->
+                        <div class="chart-card">
+                            <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                                <div style="display: flex; flex-direction: column; gap: 2px;">
+                                    <div class="chart-title" style="margin: 0; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                                        <span style="font-size: 18px;">📈</span>
+                                        <span>Alunos Matriculados por Mês</span>
+                                    </div>
+                                    <span style="font-size: 12px; color: var(--text-secondary);">
+                                        Evolução do headcount de alunos ativos nos últimos 6 meses
+                                    </span>
+                                </div>
+                                <span style="background-color: var(--color-primary-light); color: var(--color-primary); font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 700;">
+                                    Alunos Matriculados
+                                </span>
+                            </div>
+                            <div class="chart-container" style="height: 300px; position: relative; margin-top: 10px;">
+                                <canvas id="chart-matriculados-mes"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Coluna 2: 📅 Calendário de Frequência Diária -->
+                        <div class="chart-card">
+                            <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                                <div style="display: flex; flex-direction: column; gap: 2px;">
+                                    <div class="chart-title" style="margin: 0; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                                        <span style="font-size: 18px;">📅</span>
+                                        <span>Calendário de Frequência Diária</span>
+                                    </div>
+                                    <span style="font-size: 12px; color: var(--text-secondary);">
+                                        Frequência dos alunos em relação à quantidade de matriculados
+                                    </span>
+                                </div>
+                                <span style="background-color: #f1f5f9; color: #475569; font-size: 11.5px; padding: 4px 10px; border-radius: 8px; font-weight: 700;">
+                                    Agosto / 2026
+                                </span>
+                            </div>
+
+                            <!-- GRID DO CALENDÁRIO -->
+                            <div style="margin-top: 12px;">
+                                <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center; font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                                    <div>DOM</div><div>SEG</div><div>TER</div><div>QUA</div><div>QUI</div><div>SEX</div><div>SÁB</div>
+                                </div>
+                                <div id="calendar-days-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px;">
+                                    <!-- Preenchido via JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 5. Consolidado Mês a Mês: Frequência vs Matriculados (Stacked Bar) -->
+                    <div class="chart-card" style="grid-column: 1 / -1;">
+                        <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                            <div style="display: flex; flex-direction: column; gap: 2px;">
+                                <div class="chart-title" style="margin: 0; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 18px;">📊</span>
+                                    <span>Consolidado Mês a Mês: Frequência vs Matriculados</span>
+                                </div>
+                                <span style="font-size: 12px; color: var(--text-secondary);">
+                                    Relação entre média de alunos presentes (frequência) e ausentes empilhados até o total de matriculados por mês
+                                </span>
+                            </div>
+                        </div>
+                        <div class="chart-container" style="height: 300px; position: relative; margin-top: 10px;">
+                            <canvas id="chart-frequencia-mes-a-mes"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 6. Registros de Amamentação por Dia (Line Diário) -->
+                    <div class="chart-card" style="grid-column: 1 / -1;">
+                        <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                            <div style="display: flex; flex-direction: column; gap: 2px;">
+                                <div class="chart-title" style="margin: 0; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 18px;">🤱</span>
+                                    <span>Registros de Amamentação por Dia</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chart-container" style="height: 290px; position: relative; margin-top: 10px;">
+                            <canvas id="chart-amamentacao-diaria"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- MODAL 1: ALUNOS DA TURMA SELECIONADA -->
+        <div id="modal-class-students" class="modal-overlay" style="display: none;">
+            <div class="modal-card" style="max-width: 540px;" onclick="event.stopPropagation()">
+                <div class="modal-header" style="border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 16px 20px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div id="class-modal-icon" style="width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: #e0f2fe; color: #0284c7;">
+                            👶
+                        </div>
+                        <div>
+                            <h3 id="class-modal-title" style="margin: 0; font-size: 17px; font-weight: 700; color: var(--text-primary);">Alunos da Sala</h3>
+                            <span id="class-modal-subtitle" style="font-size: 12.5px; color: var(--text-secondary);">Total: 0 crianças matriculadas</span>
+                        </div>
+                    </div>
+                    <button onclick="closeClassModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-secondary);">&times;</button>
+                </div>
+                <div id="class-modal-list" style="max-height: 380px; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Preenchido dinamicamente via JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL 2: DESLIGAMENTOS PREVISTOS -->
+        <div id="modal-deactivations" class="modal-overlay" style="display: none;">
+            <div class="modal-card" style="max-width: 560px;" onclick="event.stopPropagation()">
+                <div class="modal-header" style="border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 16px 20px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: #fef3c7; color: #d97706;">
+                            👋
+                        </div>
+                        <div>
+                            <h3 style="margin: 0; font-size: 16.5px; font-weight: 700; color: var(--text-primary);">Desligamentos Previstos no Período</h3>
+                            <span style="font-size: 12px; color: var(--text-secondary);">Período: {{ date_start_formatted }} a {{ date_end_formatted }} &middot; Total: {{ desligamentos_count }}</span>
+                        </div>
+                    </div>
+                    <button onclick="closeDeactivationModal()" style="background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text-secondary);">&times;</button>
+                </div>
+                <div style="max-height: 400px; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 10px;">
+                    {% for d in desligamentos %}
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span style="font-size: 22px;">🧒</span>
+                            <div>
+                                <div style="font-weight: 700; font-size: 14px; color: var(--text-primary);">{{ d.nome }}</div>
+                                <div style="font-size: 12px; color: var(--text-secondary);">
+                                    Sala {{ d.turma.nome|default:"Geral" }} &middot; Turno: {{ d.get_turno_display }}
+                                </div>
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="background-color: #fee2e2; color: #b91c1c; font-size: 11px; padding: 4px 8px; border-radius: 6px; font-weight: 700; display: inline-block;">
+                                Saída: {{ d.data_desligamento|date:"d/m/Y" }}
+                            </span>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div style="text-align: center; padding: 30px; color: var(--text-secondary); font-size: 13.5px;">
+                        Nenhum desligamento previsto para este período.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL 3: NOVAS MATRÍCULAS NO PERÍODO -->
+        <div id="modal-enrollments" class="modal-overlay" style="display: none;">
+            <div class="modal-card" style="max-width: 560px;" onclick="event.stopPropagation()">
+                <div class="modal-header" style="border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 16px 20px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: #dcfce7; color: #16a34a;">
+                            👶
+                        </div>
+                        <div>
+                            <h3 style="margin: 0; font-size: 16.5px; font-weight: 700; color: var(--text-primary);">Novas Matrículas no Período</h3>
+                            <span style="font-size: 12px; color: var(--text-secondary);">Período: {{ date_start_formatted }} a {{ date_end_formatted }} &middot; Total: {{ novas_matriculas_count }}</span>
+                        </div>
+                    </div>
+                    <button onclick="closeEnrollmentModal()" style="background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text-secondary);">&times;</button>
+                </div>
+                <div style="max-height: 400px; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 10px;">
+                    {% for m in novas_matriculas %}
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span style="font-size: 22px;">👶</span>
+                            <div>
+                                <div style="font-weight: 700; font-size: 14px; color: var(--text-primary);">{{ m.nome }}</div>
+                                <div style="font-size: 12px; color: var(--text-secondary);">
+                                    Sala {{ m.turma.nome|default:"Geral" }} &middot; Turno: {{ m.get_turno_display }}
+                                </div>
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="background-color: #ecfdf5; color: #047857; font-size: 11px; padding: 4px 8px; border-radius: 6px; font-weight: 700; display: inline-block;">
+                                🎒 Entrada: {{ m.data_entrada|date:"d/m/Y"|default:"-" }}
+                            </span>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div style="text-align: center; padding: 30px; color: var(--text-secondary); font-size: 13.5px;">
+                        Nenhuma nova matrícula registrada neste período.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        {% endif %}
+
+        <!-- ============================================================= -->
+        <!-- 2. RELATÓRIOS DO CADERNO (RELATÓRIOS ANALÍTICOS)              -->
+        <!-- ============================================================= -->
+        {% if active_tab == 'relatorios' %}
+        <section class="panel-section active" style="display: flex; flex-direction: column; gap: 20px;">
+
+            <!-- NAVEGAÇÃO ENTRE AS 4 ABAS DE RELATÓRIO -->
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 14px;">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <a href="?tab=relatorios&subtab=faltas{% if classroom_filter %}&classroom={{ classroom_filter }}{% endif %}&date_start={{ date_start }}&date_end={{ date_end }}"
+                       class="subtab-pill {% if active_tab_nav == 'faltas' %}active{% endif %}">
+                        <i data-lucide="calendar-x" style="width: 16px; height: 16px;"></i>
+                        <span>Relatório de Faltas</span>
+                    </a>
+
+                    <a href="?tab=relatorios&subtab=atrasos{% if classroom_filter %}&classroom={{ classroom_filter }}{% endif %}&date_start={{ date_start }}&date_end={{ date_end }}"
+                       class="subtab-pill {% if active_tab_nav == 'atrasos' %}active{% endif %}">
+                        <i data-lucide="clock" style="width: 16px; height: 16px;"></i>
+                        <span>Relatório de Atrasos</span>
+                    </a>
+
+                    <a href="?tab=relatorios&subtab=frequencia{% if classroom_filter %}&classroom={{ classroom_filter }}{% endif %}&date_start={{ date_start }}&date_end={{ date_end }}"
+                       class="subtab-pill {% if active_tab_nav == 'frequencia' %}active{% endif %}">
+                        <i data-lucide="bar-chart-3" style="width: 16px; height: 16px;"></i>
+                        <span>Frequência vs Matriculados</span>
+                    </a>
+
+                    <a href="?tab=relatorios&subtab=matriculas{% if classroom_filter %}&classroom={{ classroom_filter }}{% endif %}&date_start={{ date_start }}&date_end={{ date_end }}"
+                       class="subtab-pill {% if active_tab_nav == 'matriculas' %}active{% endif %}">
+                        <i data-lucide="user-plus" style="width: 16px; height: 16px;"></i>
+                        <span>Matrícula / Desligamento</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- FILTROS DO RELATÓRIO COM CABEÇALHO DE AÇÕES E EXPORTAÇÃO -->
+            <div class="filter-card" style="margin-bottom: 0;">
+                <div class="filter-card-header" style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+                    <div class="filter-card-title" style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; color: var(--text-primary);">
+                        <i data-lucide="filter" style="color: var(--color-primary); width: 18px; height: 18px;"></i>
+                        <span>
+                            {% if active_tab_nav == 'faltas' %}
+                                Relatório de Gestão de Faltas
+                            {% elif active_tab_nav == 'atrasos' %}
+                                Relatório de Gestão de Atrasos
+                            {% elif active_tab_nav == 'frequencia' %}
+                                Relatório de Frequência vs Matriculados
+                            {% else %}
+                                Relatório de Matrículas e Desligamentos (Mês a Mês)
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    <!-- BOTÕES DE EXPORTAÇÃO EXCEL E PDF -->
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <button type="button" onclick="exportReportExcel()" class="secondary-btn" style="padding: 8px 14px; border-radius: 8px; border: 1px solid #a7f3d0; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; background-color: #ecfdf5; color: #047857;">
+                            <i data-lucide="sheet" style="width: 15px; height: 15px;"></i>
+                            <span>Exportar Excel (.xlsx)</span>
+                        </button>
+
+                        <button type="button" onclick="exportReportPDF()" class="secondary-btn" style="padding: 8px 14px; border-radius: 8px; border: 1px solid #fed7aa; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; background-color: #fff7ed; color: #c2410c;">
+                            <i data-lucide="file-text" style="width: 15px; height: 15px;"></i>
+                            <span>Exportar PDF (.pdf)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <form method="get" id="report-filter-form" style="display: flex; flex-direction: column; gap: 14px;">
+                    <input type="hidden" name="tab" value="relatorios">
+                    <input type="hidden" name="subtab" value="{{ active_tab_nav }}">
+                    <div class="filter-grid">
+                        <div class="filter-group">
+                            <label>Data Inicial</label>
+                            <input type="date" id="input_date_start" name="date_start" value="{{ date_start }}" onchange="this.form.submit()">
+                        </div>
+                        <div class="filter-group">
+                            <label>Data Final</label>
+                            <input type="date" id="input_date_end" name="date_end" value="{{ date_end }}" onchange="this.form.submit()">
+                        </div>
+                        <div class="filter-group">
+                            <label>Sala / Turma</label>
+                            <select name="classroom" onchange="this.form.submit()">
+                                <option value="">Todas as salas</option>
+                                {% for t in turmas %}
+                                    <option value="{{ t.nome }}" {% if classroom_filter == t.nome %}selected{% endif %}>{{ t.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% if active_tab_nav == 'faltas' or active_tab_nav == 'atrasos' %}
+                        <div class="filter-group">
+                            <label>Criança</label>
+                            <select name="student_id" onchange="this.form.submit()">
+                                <option value="">Todas as crianças</option>
+                                {% for st in all_students %}
+                                    <option value="{{ st.id }}" {% if student_id_filter == st.id %}selected{% endif %}>{{ st.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+                        {% if active_tab_nav == 'faltas' %}
+                        <div class="filter-group">
+                            <label>Tipo de Falta</label>
+                            <select name="justified" onchange="this.form.submit()">
+                                <option value="all" {% if justified_filter == 'all' %}selected{% endif %}>Todas as faltas</option>
+                                <option value="sim" {% if justified_filter == 'sim' %}selected{% endif %}>Apenas Justificadas</option>
+                                <option value="nao" {% if justified_filter == 'nao' %}selected{% endif %}>Apenas Não Justificadas</option>
+                            </select>
+                        </div>
+                        {% elif active_tab_nav == 'atrasos' %}
+                        <div class="filter-group">
+                            <label>Tipo de Atraso</label>
+                            <select name="justified" onchange="this.form.submit()">
+                                <option value="all" {% if justified_filter == 'all' %}selected{% endif %}>Todos os atrasos</option>
+                                <option value="sim" {% if justified_filter == 'sim' %}selected{% endif %}>Apenas Justificados</option>
+                                <option value="nao" {% if justified_filter == 'nao' %}selected{% endif %}>Apenas Não Justificados</option>
+                            </select>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Períodos Rápidos -->
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-top: 10px; border-top: 1px dashed var(--border-color);">
+                        <span style="font-size: 12px; font-weight: 700; color: var(--text-secondary);">Períodos Rápidos:</span>
+                        <button type="button" onclick="setReportPreset(7)" class="secondary-btn" style="padding: 4px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; border: 1px solid var(--border-color); background: var(--bg-body); cursor: pointer;">Últimos 7 dias</button>
+                        <button type="button" onclick="setReportPreset(30)" class="secondary-btn" style="padding: 4px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; border: 1px solid var(--border-color); background: var(--bg-body); cursor: pointer;">Últimos 30 dias</button>
+                        <button type="button" onclick="setReportPreset(90)" class="secondary-btn" style="padding: 4px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; border: 1px solid var(--border-color); background: var(--bg-body); cursor: pointer;">Último Trimestre</button>
+                        <button type="button" onclick="setReportPreset('year')" class="secondary-btn" style="padding: 4px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; border: 1px solid var(--border-color); background: var(--bg-body); cursor: pointer;">Este Ano</button>
+                        <a href="?tab=relatorios&subtab={{ active_tab_nav }}" class="secondary-btn" style="padding: 4px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; border: 1px solid var(--border-color); color: var(--text-secondary); text-decoration: none; background: var(--bg-body);">Limpar Filtros</a>
+                    </div>
+                </form>
+            </div>
+
+            <!-- CONTEÚDO DA SUB-ABA FALTAS (COM 6 CARDS) -->
+            {% if active_tab_nav == 'faltas' %}
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px;">
+                    <div class="metric-card" style="border-left: 4px solid #ef4444;">
+                        <div class="metric-header"><span class="metric-title">Faltas no Período</span></div>
+                        <div class="metric-value" style="color: #b91c1c;">{{ faltas_cards.total_periodo }}</div>
+                        <div class="metric-footer" style="color: var(--text-secondary);"><span>No intervalo filtrado</span></div>
+                    </div>
+                    <div class="metric-card" style="border-left: 4px solid #10b981;">
+                        <div class="metric-header"><span class="metric-title">Justificadas</span></div>
+                        <div class="metric-value" style="color: #047857;">{{ faltas_cards.justificadas_periodo }}</div>
+                        <div class="metric-footer" style="color: #047857;"><span>Com atestado/motivo</span></div>
+                    </div>
+                    <div class="metric-card" style="border-left: 4px solid #f97316;">
+                        <div class="metric-header"><span class="metric-title">Não Justificadas</span></div>
+                        <div class="metric-value" style="color: #c2410c;">{{ faltas_cards.nao_justificadas_periodo }}</div>
+                        <div class="metric-footer" style="color: #c2410c;"><span>Sem justificativa</span></div>
+                    </div>
+                    <div class="metric-card" style="border-left: 4px solid #6366f1;">
+                        <div class="metric-header"><span class="metric-title">Total Faltas no Ano</span></div>
+                        <div class="metric-value">{{ faltas_cards.total_ano }}</div>
+                        <div class="metric-footer" style="color: var(--text-secondary);"><span>Acumulado no ano</span></div>
+                    </div>
+                    <div class="metric-card" style="border-left: 4px solid #8b5cf6;">
+                        <div class="metric-header"><span class="metric-title">Crianças Impactadas</span></div>
+                        <div class="metric-value">{{ faltas_cards.criancas_impactadas }}</div>
+                        <div class="metric-footer" style="color: var(--text-secondary);"><span>Pelo menos 1 falta</span></div>
+                    </div>
+                    <div class="metric-card" style="border-left: 4px solid #dc2626;">
+                        <div class="metric-header"><span class="metric-title">⚠️ Limite 10 Faltas/Ano</span></div>
+                        <div class="metric-value" style="color: #991b1b;">{{ faltas_cards.alunos_limite_10 }}</div>
+                        <div class="metric-footer" style="color: #991b1b;"><span>Não Justificadas (Jan-Dez)</span></div>
+                    </div>
+                </div>
+
+                <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden;">
+                    <div style="padding: 16px 20px; background: var(--bg-body); border-bottom: 1px solid var(--border-color); font-weight: 700; display: flex; justify-content: space-between; align-items: center;">
+                        <span>Quadro Detalhado de Faltas</span>
+                        <span style="font-size: 12px; color: var(--text-secondary);">Total de Registros: <strong>{{ faltas_tabela|length }}</strong></span>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13.5px;">
+                            <thead>
+                                <tr style="background: var(--bg-body); border-bottom: 1.5px solid var(--border-color); color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">
+                                    <th style="padding: 12px 16px;">Data</th>
+                                    <th style="padding: 12px 16px;">Criança</th>
+                                    <th style="padding: 12px 16px;">Sala</th>
+                                    <th style="padding: 12px 16px; text-align: center;">Tipo de Falta</th>
+                                    <th style="padding: 12px 16px;">Justificativa / Motivo</th>
+                                    <th style="padding: 12px 16px;">Responsável</th>
+                                    <th style="padding: 12px 16px; text-align: center;">Faltas Não Just. no Ano</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in faltas_tabela %}
+                                <tr style="border-bottom: 1px solid var(--border-color);">
+                                    <td style="padding: 12px 16px; font-weight: 600;">{{ row.data|date:"d/m/Y" }}</td>
+                                    <td style="padding: 12px 16px; font-weight: 700;">{{ row.aluno.nome }}</td>
+                                    <td style="padding: 12px 16px;">
+                                        <span style="background: {{ row.turma_style.bg }}; color: {{ row.turma_style.color }}; border: 1px solid {{ row.turma_style.border }}; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px;">
+                                            {{ row.turma_style.emoji }} Sala {{ row.turma.nome }}
+                                        </span>
+                                    </td>
+                                    <td style="padding: 12px 16px; text-align: center;">
+                                        {% if row.is_justificada %}
+                                            <span style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px;">✅ Justificada</span>
+                                        {% else %}
+                                            <span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px;">❌ Não Justificada</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="padding: 12px 16px; font-size: 12.5px; color: var(--text-secondary);">{{ row.motivo }}</td>
+                                    <td style="padding: 12px 16px; font-size: 12.5px;">{{ row.responsavel }}</td>
+                                    <td style="padding: 12px 16px; text-align: center;">
+                                        {% if row.is_alerta_10 %}
+                                            <span style="background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 2px 8px; border-radius: 6px; font-weight: 800; font-size: 12px;">⚠️ {{ row.faltas_no_ano }}</span>
+                                        {% else %}
+                                            <span style="font-weight: 700;">{{ row.faltas_no_ano }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="7" style="text-align: center; padding: 36px; color: var(--text-secondary);">Nenhum registro de falta no período filtrado.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- CONTEÚDO DA SUB-ABA ATRASOS (COM 5 CARDS) -->
+            {% if active_tab_nav == 'atrasos' %}
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
+                    <div class="metric-card" style="border-left: 4px solid #f59e0b;">
+                        <div class="metric-header"><span class="metric-title">Atrasos no Período</span></div>
+                        <div class="metric-value" style="color: #b45309;">{{ atrasos_cards.total_periodo }}</div>
+                        <div class="metric-footer" style="color: var(--text-secondary);"><span>No intervalo filtrado</span></div>
+                    </div>
+                    <div class="metric-card" style="border-left: 4px solid #10b981;">
+                        <div class="metric-header"><span class="metric-title">Justificados</span></div>
+                        <div class="metric-value" style="color: #047857;">{{ atrasos_cards.justificados_periodo }}</div>
+                        <div class="metric-footer" style="color: #047857;"><span>Com tolerância comunicada</span></div>
+                    </div>
+                    <div class="metric-card" style="border-left: 4px solid #ef4444;">
+                        <div class="metric-header"><span class="metric-title">Não Justificados</span></div>
+                        <div class="metric-value" style="color: #b91c1c;">{{ atrasos_cards.nao_justificados_periodo }}</div>
+                        <div class="metric-footer" style="color: #b91c1c;"><span>Sem comunicação prévia</span></div>
+                    </div>
+                    <div class="metric-card" style="border-left: 4px solid #6366f1;">
+                        <div class="metric-header"><span class="metric-title">Total Atrasos no Ano</span></div>
+                        <div class="metric-value">{{ atrasos_cards.total_ano }}</div>
+                        <div class="metric-footer" style="color: var(--text-secondary);"><span>Acumulado no ano</span></div>
+                    </div>
+                    <div class="metric-card" style="border-left: 4px solid #8b5cf6;">
+                        <div class="metric-header"><span class="metric-title">Crianças Impactadas</span></div>
+                        <div class="metric-value">{{ atrasos_cards.criancas_impactadas }}</div>
+                        <div class="metric-footer" style="color: var(--text-secondary);"><span>Pelo menos 1 atraso</span></div>
+                    </div>
+                </div>
+
+                <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden;">
+                    <div style="padding: 16px 20px; background: var(--bg-body); border-bottom: 1px solid var(--border-color); font-weight: 700;">
+                        Quadro Geral de Atrasos Registrados
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13.5px;">
+                            <thead>
+                                <tr style="background: var(--bg-body); border-bottom: 1.5px solid var(--border-color); color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">
+                                    <th style="padding: 12px 16px;">Data</th>
+                                    <th style="padding: 12px 16px;">Horário</th>
+                                    <th style="padding: 12px 16px;">Criança</th>
+                                    <th style="padding: 12px 16px;">Sala</th>
+                                    <th style="padding: 12px 16px; text-align: center;">Tipo de Atraso</th>
+                                    <th style="padding: 12px 16px;">Justificativa / Motivo</th>
+                                    <th style="padding: 12px 16px;">Responsável</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in atrasos_tabela %}
+                                <tr style="border-bottom: 1px solid var(--border-color);">
+                                    <td style="padding: 12px 16px; font-weight: 600;">{{ row.data|date:"d/m/Y" }}</td>
+                                    <td style="padding: 12px 16px; font-weight: 700; color: #d97706;">{{ row.horario }}</td>
+                                    <td style="padding: 12px 16px; font-weight: 700;">{{ row.aluno_nome }}</td>
+                                    <td style="padding: 12px 16px;">{{ row.turma_nome }}</td>
+                                    <td style="padding: 12px 16px; text-align: center;">
+                                        <span style="padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px; {% if row.is_justificado %}background: #ecfdf5; color: #047857;{% else %}background: #fef2f2; color: #b91c1c;{% endif %}">
+                                            {{ row.tipo_atraso }}
+                                        </span>
+                                    </td>
+                                    <td style="padding: 12px 16px; font-size: 12.5px; color: var(--text-secondary);">{{ row.motivo }}</td>
+                                    <td style="padding: 12px 16px; font-size: 12.5px;">{{ row.responsavel }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="7" style="text-align: center; padding: 36px; color: var(--text-secondary);">Nenhum registro de atraso no período.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- CONTEÚDO DA SUB-ABA FREQUÊNCIA VS MATRICULADOS -->
+            {% if active_tab_nav == 'frequencia' %}
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
+                    <div class="metric-card" style="border-left: 4px solid var(--color-primary);">
+                        <div class="metric-header"><span class="metric-title">Dias com Chamada</span></div>
+                        <div class="metric-value">{{ freq_cards.dias_com_chamada }}</div>
+                        <div class="metric-footer" style="color: var(--text-secondary);"><span>Datas letivas registradas</span></div>
+                    </div>
+                    <div class="metric-card" style="border-left: 4px solid #06b6d4;">
+                        <div class="metric-header"><span class="metric-title">Matriculados Ativos</span></div>
+                        <div class="metric-value">{{ freq_cards.total_matriculados }}</div>
+                        <div class="metric-footer" style="color: var(--text-secondary);"><span>Base consolidada</span></div>
+                    </div>
+                    <div class="metric-card" style="border-left: 4px solid #10b981;">
+                        <div class="metric-header"><span class="metric-title">Média Presentes/Dia</span></div>
+                        <div class="metric-value" style="color: #047857;">{{ freq_cards.media_presentes_dia }}</div>
+                        <div class="metric-footer" style="color: #047857;"><span>Média de presença</span></div>
+                    </div>
+                    <div class="metric-card" style="border-left: 4px solid #8b5cf6;">
+                        <div class="metric-header"><span class="metric-title">Taxa Média Assiduidade</span></div>
+                        <div class="metric-value" style="color: #7c3aed;">{{ freq_cards.frequencia_media }}%</div>
+                        <div class="metric-footer" style="color: #7c3aed;"><span>Taxa do período</span></div>
+                    </div>
+                </div>
+
+                <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden;">
+                    <div style="padding: 16px 20px; background: var(--bg-body); border-bottom: 1px solid var(--border-color); font-weight: 700;">
+                        Frequência Diária vs Alunos Matriculados
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13.5px;">
+                            <thead>
+                                <tr style="background: var(--bg-body); border-bottom: 1.5px solid var(--border-color); color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">
+                                    <th style="padding: 12px 16px;">Data</th>
+                                    <th style="padding: 12px 16px;">Turma / Sala</th>
+                                    <th style="padding: 12px 16px; text-align: center;">Matriculados</th>
+                                    <th style="padding: 12px 16px; text-align: center;">Presentes</th>
+                                    <th style="padding: 12px 16px; text-align: center;">Ausentes</th>
+                                    <th style="padding: 12px 16px; text-align: center;">Taxa (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in freq_tabela %}
+                                <tr style="border-bottom: 1px solid var(--border-color);">
+                                    <td style="padding: 12px 16px; font-weight: 600;">{{ row.data|date:"d/m/Y" }}</td>
+                                    <td style="padding: 12px 16px; font-weight: 700;">Sala {{ row.turma.nome }}</td>
+                                    <td style="padding: 12px 16px; text-align: center;">{{ row.matriculados }}</td>
+                                    <td style="padding: 12px 16px; text-align: center; color: #047857; font-weight: 700;">{{ row.presentes }}</td>
+                                    <td style="padding: 12px 16px; text-align: center; color: #b91c1c; font-weight: 700;">{{ row.faltas }}</td>
+                                    <td style="padding: 12px 16px; text-align: center; font-weight: 800;">{{ row.taxa }}%</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="6" style="text-align: center; padding: 36px; color: var(--text-secondary);">Sem registros de frequência no período.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- CONTEÚDO DA SUB-ABA MATRÍCULAS / DESLIGAMENTOS -->
+            {% if active_tab_nav == 'matriculas' %}
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
+                    <div class="metric-card" style="border-left: 4px solid #10b981;">
+                        <div class="metric-header"><span class="metric-title">Novas Matrículas</span></div>
+                        <div class="metric-value" style="color: #047857;">+{{ matriculas_cards.novas_matriculas }}</div>
+                        <div class="metric-footer" style="color: #047857;"><span>Entradas no período</span></div>
+                    </div>
+                    <div class="metric-card" style="border-left: 4px solid #ef4444;">
+                        <div class="metric-header"><span class="metric-title">Deslig. Realizados</span></div>
+                        <div class="metric-value" style="color: #b91c1c;">-{{ matriculas_cards.desligamentos_realizados }}</div>
+                        <div class="metric-footer" style="color: #b91c1c;"><span>Saídas concluídas</span></div>
+                    </div>
+                    <div class="metric-card" style="border-left: 4px solid #f59e0b;">
+                        <div class="metric-header"><span class="metric-title">Deslig. Previstos</span></div>
+                        <div class="metric-value" style="color: #b45309;">⏳ {{ matriculas_cards.desligamentos_previstos }}</div>
+                        <div class="metric-footer" style="color: #b45309;"><span>Saídas programadas</span></div>
+                    </div>
+                    <div class="metric-card" style="border-left: 4px solid var(--color-primary);">
+                        <div class="metric-header"><span class="metric-title">Total Alunos Ativos</span></div>
+                        <div class="metric-value">{{ matriculas_cards.total_matriculados_ativos }}</div>
+                        <div class="metric-footer" style="color: var(--text-secondary);"><span>Atualmente na creche</span></div>
+                    </div>
+                </div>
+
+                <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden;">
+                    <div style="padding: 16px 20px; background: var(--bg-body); border-bottom: 1px solid var(--border-color); font-weight: 700;">
+                        Balanço Mensal de Novas Matrículas e Desligamentos
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13.5px;">
+                            <thead>
+                                <tr style="background: var(--bg-body); border-bottom: 1.5px solid var(--border-color); color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">
+                                    <th style="padding: 12px 16px;">Mês / Ano</th>
+                                    <th style="padding: 12px 16px;">Turma</th>
+                                    <th style="padding: 12px 16px; text-align: center; color: #047857;">Novas Matrículas (+)</th>
+                                    <th style="padding: 12px 16px; text-align: center; color: #b91c1c;">Desligamentos Realizados (-)</th>
+                                    <th style="padding: 12px 16px; text-align: center; color: #b45309;">Desligamentos Previstos (⏳)</th>
+                                    <th style="padding: 12px 16px; text-align: center;">Total Alunos Ativos</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in mat_tabela %}
+                                <tr style="border-bottom: 1px solid var(--border-color);">
+                                    <td style="padding: 12px 16px; font-weight: 700;">{{ row.mes_ano }}</td>
+                                    <td style="padding: 12px 16px;">{{ row.turma.nome|default:"Geral" }}</td>
+                                    <td style="padding: 12px 16px; text-align: center; font-weight: 800; color: #047857;">+{{ row.novas_matriculas }}</td>
+                                    <td style="padding: 12px 16px; text-align: center; font-weight: 800; color: #b91c1c;">-{{ row.deslig_realizados }}</td>
+                                    <td style="padding: 12px 16px; text-align: center; font-weight: 800; color: #b45309;">⏳ {{ row.deslig_previstos }}</td>
+                                    <td style="padding: 12px 16px; text-align: center; font-weight: 700;">{{ row.matriculados_ativos }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+        </section>
+        {% endif %}
+
+    </main>
+
+    <!-- SCRIPTS E EXPORTAÇÕES -->
+    <script>
+        lucide.createIcons();
+
+        function togglePublicTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme') || 'light';
+            const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', nextTheme);
+            localStorage.setItem('seami_theme', nextTheme);
+        }
+
+        const savedTheme = localStorage.getItem('seami_theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+
+        function setPreset(presetName) {
+            document.getElementById('preset-input').value = presetName;
+            document.getElementById('dashboard-filter-form').submit();
+        }
+
+        function setReportPreset(preset) {
+            const today = new Date();
+            const inputStart = document.getElementById('input_date_start');
+            const inputEnd = document.getElementById('input_date_end');
+            const form = document.getElementById('report-filter-form');
+
+            const formatDate = (d) => {
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${y}-${m}-${day}`;
+            };
+
+            inputEnd.value = formatDate(today);
+
+            if (preset === 'year') {
+                inputStart.value = `${today.getFullYear()}-01-01`;
+                inputEnd.value = `${today.getFullYear()}-12-31`;
+            } else if (typeof preset === 'number') {
+                const pastDate = new Date();
+                pastDate.setDate(today.getDate() - preset);
+                inputStart.value = formatDate(pastDate);
+            }
+
+            if (form) form.submit();
+        }
+    </script>
+
+    {% if active_tab == 'dashboard' %}
+    <script>
+        const ALL_STUDENTS_MAP = JSON.parse('{{ students_json|escapejs }}' || '[]');
+
+        function openClassModal(className) {
+            const modal = document.getElementById('modal-class-students');
+            const title = document.getElementById('class-modal-title');
+            const subtitle = document.getElementById('class-modal-subtitle');
+            const list = document.getElementById('class-modal-list');
+            const icon = document.getElementById('class-modal-icon');
+
+            let filtered = ALL_STUDENTS_MAP;
+            if (className !== 'TODOS') {
+                filtered = ALL_STUDENTS_MAP.filter(s => s.turma_nome && s.turma_nome.toLowerCase().trim() === className.toLowerCase().trim());
+                title.textContent = `Alunos da Sala ${className}`;
+                subtitle.textContent = `Total: ${filtered.length} crianças ativas`;
+                icon.textContent = '🏫';
+            } else {
+                title.textContent = 'Todos os Alunos Matriculados';
+                subtitle.textContent = `Total Geral: ${filtered.length} crianças ativas`;
+                icon.textContent = '👶';
+            }
+
+            if (filtered.length === 0) {
+                list.innerHTML = `<div style="text-align:center; padding: 24px; color: var(--text-secondary); font-size: 13px;">Nenhum aluno encontrado para esta sala.</div>`;
+            } else {
+                list.innerHTML = filtered.map(s => `
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 18px;">👶</span>
+                            <div>
+                                <div style="font-weight: 700; font-size: 13px; color: var(--text-primary);">${s.nome}</div>
+                                <div style="font-size: 11.5px; color: var(--text-secondary);">Sala ${s.turma_nome || '-'} &middot; Turno: ${s.turno || 'Integral'}</div>
+                            </div>
+                        </div>
+                        <span style="background: #ecfdf5; color: #047857; font-size: 10.5px; padding: 3px 8px; border-radius: 12px; font-weight: 700;">
+                            Ativo
+                        </span>
+                    </div>
+                `).join('');
+            }
+
+            modal.classList.add('active');
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeClassModal() {
+            const modal = document.getElementById('modal-class-students');
+            modal.classList.remove('active');
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        function openDeactivationModal() {
+            const modal = document.getElementById('modal-deactivations');
+            modal.classList.add('active');
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+        function closeDeactivationModal() {
+            const modal = document.getElementById('modal-deactivations');
+            modal.classList.remove('active');
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        function openEnrollmentModal() {
+            const modal = document.getElementById('modal-enrollments');
+            modal.classList.add('active');
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+        function closeEnrollmentModal() {
+            const modal = document.getElementById('modal-enrollments');
+            modal.classList.remove('active');
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        window.addEventListener('click', function(e) {
+            ['modal-class-students', 'modal-deactivations', 'modal-enrollments'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el && e.target === el) {
+                    el.classList.remove('active');
+                    el.style.display = 'none';
+                    document.body.style.overflow = 'auto';
+                }
+            });
+        });
+
+        // ── INICIALIZAÇÃO DE TODOS OS 11 GRÁFICOS CHART.JS DO DASHBOARD ──────
+        document.addEventListener("DOMContentLoaded", function() {
+            const raw = JSON.parse('{{ charts_json|escapejs }}' || '{}');
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            const fontColor = isDark ? '#94a3b8' : '#64748b';
+            const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.05)';
+
+            // 1. Taxa de Assiduidade por Sala (Bar)
+            if (raw.chart1 && document.getElementById('chart-1')) {
+                new Chart(document.getElementById('chart-1'), {
+                    type: 'bar',
+                    data: {
+                        labels: raw.chart1.labels,
+                        datasets: [{
+                            label: 'Assiduidade (%)',
+                            data: raw.chart1.data,
+                            backgroundColor: ['rgba(16,185,129,0.85)', 'rgba(52,211,153,0.85)', 'rgba(5,150,105,0.85)', 'rgba(110,231,183,0.85)', 'rgba(16,185,129,0.7)'],
+                            borderRadius: 6,
+                            borderWidth: 0,
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { grid: { color: gridColor }, ticks: { color: fontColor }, min: 0, max: 100 },
+                            x: { grid: { display: false }, ticks: { color: fontColor, font: { weight: 600 } } }
+                        }
+                    }
+                });
+            }
+
+            // 2. Evolução Diária da Frequência (Line Area)
+            if (raw.chart2 && document.getElementById('chart-2')) {
+                new Chart(document.getElementById('chart-2'), {
+                    type: 'line',
+                    data: {
+                        labels: raw.chart2.labels,
+                        datasets: [
+                            { label: 'Alunos Presentes', data: raw.chart2.presentes, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.08)', borderWidth: 2.5, tension: 0.35, fill: true, pointRadius: 3.5 },
+                            { label: 'Ausências/Faltas', data: raw.chart2.faltas, borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.08)', borderWidth: 2.5, tension: 0.35, fill: true, pointRadius: 3.5 }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { labels: { color: fontColor, font: { weight: 600, size: 11 } } } },
+                        scales: {
+                            y: { grid: { color: gridColor }, ticks: { color: fontColor, stepSize: 1 } },
+                            x: { grid: { display: false }, ticks: { color: fontColor } }
+                        }
+                    }
+                });
+            }
+
+            // 3. Faltas por Aluno no Período (Stacked Bar)
+            if (raw.chart7 && document.getElementById('chart-7')) {
+                new Chart(document.getElementById('chart-7'), {
+                    type: 'bar',
+                    data: {
+                        labels: raw.chart7.labels,
+                        datasets: [
+                            { label: 'Não Justificadas', data: raw.chart7.unjust, backgroundColor: 'rgba(239, 68, 68, 0.85)', borderRadius: 4 },
+                            { label: 'Justificadas', data: raw.chart7.just, backgroundColor: 'rgba(59, 130, 246, 0.85)', borderRadius: 4 }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { labels: { color: fontColor, font: { weight: 600, size: 11 } } } },
+                        scales: {
+                            x: { stacked: true, grid: { display: false }, ticks: { color: fontColor, maxRotation: 45, minRotation: 25, font: { size: 11 } } },
+                            y: { stacked: true, grid: { color: gridColor }, ticks: { color: fontColor, stepSize: 1 } }
+                        }
+                    }
+                });
+            }
+
+            // 4. Atrasos por Aluno no Período (Stacked Bar)
+            if (raw.chart8 && document.getElementById('chart-8')) {
+                new Chart(document.getElementById('chart-8'), {
+                    type: 'bar',
+                    data: {
+                        labels: raw.chart8.labels,
+                        datasets: [
+                            { label: 'Não Justificados', data: raw.chart8.unjust, backgroundColor: 'rgba(245, 158, 11, 0.85)', borderRadius: 4 },
+                            { label: 'Justificados', data: raw.chart8.just, backgroundColor: 'rgba(16, 185, 129, 0.85)', borderRadius: 4 }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { labels: { color: fontColor, font: { weight: 600, size: 11 } } } },
+                        scales: {
+                            x: { stacked: true, grid: { display: false }, ticks: { color: fontColor, maxRotation: 45, minRotation: 25, font: { size: 11 } } },
+                            y: { stacked: true, grid: { color: gridColor }, ticks: { color: fontColor, stepSize: 1 } }
+                        }
+                    }
+                });
+            }
+
+            // 5. Atestados Médicos por Aluno no Período (Bar)
+            if (raw.chart9 && document.getElementById('chart-9')) {
+                new Chart(document.getElementById('chart-9'), {
+                    type: 'bar',
+                    data: {
+                        labels: raw.chart9.labels,
+                        datasets: [{ label: 'Atestados Médicos', data: raw.chart9.data, backgroundColor: 'rgba(139, 92, 246, 0.85)', borderRadius: 6 }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { grid: { color: gridColor }, ticks: { color: fontColor, stepSize: 1 } },
+                            x: { grid: { display: false }, ticks: { color: fontColor, maxRotation: 45, minRotation: 25, font: { size: 11 } } }
+                        }
+                    }
+                });
+            }
+
+            // 6. Volume de Atrasos Mensal (Line)
+            if (raw.chart3 && document.getElementById('chart-3')) {
+                new Chart(document.getElementById('chart-3'), {
+                    type: 'line',
+                    data: {
+                        labels: raw.chart3.labels,
+                        datasets: [{ label: 'Atrasos', data: raw.chart3.data, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.12)', tension: 0.35, fill: true, borderWidth: 2.5, pointRadius: 4 }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { grid: { color: gridColor }, ticks: { color: fontColor, stepSize: 1 }, min: 0 },
+                            x: { grid: { display: false }, ticks: { color: fontColor } }
+                        }
+                    }
+                });
+            }
+
+            // 7. Distribuição de Ocorrências (Donut)
+            if (raw.chart4 && document.getElementById('chart-4')) {
+                new Chart(document.getElementById('chart-4'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: raw.chart4.labels,
+                        datasets: [{ data: raw.chart4.data, backgroundColor: ['#f59e0b', '#ef4444', '#10b981', '#3b82f6', '#ec4899'], borderWidth: 2 }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom', labels: { color: fontColor, font: { size: 11 } } } }
+                    }
+                });
+            }
+
+            // 8. Crianças com Mais Ocorrências no Caderno (Horizontal Bar)
+            if (raw.chart5 && document.getElementById('chart-5')) {
+                new Chart(document.getElementById('chart-5'), {
+                    type: 'bar',
+                    data: {
+                        labels: raw.chart5.labels,
+                        datasets: [{ label: 'Ocorrências', data: raw.chart5.data, backgroundColor: 'rgba(239, 68, 68, 0.85)', borderRadius: 6 }]
+                    },
+                    options: {
+                        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { grid: { color: gridColor }, ticks: { color: fontColor, stepSize: 1 } },
+                            y: { grid: { display: false }, ticks: { color: fontColor, font: { weight: 600, size: 11 } } }
+                        }
+                    }
+                });
+            }
+
+            // 9. Alunos Matriculados por Mês (Headcount)
+            if (raw.matriculados_6m && document.getElementById('chart-matriculados-mes')) {
+                new Chart(document.getElementById('chart-matriculados-mes'), {
+                    type: 'line',
+                    data: {
+                        labels: raw.matriculados_6m.labels,
+                        datasets: [{
+                            label: 'Total de Matriculados',
+                            data: raw.matriculados_6m.data,
+                            borderColor: '#6366f1',
+                            backgroundColor: 'rgba(99, 102, 241, 0.12)',
+                            fill: true, tension: 0.25, borderWidth: 3, pointRadius: 5,
+                            pointBackgroundColor: '#6366f1'
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { grid: { color: gridColor }, ticks: { color: fontColor, stepSize: 5 } },
+                            x: { grid: { display: false }, ticks: { color: fontColor, font: { weight: 600 } } }
+                        }
+                    }
+                });
+            }
+
+            // 10. Consolidado Mês a Mês: Frequência vs Matriculados
+            if (raw.frequencia_mes_a_mes && document.getElementById('chart-frequencia-mes-a-mes')) {
+                new Chart(document.getElementById('chart-frequencia-mes-a-mes'), {
+                    type: 'bar',
+                    data: {
+                        labels: raw.frequencia_mes_a_mes.labels,
+                        datasets: [
+                            { label: 'Presentes (Frequência Média)', data: raw.frequencia_mes_a_mes.presentes, backgroundColor: '#10b981', borderRadius: 4 },
+                            { label: 'Ausências / Faltas', data: raw.frequencia_mes_a_mes.ausentes, backgroundColor: '#ef4444', borderRadius: 4 }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { position: 'top', labels: { color: fontColor, font: { weight: 600 } } } },
+                        scales: {
+                            x: { stacked: true, grid: { display: false }, ticks: { color: fontColor, font: { weight: 600 } } },
+                            y: { stacked: true, grid: { color: gridColor }, ticks: { color: fontColor } }
+                        }
+                    }
+                });
+            }
+
+            // 11. Registros de Amamentação por Dia (Cor Rosa)
+            if (raw.amam_diaria && document.getElementById('chart-amamentacao-diaria')) {
+                new Chart(document.getElementById('chart-amamentacao-diaria'), {
+                    type: 'line',
+                    data: {
+                        labels: raw.amam_diaria.labels,
+                        datasets: [{
+                            label: 'Atendimentos no Dia',
+                            data: raw.amam_diaria.data,
+                            borderColor: '#ec4899',
+                            backgroundColor: 'rgba(236, 72, 153, 0.12)',
+                            fill: true, tension: 0.3, borderWidth: 3, pointRadius: 4,
+                            pointBackgroundColor: '#ec4899'
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { grid: { color: gridColor }, ticks: { color: fontColor, stepSize: 1 }, beginAtZero: true },
+                            x: { grid: { display: false }, ticks: { color: fontColor, maxRotation: 45, minRotation: 0 } }
+                        }
+                    }
+                });
+            }
+
+            // Calendário de Frequência Diária
+            const calGrid = document.getElementById('calendar-days-grid');
+            if (calGrid) {
+                const totalDays = 31;
+                const startDayOfWeek = 6;
+                let html = '';
+                for (let i = 0; i < startDayOfWeek; i++) {
+                    html += `<div style="padding: 10px; background: transparent;"></div>`;
+                }
+                for (let d = 1; d <= totalDays; d++) {
+                    const dayOfWeek = (startDayOfWeek + d - 1) % 7;
+                    const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+                    let bg = '#f8fafc';
+                    let textCol = '#64748b';
+                    let subText = '0/0 (0%)';
+                    if (!isWeekend) {
+                        bg = '#ecfdf5';
+                        textCol = '#047857';
+                        subText = '100/105 (95%)';
+                    }
+                    html += `
+                        <div style="background: ${bg}; border: 1px solid var(--border-color); border-radius: 8px; padding: 6px 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 52px;">
+                            <span style="font-weight: 800; font-size: 13px; color: ${textCol};">${d}</span>
+                            <span style="font-size: 9.5px; font-weight: 700; color: ${textCol}; margin-top: 2px;">${subText}</span>
+                        </div>
+                    `;
+                }
+                calGrid.innerHTML = html;
+            }
+        });
+    </script>
+    {% endif %}
+
+    {% if active_tab == 'relatorios' %}
+    <script>
+        function exportReportExcel() {
+            if (typeof XLSX === 'undefined') { alert('Biblioteca XLSX não carregada.'); return; }
+            const activeTab = "{{ active_tab_nav }}";
+            const todayStr = new Date().toISOString().split('T')[0];
+            const wb = XLSX.utils.book_new();
+
+            if (activeTab === 'faltas') {
+                const rows = [
+                    {% for row in faltas_tabela %}
+                    {
+                        "Data": "{{ row.data|date:'d/m/Y' }}",
+                        "Criança": "{{ row.aluno.nome|escapejs }}",
+                        "Sala": "Sala {{ row.turma.nome|escapejs }}",
+                        "Tipo": "{{ row.tipo_falta }}",
+                        "Motivo": "{{ row.motivo|escapejs }}",
+                        "Responsável": "{{ row.responsavel|escapejs }}",
+                        "Faltas Não Just. no Ano (Jan-Dez)": {{ row.faltas_no_ano }}
+                    }{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ];
+                if (rows.length === 0) { alert('Sem dados de faltas para exportar.'); return; }
+                const ws = XLSX.utils.json_to_sheet(rows);
+                XLSX.utils.book_append_sheet(wb, ws, "Faltas");
+                XLSX.writeFile(wb, `Consulta_Faltas_SEAMI_${todayStr}.xlsx`);
+            } else if (activeTab === 'atrasos') {
+                const rows = [
+                    {% for row in atrasos_tabela %}
+                    {
+                        "Data": "{{ row.data|date:'d/m/Y' }}",
+                        "Horário": "{{ row.horario }}",
+                        "Criança": "{{ row.aluno_nome|escapejs }}",
+                        "Sala": "{{ row.turma_nome|escapejs }}",
+                        "Tipo": "{{ row.tipo_atraso }}",
+                        "Motivo": "{{ row.motivo|escapejs }}",
+                        "Responsável": "{{ row.responsavel|escapejs }}"
+                    }{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ];
+                if (rows.length === 0) { alert('Sem dados de atrasos para exportar.'); return; }
+                const ws = XLSX.utils.json_to_sheet(rows);
+                XLSX.utils.book_append_sheet(wb, ws, "Atrasos");
+                XLSX.writeFile(wb, `Consulta_Atrasos_SEAMI_${todayStr}.xlsx`);
+            } else if (activeTab === 'frequencia') {
+                const rows = [
+                    {% for row in freq_tabela %}
+                    {
+                        "Data": "{{ row.data|date:'d/m/Y' }}",
+                        "Turma": "Sala {{ row.turma.nome|escapejs }}",
+                        "Matriculados": {{ row.matriculados }},
+                        "Presentes": {{ row.presentes }},
+                        "Faltas": {{ row.faltas }},
+                        "Taxa (%)": "{{ row.taxa }}%"
+                    }{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ];
+                if (rows.length === 0) { alert('Sem dados de frequência para exportar.'); return; }
+                const ws = XLSX.utils.json_to_sheet(rows);
+                XLSX.utils.book_append_sheet(wb, ws, "Frequência");
+                XLSX.writeFile(wb, `Consulta_Frequencia_SEAMI_${todayStr}.xlsx`);
+            } else if (activeTab === 'matriculas') {
+                const rows = [
+                    {% for row in mat_tabela %}
+                    {
+                        "Mês / Ano": "{{ row.mes_ano }}",
+                        "Turma": "{{ row.turma.nome|default:'Geral'|escapejs }}",
+                        "Novas Matrículas (+)": {{ row.novas_matriculas }},
+                        "Desligamentos Realizados (-)": {{ row.deslig_realizados }},
+                        "Desligamentos Previstos (⏳)": {{ row.deslig_previstos }},
+                        "Matriculados Ativos": {{ row.matriculados_ativos }}
+                    }{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ];
+                if (rows.length === 0) { alert('Sem dados de matrículas para exportar.'); return; }
+                const ws = XLSX.utils.json_to_sheet(rows);
+                XLSX.utils.book_append_sheet(wb, ws, "Matrículas e Desligamentos");
+                XLSX.writeFile(wb, `Consulta_Matriculas_SEAMI_${todayStr}.xlsx`);
+            }
+        }
+
+        function exportReportPDF() {
+            if (typeof window.jspdf === 'undefined') { alert('Biblioteca jsPDF não carregada.'); return; }
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            const activeTab = "{{ active_tab_nav }}";
+            const todayStr = new Date().toISOString().split('T')[0];
+            const dataEmissao = new Date().toLocaleDateString('pt-BR');
+
+            let title = "Relatório Oficial de Consulta SEAMI";
+            let head = [];
+            let body = [];
+
+            if (activeTab === 'faltas') {
+                title = "Relatório Oficial de Gestão de Faltas - Consulta Externa";
+                head = [['Data', 'Criança', 'Sala', 'Tipo', 'Motivo', 'Responsável', 'Faltas Não Just. no Ano']];
+                body = [
+                    {% for row in faltas_tabela %}
+                    [
+                        "{{ row.data|date:'d/m/Y' }}",
+                        "{{ row.aluno.nome|escapejs }}",
+                        "Sala {{ row.turma.nome|escapejs }}",
+                        "{{ row.tipo_falta }}",
+                        "{{ row.motivo|escapejs }}",
+                        "{{ row.responsavel|escapejs }}",
+                        "{{ row.faltas_no_ano }}"
+                    ]{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ];
+            } else if (activeTab === 'atrasos') {
+                title = "Relatório Oficial de Gestão de Atrasos - Consulta Externa";
+                head = [['Data', 'Horário', 'Criança', 'Sala', 'Tipo', 'Motivo', 'Responsável']];
+                body = [
+                    {% for row in atrasos_tabela %}
+                    [
+                        "{{ row.data|date:'d/m/Y' }}",
+                        "{{ row.horario }}",
+                        "{{ row.aluno_nome|escapejs }}",
+                        "{{ row.turma_nome|escapejs }}",
+                        "{{ row.tipo_atraso }}",
+                        "{{ row.motivo|escapejs }}",
+                        "{{ row.responsavel|escapejs }}"
+                    ]{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ];
+            } else if (activeTab === 'frequencia') {
+                title = "Relatório Oficial de Frequência Diária vs Matriculados - Consulta Externa";
+                head = [['Data', 'Turma / Sala', 'Matriculados', 'Presentes', 'Faltas', 'Taxa (%)']];
+                body = [
+                    {% for row in freq_tabela %}
+                    [
+                        "{{ row.data|date:'d/m/Y' }}",
+                        "Sala {{ row.turma.nome|escapejs }}",
+                        "{{ row.matriculados }}",
+                        "{{ row.presentes }}",
+                        "{{ row.faltas }}",
+                        "{{ row.taxa }}%"
+                    ]{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ];
+            } else if (activeTab === 'matriculas') {
+                title = "Relatório Oficial de Movimentação de Matrículas e Desligamentos - Consulta Externa";
+                head = [['Mês / Ano', 'Turma', 'Novas (+)', 'Deslig. (-)', 'Previstos (⏳)', 'Total Ativos']];
+                body = [
+                    {% for row in mat_tabela %}
+                    [
+                        "{{ row.mes_ano }}",
+                        "{{ row.turma.nome|default:'Geral'|escapejs }}",
+                        "+{{ row.novas_matriculas }}",
+                        "-{{ row.deslig_realizados }}",
+                        "⏳ {{ row.deslig_previstos }}",
+                        "{{ row.matriculados_ativos }}"
+                    ]{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ];
+            }
+
+            // Header Oficial
+            doc.setFillColor(79, 70, 229);
+            doc.roundedRect(14, 12, 269, 24, 3, 3, 'F');
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(14);
+            doc.setTextColor(255, 255, 255);
+            doc.text("EDUCA GESTÃO  |  CADERNO SEAMI (CONSULTA EXTERNA)", 20, 21);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(9.5);
+            doc.setTextColor(224, 231, 255);
+            doc.text(title, 20, 28);
+            doc.setFontSize(8.5);
+            doc.text(`Emissão: ${dataEmissao}`, 240, 21);
+
+            doc.autoTable({
+                startY: 42,
+                head: head,
+                body: body,
+                theme: 'grid',
+                headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold' },
+                alternateRowStyles: { fillColor: [248, 250, 252] },
+                margin: { left: 14, right: 14 }
+            });
+
+            doc.save(`Consulta_SEAMI_${activeTab.toUpperCase()}_${todayStr}.pdf`);
+        }
+    </script>
+    {% endif %}
+</body>
+</html>

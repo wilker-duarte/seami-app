@@ -1,0 +1,513 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Alunos Matriculados - SEAMI{% endblock %}
+{% block page_title %}Alunos Matriculados{% endblock %}
+{% block page_subtitle %}Gestão cadastral, histórico de ingresso, acompanhamento especial e controle de turnos.{% endblock %}
+
+{% block content %}
+<section class="panel-section active" style="display: flex; flex-direction: column; gap: 20px;">
+
+    <!-- ================================================================= -->
+    <!-- BARRA DE FILTROS & AÇÕES RÁPIDAS                                 -->
+    <!-- ================================================================= -->
+    <div class="filter-card" style="margin-bottom: 0;">
+        <form method="get" id="filter-students-form" style="display: flex; flex-direction: column; gap: 16px;">
+            <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; justify-content: space-between;">
+                
+                <div style="display: flex; flex-wrap: wrap; gap: 12px; flex: 1; min-width: 280px;">
+                    <!-- Busca por Nome / Responsável -->
+                    <div class="filter-group" style="flex: 2; min-width: 200px;">
+                        <label style="font-size: 12px; font-weight: 700; color: var(--slate-600); margin-bottom: 6px; display: block;">
+                            Buscar Criança ou Responsável
+                        </label>
+                        <div style="position: relative; display: flex; align-items: center;">
+                            <i data-lucide="search" style="position: absolute; left: 12px; color: var(--slate-400); width: 16px; height: 16px;"></i>
+                            <input type="text" name="q" value="{{ search }}" placeholder="Digite o nome da criança..."
+                                   style="width: 100%; padding: 9px 12px 9px 36px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none;">
+                        </div>
+                    </div>
+
+                    <!-- Filtro por Sala/Turma -->
+                    <div class="filter-group" style="flex: 1; min-width: 140px;">
+                        <label style="font-size: 12px; font-weight: 700; color: var(--slate-600); margin-bottom: 6px; display: block;">
+                            Sala / Turma
+                        </label>
+                        <select name="classroom" onchange="this.form.submit()" style="width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none;">
+                            <option value="">Todas as salas</option>
+                            {% for t in turmas %}
+                                <option value="{{ t.nome }}" {% if classroom_filter == t.nome %}selected{% endif %}>{{ t.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Filtro por Turno -->
+                    <div class="filter-group" style="flex: 1; min-width: 130px;">
+                        <label style="font-size: 12px; font-weight: 700; color: var(--slate-600); margin-bottom: 6px; display: block;">
+                            Turno
+                        </label>
+                        <select name="shift" onchange="this.form.submit()" style="width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none;">
+                            <option value="all">Todos os turnos</option>
+                            <option value="integral" {% if shift_filter == 'integral' %}selected{% endif %}>Integral</option>
+                            <option value="matutino" {% if shift_filter == 'matutino' %}selected{% endif %}>Matutino</option>
+                            <option value="vespertino" {% if shift_filter == 'vespertino' %}selected{% endif %}>Vespertino</option>
+                        </select>
+                    </div>
+
+                    <!-- Filtro por Status -->
+                    <div class="filter-group" style="flex: 1; min-width: 120px;">
+                        <label style="font-size: 12px; font-weight: 700; color: var(--slate-600); margin-bottom: 6px; display: block;">
+                            Status
+                        </label>
+                        <select name="status" onchange="this.form.submit()" style="width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none;">
+                            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>Todos</option>
+                            <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Ativos</option>
+                            <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inativos</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Botões de Ação -->
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button type="button" onclick="openStudentModal()" class="primary-btn" style="padding: 10px 18px; border-radius: 10px; background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%); color: white; border: none; font-weight: 700; font-size: 13.5px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);">
+                        <i data-lucide="plus" style="width: 18px; height: 18px;"></i>
+                        <span>Novo Aluno</span>
+                    </button>
+                    {% if search or classroom_filter or shift_filter != 'all' and shift_filter or status_filter != 'all' %}
+                        <a href="{% url 'presencas:lista_alunos' %}" class="secondary-btn" style="padding: 9px 14px; border-radius: 10px; border: 1px solid var(--border-color); color: var(--text-secondary); text-decoration: none; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+                            Limpar
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- TABELA DE ALUNOS (EXATA, ELEGANTE E MODERNA)                      -->
+    <!-- ================================================================= -->
+    <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden;">
+        <div style="padding: 18px 24px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; background-color: var(--bg-body);">
+            <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="users" style="width: 18px; height: 18px; color: var(--brand-primary);"></i>
+                <span>Lista Geral de Alunos</span>
+                <span style="font-size: 12px; font-weight: 600; background-color: var(--color-primary-light); color: var(--color-primary); padding: 2px 8px; border-radius: 999px;">
+                    {{ total_count }} {{ total_count|pluralize:"aluno,alunos" }}
+                </span>
+            </div>
+        </div>
+
+        {% if alunos %}
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                <thead>
+                    <tr style="border-bottom: 1.5px solid var(--border-color); background-color: var(--bg-body); color: var(--text-secondary); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <th style="padding: 14px 20px; font-weight: 700;">Criança</th>
+                        <th style="padding: 14px 20px; font-weight: 700;">Sala / Turma</th>
+                        <th style="padding: 14px 20px; font-weight: 700;">Turno</th>
+                        <th style="padding: 14px 20px; font-weight: 700;">Status</th>
+                        <th style="padding: 14px 20px; font-weight: 700; text-align: right;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody style="font-size: 13.5px; color: var(--text-primary);">
+                    {% for item in alunos %}
+                    <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.15s ease;" onmouseenter="this.style.backgroundColor='var(--bg-input)'" onmouseleave="this.style.backgroundColor='transparent'">
+                        
+                        <!-- Coluna 1: Criança (Nome, Data de Entrada e Desligamento/Warning) -->
+                        <td style="padding: 16px 20px;">
+                            <div style="display: flex; align-items: flex-start; gap: 12px;">
+                                <div style="width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); color: #4338ca; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; flex-shrink: 0; box-shadow: 0 2px 6px rgba(99, 102, 241, 0.15);">
+                                    {{ item.nome|slice:":1" }}
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    <div style="font-weight: 700; font-size: 14.5px; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                                        <span>{{ item.nome }}</span>
+                                        {% if item.has_acompanhamento %}
+                                            <span title="Possui Acompanhamento Especial: {{ item.acompanhamento_obs|default:'Sim' }}" style="cursor: help; font-size: 14px;">🩺</span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div style="font-size: 12px; color: var(--text-secondary); display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+                                        <span style="display: inline-flex; align-items: center; gap: 4px;">
+                                            <i data-lucide="calendar" style="width: 13px; height: 13px; color: var(--slate-400);"></i>
+                                            Entrada: <strong>{{ item.data_entrada|date:"d/m/Y"|default:"Não informada" }}</strong>
+                                        </span>
+                                        {% if item.is_desligamento_futuro %}
+                                            <!-- DESTAQUE WARNING SE FOR DESATIVAÇÃO FUTURA -->
+                                            <span style="background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 3px rgba(245, 158, 11, 0.15);">
+                                                ⚠️ Desativação: {{ item.data_desligamento|date:"d/m/Y" }}
+                                            </span>
+                                        {% elif item.is_desligamento_passado %}
+                                            <span>
+                                                &bull; Desativação: {{ item.data_desligamento|date:"d/m/Y" }}
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    {% if item.has_acompanhamento %}
+                                        <span style="background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 3px;" title="{{ item.acompanhamento_obs }}">
+                                            🩺 {{ item.acompanhamento_obs }}{% if item.acompanhamento_dias %} ( {{ item.acompanhamento_dias }} ){% endif %}
+                                        </span>
+                                    {% endif %}
+
+                                    {% if item.nome_responsavel %}
+                                        <div style="font-size: 11.5px; color: var(--slate-400);">
+                                            Resp: {{ item.nome_responsavel }} {% if item.telefone_responsavel %}&bull; {{ item.telefone_responsavel }}{% endif %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+
+                        <!-- Coluna 2: Sala / Turma (Com a mesma cor exata do Dashboard) -->
+                        <td style="padding: 16px 20px;">
+                            <span style="background-color: {{ item.turma_style.bg }}; color: {{ item.turma_style.color }}; border: 1px solid {{ item.turma_style.border }}; padding: 6px 12px; border-radius: 8px; font-weight: 700; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px;">
+                                <span>Sala {{ item.turma.nome }}</span>
+                            </span>
+                        </td>
+
+                        <!-- Coluna 3: Turno (Destaques visuais para Integral, Matutino, Vespertino) -->
+                        <td style="padding: 16px 20px;">
+                            {% if item.turno_raw == 'integral' %}
+                                <span style="background-color: #eff6ff; color: #1d4ed8; border: 1px solid #dbeafe; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                                    Integral
+                                </span>
+                            {% elif item.turno_raw == 'matutino' %}
+                                <span style="background-color: #fffbeb; color: #b45309; border: 1px solid #fef3c7; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                                    Matutino
+                                </span>
+                            {% else %}
+                                <span style="background-color: #f5f3ff; color: #6d28d9; border: 1px solid #ede9fe; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                                    Vespertino
+                                </span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Coluna 4: Status (Ativo / Inativo + Acompanhamento Especial) -->
+                        <td style="padding: 16px 20px;">
+                            <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+                                {% if item.ativo %}
+                                    <span style="background-color: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px;">
+                                        <span style="width: 6px; height: 6px; border-radius: 999px; background-color: #16a34a;"></span>
+                                        Ativo
+                                    </span>
+                                {% else %}
+                                    <span style="background-color: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px;">
+                                        <span style="width: 6px; height: 6px; border-radius: 999px; background-color: #dc2626;"></span>
+                                        Inativo
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </td>
+
+                        <!-- Coluna 5: Ações -->
+                        <td style="padding: 16px 20px; text-align: right;">
+                            <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                                <a href="{% url 'presencas:consulta_chamada' %}?q={{ item.nome|urlencode }}" title="Consultar Histórico de Presenças" style="padding: 7px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-body); color: var(--text-secondary); display: inline-flex; align-items: center; justify-content: center; text-decoration: none;">
+                                    <i data-lucide="history" style="width: 15px; height: 15px;"></i>
+                                </a>
+
+                                <button type="button" onclick="editStudent({{ item.id }}, '{{ item.nome|escapejs }}', {{ item.turma.id }}, '{{ item.turno_raw }}', '{{ item.data_entrada|date:'Y-m-d' }}', '{{ item.data_desligamento|date:'Y-m-d'|default:'' }}', {{ item.has_acompanhamento|yesno:'true,false' }}, '{{ item.acompanhamento_obs|escapejs }}', '{{ item.acompanhamento_dias|escapejs }}', '{{ item.nome_responsavel|escapejs }}', '{{ item.telefone_responsavel|escapejs }}', {{ item.ativo|yesno:'true,false' }})" title="Editar Cadastro" style="padding: 7px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-body); color: var(--color-primary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center;">
+                                    <i data-lucide="edit-2" style="width: 15px; height: 15px;"></i>
+                                </button>
+
+                                <button type="button" onclick="toggleActiveModal({{ item.id }}, '{{ item.nome|escapejs }}', {{ item.ativo|yesno:'true,false' }})" title="{% if item.ativo %}Desativar / Agendar Desligamento{% else %}Reativar Aluno{% endif %}" style="padding: 7px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-body); color: {% if item.ativo %}#d97706{% else %}#16a34a{% endif %}; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;">
+                                    <i data-lucide="{% if item.ativo %}user-x{% else %}user-check{% endif %}" style="width: 15px; height: 15px;"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 48px 20px;">
+            <div style="font-size: 48px; margin-bottom: 12px;">🔍</div>
+            <h3 style="font-family: var(--font-title); font-size: 17px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">
+                Nenhum aluno encontrado
+            </h3>
+            <p style="font-size: 13.5px; color: var(--text-secondary); max-width: 420px; margin: 0 auto 16px auto;">
+                Tente ajustar os filtros de busca ou cadastre um novo aluno.
+            </p>
+            <button type="button" onclick="openStudentModal()" class="primary-btn" style="padding: 10px 20px; border-radius: 10px; background-color: var(--color-primary); color: white; border: none; font-weight: 700; font-size: 13.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+                <i data-lucide="plus" style="width: 16px; height: 16px;"></i>
+                Cadastrar Aluno
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- ========================================================================= -->
+<!-- MODAL DE CADASTRO E EDIÇÃO DE ALUNO                                       -->
+<!-- ========================================================================= -->
+<div id="modal-student-form" class="modal-overlay" style="display: none;">
+    <div class="modal-card" style="max-width: 580px;" onclick="event.stopPropagation()">
+        <div class="modal-header" style="border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 20px 24px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 38px; height: 38px; border-radius: 10px; background-color: var(--color-primary-light); color: var(--color-primary); display: flex; align-items: center; justify-content: center;">
+                    <i data-lucide="baby" style="width: 20px; height: 20px;"></i>
+                </div>
+                <h3 id="modal-student-title" style="margin: 0; font-size: 18px; font-weight: 800; color: var(--text-primary);">
+                    Novo Aluno
+                </h3>
+            </div>
+            <button type="button" onclick="closeStudentModal()" style="border: none; background: none; cursor: pointer; color: var(--text-light); font-size: 18px;">✕</button>
+        </div>
+
+        <form method="post" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+            {% csrf_token %}
+            <input type="hidden" name="action" id="form-action" value="create">
+            <input type="hidden" name="aluno_id" id="form-aluno-id" value="">
+
+            <div>
+                <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                    Nome Completo da Criança *
+                </label>
+                <input type="text" name="nome" id="field-nome" required placeholder="Ex: Gael Louza Rosa"
+                       style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 14px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div>
+                    <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                        Sala / Turma *
+                    </label>
+                    <select name="turma" id="field-turma" required style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 14px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                        {% for t in turmas %}
+                            <option value="{{ t.id }}">{{ t.nome }} ({{ t.faixa_etaria|default:"Geral" }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                        Turno *
+                    </label>
+                    <select name="turno" id="field-turno" required style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 14px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                        <option value="integral">Integral</option>
+                        <option value="matutino">Matutino</option>
+                        <option value="vespertino">Vespertino</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div>
+                    <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                        Data de Entrada (Matrícula)
+                    </label>
+                    <input type="date" name="data_entrada" id="field-data-entrada" value="{{ today }}"
+                           style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 14px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                        Data de Desligamento (Opcional)
+                    </label>
+                    <input type="date" name="data_desligamento" id="field-data-desligamento"
+                           style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 14px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                </div>
+            </div>
+
+            <div style="border-top: 1px solid var(--border-color); padding-top: 14px;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                    <input type="checkbox" name="has_acompanhamento" id="field-has-acompanhamento" onchange="toggleAcompObs(this.checked)" style="width: 16px; height: 16px; cursor: pointer;">
+                    <label for="field-has-acompanhamento" style="font-size: 13px; font-weight: 700; color: var(--text-primary); cursor: pointer;">
+                        Possui Acompanhamento Especial (Saúde / Pedagógico)
+                    </label>
+                </div>
+                <div id="acomp-obs-wrapper" style="display: none; display: flex; flex-direction: column; gap: 10px;">
+                    <input type="text" name="acompanhamento_obs" id="field-acomp-obs" placeholder="Descreva os detalhes ou cuidados específicos..."
+                           style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                    <!-- Dias da semana de acompanhamento -->
+                    <div>
+                        <label style="display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px;">Dias da semana do acompanhamento (opcional)</label>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                            {% for dia_val, dia_label in dias_semana %}
+                            <label style="display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-body); cursor: pointer; font-size: 12.5px; font-weight: 600; color: var(--text-secondary); transition: all 0.15s; user-select: none;">
+                                <input type="checkbox" name="acompanhamento_dias" value="{{ dia_val }}" class="dia-semana-check" style="accent-color: var(--color-primary); width: 14px; height: 14px;">
+                                {{ dia_label }}
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div>
+                    <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                        Nome do Responsável
+                    </label>
+                    <input type="text" name="nome_responsavel" id="field-responsavel" placeholder="Pai, Mãe ou Tutor"
+                           style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 14px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                </div>
+                <div>
+                    <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                        Telefone / WhatsApp
+                    </label>
+                    <input type="text" name="telefone_responsavel" id="field-telefone" placeholder="(11) 99999-9999"
+                           style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 14px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                <input type="checkbox" name="ativo" id="field-ativo" checked style="width: 16px; height: 16px; cursor: pointer;">
+                <label for="field-ativo" style="font-size: 13px; font-weight: 700; color: var(--text-primary); cursor: pointer;">
+                    Matrícula Ativa (Presente nas listas de chamada)
+                </label>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                <button type="button" onclick="closeStudentModal()" class="secondary-btn" style="padding: 10px 18px; border-radius: 10px;">Cancelar</button>
+                <button type="submit" class="primary-btn" style="padding: 10px 22px; border-radius: 10px; background-color: var(--color-primary); color: white; border: none; font-weight: 700;">Salvar Aluno</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL DE DESATIVAÇÃO COM DATA AGENDADA                                    -->
+<!-- ========================================================================= -->
+<div id="modal-toggle-active" class="modal-overlay" style="display: none;">
+    <div class="modal-card" style="max-width: 480px;" onclick="event.stopPropagation()">
+        <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding: 20px 24px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span id="toggle-active-icon" style="font-size: 24px;">⚠️</span>
+                <h3 id="toggle-active-title" style="margin: 0; font-size: 17px; font-weight: 800; color: var(--text-primary);">
+                    Desativar Matrícula
+                </h3>
+            </div>
+        </div>
+        <form method="post" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="toggle_active">
+            <input type="hidden" name="aluno_id" id="toggle-aluno-id" value="">
+
+            <p id="toggle-active-msg" style="margin: 0; font-size: 14px; color: var(--text-secondary); line-height: 1.5;">
+                Confirma a alteração do status da matrícula?
+            </p>
+
+            <div id="deactivation-date-container">
+                <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                    Data Efetiva do Desligamento
+                </label>
+                <input type="date" name="deactivation_date" id="toggle-deactivation-date" value="{{ today }}"
+                       style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 14px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                <span style="font-size: 11.5px; color: var(--text-light); margin-top: 4px; display: block;">
+                    Se a data for futura, a criança continuará ativa até a data agendada.
+                </span>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px;">
+                <button type="button" onclick="closeToggleActiveModal()" class="secondary-btn" style="padding: 9px 16px; border-radius: 8px;">Cancelar</button>
+                <button type="submit" id="toggle-submit-btn" class="primary-btn" style="padding: 9px 18px; border-radius: 8px; background-color: #d97706; color: white; border: none; font-weight: 700;">Confirmar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openStudentModal() {
+        document.getElementById('modal-student-title').innerText = 'Novo Aluno';
+        document.getElementById('form-action').value = 'create';
+        document.getElementById('form-aluno-id').value = '';
+        document.getElementById('field-nome').value = '';
+        document.getElementById('field-turno').value = 'integral';
+        document.getElementById('field-data-entrada').value = '{{ today }}';
+        document.getElementById('field-data-desligamento').value = '';
+        document.getElementById('field-has-acompanhamento').checked = false;
+        document.getElementById('field-acomp-obs').value = '';
+        document.querySelectorAll('.dia-semana-check').forEach(cb => cb.checked = false);
+        document.getElementById('field-responsavel').value = '';
+        document.getElementById('field-telefone').value = '';
+        document.getElementById('field-ativo').checked = true;
+        toggleAcompObs(false);
+
+        document.getElementById('modal-student-form').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        lucide.createIcons();
+    }
+
+    function editStudent(id, nome, turmaId, turno, dataEntrada, dataDesligamento, hasAcomp, acompObs, acompDias, resp, tel, ativo) {
+        document.getElementById('modal-student-title').innerText = 'Editar Aluno';
+        document.getElementById('form-action').value = 'update';
+        document.getElementById('form-aluno-id').value = id;
+        document.getElementById('field-nome').value = nome;
+        document.getElementById('field-turma').value = turmaId;
+        document.getElementById('field-turno').value = turno;
+        document.getElementById('field-data-entrada').value = dataEntrada || '';
+        document.getElementById('field-data-desligamento').value = dataDesligamento || '';
+        document.getElementById('field-has-acompanhamento').checked = hasAcomp;
+        document.getElementById('field-acomp-obs').value = acompObs;
+        // Marcar os dias da semana
+        const diasAtivos = acompDias ? acompDias.split(',') : [];
+        document.querySelectorAll('.dia-semana-check').forEach(cb => {
+            cb.checked = diasAtivos.includes(cb.value);
+        });
+        document.getElementById('field-responsavel').value = resp;
+        document.getElementById('field-telefone').value = tel;
+        document.getElementById('field-ativo').checked = ativo;
+        toggleAcompObs(hasAcomp);
+
+        document.getElementById('modal-student-form').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        lucide.createIcons();
+    }
+
+    function closeStudentModal() {
+        document.getElementById('modal-student-form').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    function toggleAcompObs(checked) {
+        const wrapper = document.getElementById('acomp-obs-wrapper');
+        wrapper.style.display = checked ? 'flex' : 'none';
+    }
+
+    function toggleActiveModal(id, nome, isAtivo) {
+        document.getElementById('toggle-aluno-id').value = id;
+        const title = document.getElementById('toggle-active-title');
+        const msg = document.getElementById('toggle-active-msg');
+        const icon = document.getElementById('toggle-active-icon');
+        const dateBox = document.getElementById('deactivation-date-container');
+        const submitBtn = document.getElementById('toggle-submit-btn');
+
+        if (isAtivo) {
+            title.innerText = `Desativar ${nome}`;
+            msg.innerText = `Tem certeza que deseja agendar ou efetuar o desligamento de ${nome}?`;
+            icon.innerText = '⚠️';
+            dateBox.style.display = 'block';
+            submitBtn.innerText = 'Confirmar Desligamento';
+            submitBtn.style.backgroundColor = '#d97706';
+        } else {
+            title.innerText = `Reativar ${nome}`;
+            msg.innerText = `Deseja reativar a matrícula de ${nome}? A criança voltará a constar nas chamadas diárias.`;
+            icon.innerText = '✅';
+            dateBox.style.display = 'none';
+            submitBtn.innerText = 'Reativar Aluno';
+            submitBtn.style.backgroundColor = '#16a34a';
+        }
+
+        document.getElementById('modal-toggle-active').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        lucide.createIcons();
+    }
+
+    function closeToggleActiveModal() {
+        document.getElementById('modal-toggle-active').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    window.addEventListener('click', function(e) {
+        ['modal-student-form', 'modal-toggle-active'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el && e.target === el) {
+                el.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        });
+    });
+</script>
+{% endblock %}

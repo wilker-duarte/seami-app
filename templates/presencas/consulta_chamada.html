@@ -1,0 +1,935 @@
+{% extends "base.html" %}
+
+{% block title %}{% if frequency_tab == 'relatorios' %}Relatórios & Situação do Aluno{% else %}Registros e Exportação{% endif %} - SEAMI{% endblock %}
+{% block page_title %}{% if frequency_tab == 'relatorios' %}Relatórios & Situação do Aluno{% else %}Registros e Exportação{% endif %}{% endblock %}
+{% block page_subtitle %}{% if frequency_tab == 'relatorios' %}Acompanhamento consolidado da Frequência Diária Geral, evolução mensal e situação individual de cada aluno.{% else %}Consulta histórica consolidada, filtros customizados por período/mês de referência e exportação de frequência escolar.{% endif %}{% endblock %}
+
+{% block content %}
+<section class="panel-section active" style="display: flex; flex-direction: column; gap: 20px;">
+
+    <!-- ================================================================= -->
+    <!-- BARRA SUPERIOR DE NAVEGAÇÃO DE ABAS DO MÓDULO DE FREQUÊNCIA       -->
+    <!-- ================================================================= -->
+    <div style="display: flex; gap: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; flex-wrap: wrap;">
+        <a href="{% url 'presencas:lancar_chamada' %}"
+           style="text-decoration: none; padding: 9px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; background-color: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border-color); transition: all 0.2s;">
+            <i data-lucide="clipboard-check" style="width: 16px; height: 16px;"></i>
+            <span>Lançar Chamada</span>
+        </a>
+
+        <a href="{% url 'presencas:consulta_chamada' %}?tab=consulta"
+           style="text-decoration: none; padding: 9px 16px; border-radius: 8px; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; {% if frequency_tab != 'relatorios' %}background-color: var(--color-primary); color: white; border: 1px solid var(--color-primary); box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);{% else %}background-color: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border-color);{% endif %} transition: all 0.2s;">
+            <i data-lucide="search" style="width: 16px; height: 16px;"></i>
+            <span>Registros e Exportação</span>
+        </a>
+
+        <a href="{% url 'presencas:consulta_chamada' %}?tab=relatorios"
+           style="text-decoration: none; padding: 9px 16px; border-radius: 8px; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; {% if frequency_tab == 'relatorios' %}background-color: var(--color-primary); color: white; border: 1px solid var(--color-primary); box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);{% else %}background-color: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border-color);{% endif %} transition: all 0.2s;">
+            <i data-lucide="bar-chart-3" style="width: 16px; height: 16px;"></i>
+            <span>Relatórios & Situação do Aluno</span>
+        </a>
+    </div>
+
+    {% if frequency_tab == 'relatorios' %}
+    <!-- ========================================================================= -->
+    <!-- ABA: RELATÓRIOS & SITUAÇÃO DO ALUNO (FREQUÊNCIA DIÁRIA GERAL)            -->
+    <!-- ========================================================================= -->
+    
+    <!-- 1. FREQUÊNCIA DIÁRIA GERAL -->
+    <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 22px; box-shadow: var(--shadow-sm);">
+        <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 14px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 20px;">📅</span>
+                <div>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: var(--text-primary);">Frequência Diária Geral</h3>
+                    <span style="font-size: 12px; color: var(--text-secondary);">Taxa de assiduidade e balanço de presença no dia selecionado</span>
+                </div>
+            </div>
+            
+            <form method="get" style="display: flex; align-items: center; gap: 8px;">
+                <input type="hidden" name="tab" value="relatorios">
+                {% if selected_student_id %}<input type="hidden" name="student_id" value="{{ selected_student_id }}">{% endif %}
+                <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Data de Referência:</label>
+                <input type="date" name="daily_date" value="{{ daily_stats.date_str }}" onchange="this.form.submit()"
+                       style="padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); color: var(--text-primary); font-size: 13px; font-weight: 600; outline: none;">
+            </form>
+        </div>
+
+        {% if daily_stats.has_data %}
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 16px;">
+            <!-- Taxa de Presença -->
+            <div style="padding: 16px 20px; border-radius: 12px; background-color: #ecfdf5; border: 1px solid #a7f3d0; text-align: center;">
+                <span style="display: block; font-size: 11px; font-weight: 700; color: #047857; text-transform: uppercase; letter-spacing: 0.5px;">Taxa de Presença</span>
+                <strong style="font-size: 28px; color: #065f46; font-family: var(--font-title);">{{ daily_stats.rate }}%</strong>
+            </div>
+
+            <!-- Total de Chamadas -->
+            <div style="padding: 16px 20px; border-radius: 12px; background-color: var(--bg-body); border: 1px solid var(--border-color); text-align: center;">
+                <span style="display: block; font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Total Chamadas</span>
+                <strong style="font-size: 28px; color: var(--text-primary); font-family: var(--font-title);">{{ daily_stats.total }}</strong>
+            </div>
+
+            <!-- Presentes (P) -->
+            <div style="padding: 16px 20px; border-radius: 12px; background-color: #eff6ff; border: 1px solid #bfdbfe; text-align: center;">
+                <span style="display: block; font-size: 11px; font-weight: 700; color: #1d4ed8; text-transform: uppercase; letter-spacing: 0.5px;">Presentes (P)</span>
+                <strong style="font-size: 28px; color: #1e40af; font-family: var(--font-title);">{{ daily_stats.present }}</strong>
+            </div>
+
+            <!-- Faltas (F) -->
+            <div style="padding: 16px 20px; border-radius: 12px; background-color: #fef2f2; border: 1px solid #fca5a5; text-align: center;">
+                <span style="display: block; font-size: 11px; font-weight: 700; color: #b91c1c; text-transform: uppercase; letter-spacing: 0.5px;">Faltas (F)</span>
+                <strong style="font-size: 28px; color: #991b1b; font-family: var(--font-title);">{{ daily_stats.lack }}</strong>
+            </div>
+
+            <!-- Justificadas (FJ) -->
+            <div style="padding: 16px 20px; border-radius: 12px; background-color: #fffbeb; border: 1px solid #fde68a; text-align: center;">
+                <span style="display: block; font-size: 11px; font-weight: 700; color: #b45309; text-transform: uppercase; letter-spacing: 0.5px;">Justificadas (FJ)</span>
+                <strong style="font-size: 28px; color: #92400e; font-family: var(--font-title);">{{ daily_stats.justified }}</strong>
+            </div>
+        </div>
+        {% else %}
+        <div style="padding: 32px; text-align: center; color: var(--text-secondary); border: 1px dashed var(--border-color); border-radius: 10px;">
+            <span style="font-size: 24px;">📋</span>
+            <div style="font-weight: 700; margin-top: 8px;">Nenhuma chamada registrada na data {{ daily_stats.date|date:"d/m/Y" }}.</div>
+            <div style="font-size: 12.5px; margin-top: 4px;">Selecione outra data ou realize o lançamento em "Lançar Chamada".</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 2. FREQUÊNCIA SEMANAL E MENSAL (LADO A LADO) -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 20px;">
+        
+        <!-- Relatório Semanal -->
+        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 22px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column;">
+            <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 14px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="pie-chart" style="width: 18px; height: 18px; color: var(--color-primary);"></i>
+                    <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-primary);">Frequência Semanal</h3>
+                </div>
+
+                <form method="get" style="display: flex; align-items: center; gap: 6px;">
+                    <input type="hidden" name="tab" value="relatorios">
+                    <input type="hidden" name="daily_date" value="{{ daily_stats.date_str }}">
+                    {% if selected_student_id %}<input type="hidden" name="student_id" value="{{ selected_student_id }}">{% endif %}
+                    <select name="weekly_room" onchange="this.form.submit()" style="padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; border: 1px solid var(--border-color); background-color: var(--bg-input); color: var(--text-primary); outline: none;">
+                        <option value="all">Todas as salas</option>
+                        {% for t in turmas %}
+                            <option value="{{ t.id }}" {% if weekly_room == t.id|stringformat:"s" or weekly_room == t.nome %}selected{% endif %}>Sala {{ t.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </div>
+
+            {% if weekly_stats_list %}
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                    <thead>
+                        <tr style="background-color: var(--bg-body); border-bottom: 1.5px solid var(--border-color); color: var(--text-secondary); font-size: 11.5px; text-transform: uppercase;">
+                            <th style="padding: 10px 14px; font-weight: 700;">Período Semanal</th>
+                            <th style="padding: 10px 14px; font-weight: 700; text-align: center;">Presenças</th>
+                            <th style="padding: 10px 14px; font-weight: 700; text-align: center;">Frequência</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for w in weekly_stats_list %}
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 11px 14px; font-weight: 600; color: var(--text-primary);">
+                                📅 {{ w.week }}
+                            </td>
+                            <td style="padding: 11px 14px; text-align: center; font-weight: 600;">
+                                {{ w.present }} de {{ w.total }}
+                            </td>
+                            <td style="padding: 11px 14px; text-align: center;">
+                                <span style="display: inline-flex; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 800; {% if w.rate >= 90 %}background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;{% elif w.rate >= 75 %}background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a;{% else %}background-color: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5;{% endif %}">
+                                    {{ w.rate }}%
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div style="padding: 30px; text-align: center; color: var(--text-secondary); font-size: 12.5px;">
+                Sem chamadas registradas nas últimas semanas.
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Relatório Mensal -->
+        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 22px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column;">
+            <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 14px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="bar-chart-2" style="width: 18px; height: 18px; color: var(--color-primary);"></i>
+                <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-primary);">Frequência Mensal Consolidada</h3>
+            </div>
+
+            {% if monthly_stats_list %}
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                    <thead>
+                        <tr style="background-color: var(--bg-body); border-bottom: 1.5px solid var(--border-color); color: var(--text-secondary); font-size: 11.5px; text-transform: uppercase;">
+                            <th style="padding: 10px 14px; font-weight: 700;">Mês / Ano</th>
+                            <th style="padding: 10px 14px; font-weight: 700; text-align: center;">Presenças</th>
+                            <th style="padding: 10px 14px; font-weight: 700; text-align: center;">Taxa</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in monthly_stats_list %}
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 11px 14px; font-weight: 700; color: var(--text-primary);">
+                                🗓️ {{ m.month }}
+                            </td>
+                            <td style="padding: 11px 14px; text-align: center; font-weight: 600;">
+                                {{ m.present }} de {{ m.total }}
+                            </td>
+                            <td style="padding: 11px 14px; text-align: center;">
+                                <span style="display: inline-flex; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 800; {% if m.rate >= 90 %}background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;{% elif m.rate >= 75 %}background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a;{% else %}background-color: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5;{% endif %}">
+                                    {{ m.rate }}%
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div style="padding: 30px; text-align: center; color: var(--text-secondary); font-size: 12.5px;">
+                Nenhum histórico mensal consolidado ainda.
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+
+    <!-- 3. SITUAÇÃO INDIVIDUAL DO ALUNO -->
+    <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 22px; box-shadow: var(--shadow-sm);">
+        <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 14px; margin-bottom: 18px; display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="user-check" style="width: 18px; height: 18px; color: var(--color-primary);"></i>
+            <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-primary);">Situação de Frequência Individual do Aluno</h3>
+        </div>
+
+        <form method="get" style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 18px;">
+            <input type="hidden" name="tab" value="relatorios">
+            <input type="hidden" name="daily_date" value="{{ daily_stats.date_str }}">
+            <div style="flex: 1; min-width: 260px;">
+                <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;">Selecione o Aluno para Análise:</label>
+                <select name="student_id" onchange="this.form.submit()" style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); color: var(--text-primary); font-size: 13.5px; font-weight: 600; outline: none;">
+                    <option value="">-- Selecione um aluno --</option>
+                    {% for std in alunos_todos %}
+                    <option value="{{ std.id }}" {% if selected_student_id == std.id %}selected{% endif %}>{{ std.nome }} (Sala {{ std.turma.nome }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+
+        {% if individual_stats %}
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+            <div style="padding: 18px 24px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; {% if individual_stats.rate >= 90 %}background-color: #ecfdf5; border: 1px solid #a7f3d0;{% elif individual_stats.rate >= 75 %}background-color: #fffbeb; border: 1px solid #fde68a;{% else %}background-color: #fef2f2; border: 1px solid #fca5a5;{% endif %}">
+                <div>
+                    <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Frequência Global de {{ individual_stats.aluno.nome }}</span>
+                    <h4 style="margin: 4px 0 0 0; font-size: 28px; font-weight: 800; {% if individual_stats.rate >= 90 %}color: #065f46;{% elif individual_stats.rate >= 75 %}color: #92400e;{% else %}color: #991b1b;{% endif %} font-family: var(--font-title);">
+                        {{ individual_stats.rate }}%
+                    </h4>
+                </div>
+                <span style="padding: 8px 16px; border-radius: 999px; font-size: 12.5px; font-weight: 800; {% if individual_stats.rate >= 90 %}background-color: #047857; color: white;{% elif individual_stats.rate >= 75 %}background-color: #d97706; color: white;{% else %}background-color: #dc2626; color: white;{% endif %}">
+                    {% if individual_stats.rate >= 90 %}Excelente Assiduidade{% elif individual_stats.rate >= 75 %}Atenção Necessária{% else %}Situação Crítica{% endif %}
+                </span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px;">
+                <div style="padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-body); text-align: center;">
+                    <span style="display: block; font-size: 11px; color: var(--text-secondary); font-weight: 600;">DIAS AVALIADOS</span>
+                    <strong style="font-size: 18px; color: var(--text-primary);">{{ individual_stats.total }}</strong>
+                </div>
+                <div style="padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-body); text-align: center;">
+                    <span style="display: block; font-size: 11px; color: #047857; font-weight: 600;">PRESENÇAS (P)</span>
+                    <strong style="font-size: 18px; color: #047857;">{{ individual_stats.present }}</strong>
+                </div>
+                <div style="padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-body); text-align: center;">
+                    <span style="display: block; font-size: 11px; color: #b91c1c; font-weight: 600;">FALTAS (F / FJ)</span>
+                    <strong style="font-size: 18px; color: #b91c1c;">{{ individual_stats.lack|add:individual_stats.justified }}</strong>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div style="padding: 24px; text-align: center; color: var(--text-secondary); font-size: 13px; border: 1px dashed var(--border-color); border-radius: 8px;">
+            Selecione um aluno acima para visualizar o diagnóstico de frequência individual.
+        </div>
+        {% endif %}
+    </div>
+
+    {% else %}
+    <!-- ================================================================= -->
+    <!-- ABA 1: FILTROS DE CONSULTA HISTÓRICA & EXPORTAÇÃO                 -->
+    <!-- ================================================================= -->
+    <div class="filter-card" style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; box-shadow: var(--shadow-sm);">
+        <div class="filter-card-header" style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div class="filter-card-title" style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; color: var(--text-primary);">
+                <i data-lucide="filter" style="color: var(--color-primary); width: 18px; height: 18px;"></i>
+                <span>Filtros de Pesquisa de Histórico</span>
+            </div>
+
+            <!-- BOTÕES DE EXPORTAÇÃO EXCEL E PDF (SEM IMPRIMIR) -->
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <button type="button" onclick="exportConsultaExcel()" class="secondary-btn" style="padding: 8px 14px; border-radius: 8px; border: 1px solid #a7f3d0; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; background-color: #ecfdf5; color: #047857; transition: all 0.2s;">
+                    <i data-lucide="sheet" style="width: 15px; height: 15px;"></i>
+                    <span>Exportar Excel (.xlsx)</span>
+                </button>
+                <button type="button" onclick="exportConsultaPDF()" class="secondary-btn" style="padding: 8px 14px; border-radius: 8px; border: 1px solid #fed7aa; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; background-color: #fff7ed; color: #c2410c; transition: all 0.2s;">
+                    <i data-lucide="file-text" style="width: 15px; height: 15px;"></i>
+                    <span>Exportar PDF (.pdf)</span>
+                </button>
+            </div>
+        </div>
+
+        <form method="get" id="consulta-filter-form" style="display: flex; flex-direction: column; gap: 14px;">
+            <input type="hidden" name="tab" value="consulta">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; align-items: flex-end;">
+                
+                <!-- Buscar Aluno no Backend -->
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" style="font-size: 12px; font-weight: 700; color: var(--slate-600); margin-bottom: 6px; display: block;">Buscar Criança</label>
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <i data-lucide="search" style="position: absolute; left: 10px; color: var(--slate-400); width: 15px; height: 15px;"></i>
+                        <input type="text" name="q" value="{{ search_query }}" placeholder="Digite o nome..."
+                               style="width: 100%; background-color: var(--bg-input); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 12px 8px 32px; font-size: 13px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                    </div>
+                </div>
+
+                <!-- Filtrar por Sala -->
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" style="font-size: 12px; font-weight: 700; color: var(--slate-600); margin-bottom: 6px; display: block;">Filtrar por Sala</label>
+                    <select name="classroom" style="width: 100%; background-color: var(--bg-input); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 12px; font-size: 13px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                        <option value="">Todas as Salas</option>
+                        {% for t in turmas %}
+                            <option value="{{ t.id }}" {% if selected_classroom == t.id or selected_classroom == t.nome %}selected{% endif %}>{{ t.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Tipo de Filtro -->
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" style="font-size: 12px; font-weight: 700; color: var(--slate-600); margin-bottom: 6px; display: block;">Tipo de Filtro</label>
+                    <select name="filter_type" id="filter-type-select" onchange="toggleFilterType(this.value)" style="width: 100%; background-color: var(--bg-input); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 12px; font-size: 13px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                        <option value="month" {% if filter_type == 'month' %}selected{% endif %}>Mês de Referência (Mês / Ano)</option>
+                        <option value="custom" {% if filter_type == 'custom' %}selected{% endif %}>Intervalo Customizado (De / Para)</option>
+                    </select>
+                </div>
+
+                <!-- Campo Mês de Referência (mês/ano) -->
+                <div class="form-group" id="group-month-ref" style="margin-bottom: 0; {% if filter_type == 'custom' %}display: none;{% endif %}">
+                    <label class="form-label" style="font-size: 12px; font-weight: 700; color: var(--slate-600); margin-bottom: 6px; display: block;">Mês / Ano</label>
+                    <input type="month" name="month_ref" value="{{ month_ref }}"
+                           style="width: 100%; background-color: var(--bg-input); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 12px; font-size: 13px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                </div>
+
+                <!-- Campos de Intervalo Customizado -->
+                <div class="form-group group-custom-range" style="margin-bottom: 0; {% if filter_type != 'custom' %}display: none;{% endif %}">
+                    <label class="form-label" style="font-size: 12px; font-weight: 700; color: var(--slate-600); margin-bottom: 6px; display: block;">Data Início (De)</label>
+                    <input type="date" name="date_start" value="{{ date_start }}"
+                           style="width: 100%; background-color: var(--bg-input); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 12px; font-size: 13px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                </div>
+
+                <div class="form-group group-custom-range" style="margin-bottom: 0; {% if filter_type != 'custom' %}display: none;{% endif %}">
+                    <label class="form-label" style="font-size: 12px; font-weight: 700; color: var(--slate-600); margin-bottom: 6px; display: block;">Data Fim (Para)</label>
+                    <input type="date" name="date_end" value="{{ date_end }}"
+                           style="width: 100%; background-color: var(--bg-input); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 12px; font-size: 13px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                </div>
+
+                <!-- Status -->
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" style="font-size: 12px; font-weight: 700; color: var(--slate-600); margin-bottom: 6px; display: block;">Status de Presença</label>
+                    <select name="status" style="width: 100%; background-color: var(--bg-input); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 12px; font-size: 13px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                        <option value="">Todos os Status</option>
+                        <option value="PRESENTE" {% if selected_status == 'PRESENTE' %}selected{% endif %}>Presente (P)</option>
+                        <option value="AUSENTE" {% if selected_status == 'AUSENTE' %}selected{% endif %}>Falta (F)</option>
+                        <option value="JUSTIFICADO" {% if selected_status == 'JUSTIFICADO' %}selected{% endif %}>Justificada (FJ)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Botões de Ação -->
+            <div style="display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--border-color); padding-top: 12px; margin-top: 4px;">
+                <a href="{% url 'presencas:consulta_chamada' %}" class="secondary-btn" style="padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border-color); color: var(--text-secondary); text-decoration: none; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; background-color: var(--bg-body);">
+                    Limpar
+                </a>
+                <button type="submit" class="primary-btn" style="padding: 8px 18px; border-radius: 8px; background-color: var(--color-primary); color: white; border: none; font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <i data-lucide="search" style="width: 15px; height: 15px;"></i>
+                    <span>Aplicar Filtros</span>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- TABELA DE REGISTROS DE PRESENÇA COM BUSCA, ORDENAÇÃO E PAGINAÇÃO -->
+    <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); overflow: hidden;">
+        
+        <!-- Header da Tabela com Total -->
+        <div style="padding: 16px 20px; background-color: var(--bg-body); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="clipboard-list" style="width: 18px; height: 18px; color: var(--color-primary);"></i>
+                <span style="font-family: var(--font-title); font-size: 15px; font-weight: 700; color: var(--text-primary);">
+                    Registros de Frequência Encontrados
+                </span>
+            </div>
+            <span id="badge-total-registros" style="font-size: 12px; font-weight: 700; background: var(--color-primary-light); color: var(--color-primary); padding: 3px 10px; border-radius: 999px;">
+                Total: {{ total_registros }} registros
+            </span>
+        </div>
+
+        <!-- Barra de Ferramentas Interativa: Busca rápida, Ordenação e Registros por Página (UI-UX do SEAMI) -->
+        {% if registros %}
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--border-color); background-color: var(--bg-input); align-items: center; justify-content: space-between;">
+            
+            <!-- Busca Rápida Instantânea no Frontend -->
+            <div style="position: relative; flex: 1 1 260px; min-width: 220px;">
+                <i data-lucide="search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--slate-400); width: 15px; height: 15px;"></i>
+                <input type="text" id="client-search-input" placeholder="Pesquisar por nome do aluno ou sala..."
+                       oninput="onSearchInputChange(this.value)"
+                       style="width: 100%; padding: 8px 12px 8px 34px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 13px; background-color: var(--bg-card); color: var(--text-primary); outline: none; box-sizing: border-box;">
+            </div>
+
+            <!-- Controles de Ordenação e Registros por Página -->
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 12px; color: var(--text-secondary); font-weight: 600;">Ordenar por:</span>
+                    <select id="sort-select" onchange="onSortChange(this.value)"
+                            style="padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 12.5px; background-color: var(--bg-card); color: var(--text-primary); cursor: pointer; font-weight: 600; outline: none;">
+                        <option value="date-desc">📅 Mais Recentes Primeiro</option>
+                        <option value="date-asc">📅 Mais Antigos Primeiro</option>
+                        <option value="name-asc">🔤 Aluno (A-Z)</option>
+                        <option value="name-desc">🔤 Aluno (Z-A)</option>
+                        <option value="classroom-asc">🏫 Turma (A-Z)</option>
+                        <option value="classroom-desc">🏫 Turma (Z-A)</option>
+                        <option value="status-present">🟢 Presentes Primeiro</option>
+                        <option value="status-lack">🔴 Faltas Primeiro</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 12px; color: var(--text-secondary); font-weight: 600;">Exibir:</span>
+                    <select id="per-page-select" onchange="onPerPageChange(this.value)"
+                            style="padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 12.5px; background-color: var(--bg-card); color: var(--text-primary); cursor: pointer; font-weight: 600; outline: none;">
+                        <option value="10">10 por página</option>
+                        <option value="25">25 por página</option>
+                        <option value="50">50 por página</option>
+                        <option value="100">100 por página</option>
+                        <option value="all">Todos</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13.5px;">
+                <thead>
+                    <tr style="background-color: var(--bg-body); border-bottom: 1.5px solid var(--border-color); color: var(--text-secondary); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <th style="padding: 14px 20px; font-weight: 700; cursor: pointer; user-select: none;" onclick="toggleHeaderSort('date')">
+                            Data <span id="th-sort-date">↕</span>
+                        </th>
+                        <th style="padding: 14px 20px; font-weight: 700; cursor: pointer; user-select: none;" onclick="toggleHeaderSort('name')">
+                            Aluno(a) <span id="th-sort-name">↕</span>
+                        </th>
+                        <th style="padding: 14px 20px; font-weight: 700; cursor: pointer; user-select: none;" onclick="toggleHeaderSort('classroom')">
+                            Turma / Sala <span id="th-sort-classroom">↕</span>
+                        </th>
+                        <th style="padding: 14px 20px; font-weight: 700; text-align: center; cursor: pointer; user-select: none;" onclick="toggleHeaderSort('status')">
+                            Status <span id="th-sort-status">↕</span>
+                        </th>
+                        <th style="padding: 14px 20px; font-weight: 700;">Observação / Motivo</th>
+                        <th style="padding: 14px 20px; font-weight: 700;">Registrado por</th>
+                    </tr>
+                </thead>
+                <tbody id="attendance-table-body">
+                    <!-- Linhas renderizadas dinamicamente pelo JavaScript com paginação e ordenação -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginação Inferior Interativa -->
+        <div id="pagination-container" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background-color: var(--bg-body); border-top: 1px solid var(--border-color); flex-wrap: wrap; gap: 12px;">
+            <span id="pagination-info" style="font-size: 12.5px; color: var(--text-secondary); font-weight: 600;">
+                Exibindo 0 a 0 de 0 registros
+            </span>
+            <div id="pagination-buttons" style="display: flex; gap: 4px; align-items: center;">
+                <!-- Botões de página injetados via JS -->
+            </div>
+        </div>
+
+        {% else %}
+            <div style="text-align: center; padding: 48px; color: var(--text-light);">
+                <i data-lucide="search-x" style="width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.5;"></i>
+                <h4 style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">
+                    Nenhum registro encontrado
+                </h4>
+                <p style="font-size: 13px; color: var(--text-secondary);">
+                    Tente ajustar os parâmetros de filtro (sala, período de datas ou status) para localizar os lançamentos.
+                </p>
+            </div>
+        {% endif %}
+
+    </div>
+    {% endif %}
+
+</section>
+
+<!-- BIBLIOTECAS PARA EXPORTAÇÃO EXCEL E PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+<!-- DADOS BRUTOS EM JSON PARA PAGINAÇÃO, ORDENAÇÃO E EXPORTAÇÃO RÁPIDA -->
+<script id="attendance-raw-json" type="application/json">
+[
+    {% for reg in registros %}
+    {
+        "id": {{ reg.id }},
+        "date_raw": "{{ reg.data|date:'Y-m-d' }}",
+        "date_br": "{{ reg.data|date:'d/m/Y' }}",
+        "student_name": "{{ reg.aluno.nome|escapejs }}",
+        "classroom": "{{ reg.turma.nome|escapejs }}",
+        "status": "{{ reg.status }}",
+        "status_label": "{% if reg.status == 'PRESENTE' %}Presente (P){% elif reg.status == 'AUSENTE' %}Falta (F){% else %}Justificada (FJ){% endif %}",
+        "obs": "{{ reg.observacao|default:'-'|escapejs }}",
+        "recorded_by": "{{ reg.registrado_por.get_full_name|default:reg.registrado_por.username|default:'Professor'|escapejs }}"
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+]
+</script>
+
+<script>
+    // Toggle entre Mês de Referência e Intervalo Customizado
+    function toggleFilterType(type) {
+        const monthGroup = document.getElementById('group-month-ref');
+        const customGroups = document.querySelectorAll('.group-custom-range');
+
+        if (type === 'month') {
+            if (monthGroup) monthGroup.style.display = 'block';
+            customGroups.forEach(el => el.style.display = 'none');
+        } else {
+            if (monthGroup) monthGroup.style.display = 'none';
+            customGroups.forEach(el => el.style.display = 'block');
+        }
+    }
+
+    // =========================================================================
+    // ESTADO E LÓGICA DE ORDENAÇÃO, BUSCA E PAGINAÇÃO CLIENT-SIDE (SEAMI UI-UX)
+    // =========================================================================
+    let allRecords = [];
+    try {
+        const rawElem = document.getElementById('attendance-raw-json');
+        if (rawElem) {
+            allRecords = JSON.parse(rawElem.textContent || '[]');
+        }
+    } catch (e) {
+        console.error("Erro ao carregar dados JSON de frequência:", e);
+    }
+
+    let searchTerm = '';
+    let sortBy = 'date-desc';
+    let currentPage = 1;
+    let recordsPerPage = 10;
+
+    function getFilteredAndSortedRecords() {
+        // 1. Filtragem por texto
+        let filtered = allRecords.filter(r => {
+            if (!searchTerm) return true;
+            const term = searchTerm.toLowerCase().trim();
+            return (
+                r.student_name.toLowerCase().includes(term) ||
+                r.classroom.toLowerCase().includes(term) ||
+                r.date_br.includes(term) ||
+                r.obs.toLowerCase().includes(term) ||
+                r.status_label.toLowerCase().includes(term)
+            );
+        });
+
+        // 2. Ordenação
+        filtered.sort((a, b) => {
+            switch (sortBy) {
+                case 'date-asc':
+                    return a.date_raw.localeCompare(b.date_raw) || a.student_name.localeCompare(b.student_name);
+                case 'date-desc':
+                    return b.date_raw.localeCompare(a.date_raw) || a.student_name.localeCompare(b.student_name);
+                case 'name-asc':
+                    return a.student_name.localeCompare(b.student_name);
+                case 'name-desc':
+                    return b.student_name.localeCompare(a.student_name);
+                case 'classroom-asc':
+                    return a.classroom.localeCompare(b.classroom) || a.student_name.localeCompare(b.student_name);
+                case 'classroom-desc':
+                    return b.classroom.localeCompare(a.classroom) || a.student_name.localeCompare(b.student_name);
+                case 'status-present':
+                    return (a.status === 'PRESENTE' ? -1 : 1) - (b.status === 'PRESENTE' ? -1 : 1);
+                case 'status-lack':
+                    return (a.status === 'AUSENTE' ? -1 : 1) - (b.status === 'AUSENTE' ? -1 : 1);
+                default:
+                    return b.date_raw.localeCompare(a.date_raw);
+            }
+        });
+
+        return filtered;
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('attendance-table-body');
+        if (!tbody) return;
+
+        const filtered = getFilteredAndSortedRecords();
+        const total = filtered.length;
+
+        // Atualiza badge de total
+        const badge = document.getElementById('badge-total-registros');
+        if (badge) {
+            badge.textContent = `Total: ${total} registros`;
+        }
+
+        // Paginação
+        const perPage = recordsPerPage === 'all' ? (total || 1) : parseInt(recordsPerPage, 10);
+        const totalPages = Math.ceil(total / perPage) || 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        const startIndex = (currentPage - 1) * perPage;
+        const endIndex = recordsPerPage === 'all' ? total : Math.min(startIndex + perPage, total);
+        const pagedData = filtered.slice(startIndex, endIndex);
+
+        if (pagedData.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="padding: 40px; text-align: center; color: var(--text-light);">
+                        <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">Nenhum registro encontrado</div>
+                        <div style="font-size: 12.5px;">Tente alterar os termos da busca rápida ou dos filtros.</div>
+                    </td>
+                </tr>
+            `;
+        } else {
+            tbody.innerHTML = pagedData.map(r => {
+                let badgeStyle = '';
+                if (r.status === 'PRESENTE') {
+                    badgeStyle = 'background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;';
+                } else if (r.status === 'AUSENTE') {
+                    badgeStyle = 'background-color: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5;';
+                } else {
+                    badgeStyle = 'background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a;';
+                }
+
+                return `
+                    <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.15s;" onmouseenter="this.style.backgroundColor='var(--bg-input)'" onmouseleave="this.style.backgroundColor='transparent'">
+                        <td style="padding: 14px 20px; font-weight: 600; white-space: nowrap;">
+                            ${r.date_br}
+                        </td>
+                        <td style="padding: 14px 20px; font-weight: 700; color: var(--text-primary);">
+                            ${r.student_name}
+                        </td>
+                        <td style="padding: 14px 20px;">
+                            <span style="background-color: var(--bg-input); border: 1px solid var(--border-color); padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 12px;">
+                                Sala ${r.classroom}
+                            </span>
+                        </td>
+                        <td style="padding: 14px 20px; text-align: center;">
+                            <span class="badge" style="${badgeStyle} padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 11.5px;">
+                                ${r.status_label}
+                            </span>
+                        </td>
+                        <td style="padding: 14px 20px; color: var(--text-secondary);">
+                            ${r.obs || '-'}
+                        </td>
+                        <td style="padding: 14px 20px; font-size: 12.5px; color: var(--text-secondary);">
+                            ${r.recorded_by}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        renderPaginationControls(total, startIndex, endIndex, totalPages);
+    }
+
+    function renderPaginationControls(total, startIndex, endIndex, totalPages) {
+        const info = document.getElementById('pagination-info');
+        const container = document.getElementById('pagination-buttons');
+        if (!info || !container) return;
+
+        if (total === 0) {
+            info.textContent = 'Exibindo 0 a 0 de 0 registros';
+            container.innerHTML = '';
+            return;
+        }
+
+        info.innerHTML = `Exibindo <strong>${startIndex + 1}</strong> a <strong>${endIndex}</strong> de <strong>${total}</strong> registros`;
+
+        if (recordsPerPage === 'all' || totalPages <= 1) {
+            container.innerHTML = '';
+            return;
+        }
+
+        let buttonsHtml = '';
+
+        // Botão Primeira
+        buttonsHtml += `
+            <button onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''} style="padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 12px; cursor: ${currentPage === 1 ? 'not-allowed' : 'pointer'}; opacity: ${currentPage === 1 ? 0.5 : 1}; font-weight: 700;">
+                ⏮️
+            </button>
+        `;
+
+        // Botão Anterior
+        buttonsHtml += `
+            <button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} style="padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 12px; cursor: ${currentPage === 1 ? 'not-allowed' : 'pointer'}; opacity: ${currentPage === 1 ? 0.5 : 1}; font-weight: 600;">
+                Anterior
+            </button>
+        `;
+
+        // Páginas numeradas (máximo 5)
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+        if (endPage - startPage < 4) {
+            startPage = Math.max(1, endPage - 4);
+        }
+
+        for (let p = startPage; p <= endPage; p++) {
+            const isActive = p === currentPage;
+            buttonsHtml += `
+                <button onclick="goToPage(${p})" style="width: 32px; height: 32px; border-radius: 6px; border: ${isActive ? 'none' : '1px solid var(--border-color)'}; background-color: ${isActive ? 'var(--color-primary)' : 'var(--bg-card)'}; color: ${isActive ? '#ffffff' : 'var(--text-primary)'}; font-size: 12px; cursor: pointer; font-weight: 700;">
+                    ${p}
+                </button>
+            `;
+        }
+
+        // Botão Próximo
+        buttonsHtml += `
+            <button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} style="padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 12px; cursor: ${currentPage === totalPages ? 'not-allowed' : 'pointer'}; opacity: ${currentPage === totalPages ? 0.5 : 1}; font-weight: 600;">
+                Próxima
+            </button>
+        `;
+
+        // Botão Última
+        buttonsHtml += `
+            <button onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''} style="padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 12px; cursor: ${currentPage === totalPages ? 'not-allowed' : 'pointer'}; opacity: ${currentPage === totalPages ? 0.5 : 1}; font-weight: 700;">
+                ⏭️
+            </button>
+        `;
+
+        container.innerHTML = buttonsHtml;
+    }
+
+    function goToPage(page) {
+        currentPage = page;
+        renderTable();
+    }
+
+    function onSearchInputChange(val) {
+        searchTerm = val;
+        currentPage = 1;
+        renderTable();
+    }
+
+    function onSortChange(val) {
+        sortBy = val;
+        currentPage = 1;
+        renderTable();
+    }
+
+    function onPerPageChange(val) {
+        recordsPerPage = val;
+        currentPage = 1;
+        renderTable();
+    }
+
+    function toggleHeaderSort(field) {
+        if (field === 'date') {
+            sortBy = sortBy === 'date-desc' ? 'date-asc' : 'date-desc';
+        } else if (field === 'name') {
+            sortBy = sortBy === 'name-asc' ? 'name-desc' : 'name-asc';
+        } else if (field === 'classroom') {
+            sortBy = sortBy === 'classroom-asc' ? 'classroom-desc' : 'classroom-asc';
+        } else if (field === 'status') {
+            sortBy = sortBy === 'status-present' ? 'status-lack' : 'status-present';
+        }
+        const select = document.getElementById('sort-select');
+        if (select) select.value = sortBy;
+        renderTable();
+    }
+
+    // Inicializa a tabela ao carregar
+    document.addEventListener('DOMContentLoaded', function() {
+        if (allRecords.length > 0) {
+            renderTable();
+        }
+    });
+
+    // =========================================================================
+    // EXPORTAÇÃO EXCEL (.XLSX) PROFISSIONAL
+    // =========================================================================
+    function exportConsultaExcel() {
+        const records = getFilteredAndSortedRecords();
+        if (!records || records.length === 0) {
+            alert('Não há registros para exportar com os filtros atuais.');
+            return;
+        }
+
+        if (typeof XLSX === 'undefined') {
+            alert('Biblioteca SheetJS (XLSX) não carregada.');
+            return;
+        }
+
+        const dataRows = records.map(r => ({
+            "Data": r.date_br,
+            "Aluno(a)": r.student_name,
+            "Turma / Sala": `Sala ${r.classroom}`,
+            "Status": r.status_label,
+            "Observação / Motivo": r.obs || '',
+            "Registrado Por": r.recorded_by
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(dataRows);
+
+        // Largura das colunas
+        ws['!cols'] = [
+            { wch: 14 },
+            { wch: 32 },
+            { wch: 18 },
+            { wch: 18 },
+            { wch: 35 },
+            { wch: 25 }
+        ];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Frequência Escolar");
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        XLSX.writeFile(wb, `Frequencia_SEAMI_${todayStr}.xlsx`);
+    }
+
+    // =========================================================================
+    // EXPORTAÇÃO PDF (.PDF) COM CABEÇALHO INSTITUCIONAL E TABELA PAGINADA
+    // =========================================================================
+    function exportConsultaPDF() {
+        const records = getFilteredAndSortedRecords();
+        if (!records || records.length === 0) {
+            alert('Não há registros para exportar com os filtros atuais.');
+            return;
+        }
+
+        if (typeof window.jspdf === 'undefined') {
+            alert('Biblioteca jsPDF não carregada.');
+            return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+        // Totalizadores
+        let presentes = 0;
+        let faltas = 0;
+        let justificadas = 0;
+        records.forEach(r => {
+            if (r.status === 'PRESENTE') presentes++;
+            else if (r.status === 'AUSENTE') faltas++;
+            else justificadas++;
+        });
+
+        // 1. Cabeçalho Institucional
+        doc.setFillColor(79, 70, 229); // Indigo institucional
+        doc.roundedRect(14, 14, 182, 26, 3, 3, 'F');
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.setTextColor(255, 255, 255);
+        doc.text("EDUCA GESTAO  |  CADERNO SEAMI", 20, 24);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9.5);
+        doc.setTextColor(224, 231, 255);
+        doc.text("Relatorio Oficial de Frequencia e Registros de Chamada Escolar", 20, 31);
+
+        const dataEmissao = new Date().toLocaleDateString('pt-BR');
+        doc.setFontSize(8.5);
+        doc.text(`Emissao: ${dataEmissao}`, 160, 24);
+
+        // 2. Resumo de Métricas
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(226, 232, 240);
+        doc.roundedRect(14, 44, 182, 16, 2, 2, 'FD');
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(15, 23, 42);
+        doc.text(`Total de Registros: ${records.length}`, 20, 54);
+
+        doc.setTextColor(4, 120, 87);
+        doc.text(`Presentes (P): ${presentes}`, 75, 54);
+
+        doc.setTextColor(185, 28, 28);
+        doc.text(`Faltas (F): ${faltas}`, 120, 54);
+
+        doc.setTextColor(180, 83, 9);
+        doc.text(`Justificadas (FJ): ${justificadas}`, 155, 54);
+
+        // 3. Tabela de Registros com autoTable
+        const tableBody = records.map(r => [
+            r.date_br,
+            r.student_name,
+            `Sala ${r.classroom}`,
+            r.status_label,
+            r.obs || '-',
+            r.recorded_by
+        ]);
+
+        doc.autoTable({
+            startY: 65,
+            head: [['Data', 'Aluno(a)', 'Turma / Sala', 'Status', 'Observacao', 'Registrado Por']],
+            body: tableBody,
+            theme: 'grid',
+            headStyles: {
+                fillColor: [79, 70, 229],
+                textColor: [255, 255, 255],
+                fontStyle: 'bold',
+                fontSize: 8.5,
+                halign: 'left'
+            },
+            bodyStyles: {
+                fontSize: 8,
+                textColor: [30, 41, 59]
+            },
+            alternateRowStyles: {
+                fillColor: [248, 250, 252]
+            },
+            columnStyles: {
+                0: { cellWidth: 22 },
+                1: { cellWidth: 44, fontStyle: 'bold' },
+                2: { cellWidth: 24 },
+                3: { cellWidth: 26, fontStyle: 'bold' },
+                4: { cellWidth: 38 },
+                5: { cellWidth: 28 }
+            },
+            didParseCell: function(data) {
+                if (data.section === 'body' && data.column.index === 3) {
+                    const txt = data.cell.raw;
+                    if (txt.includes('Presente')) {
+                        data.cell.styles.textColor = [4, 120, 87];
+                    } else if (txt.includes('Falta (F)')) {
+                        data.cell.styles.textColor = [185, 28, 28];
+                    } else if (txt.includes('Justificada')) {
+                        data.cell.styles.textColor = [180, 83, 9];
+                    }
+                }
+            },
+            margin: { left: 14, right: 14 }
+        });
+
+        // 4. Rodapé em todas as páginas
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setTextColor(148, 163, 184);
+            doc.text(`SEAMI - Pagina ${i} de ${pageCount}`, 14, 288);
+            doc.text(`Documento gerado eletronicamente em ${dataEmissao}`, 130, 288);
+        }
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        doc.save(`Frequencia_SEAMI_${todayStr}.pdf`);
+    }
+</script>
+{% endblock %}

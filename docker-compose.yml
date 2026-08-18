@@ -1,0 +1,120 @@
+services:
+  # -------------------------------------------------------------
+  # 1. Banco de Dados Relacional (PostgreSQL)
+  # -------------------------------------------------------------
+  db:
+    image: postgres:15-alpine
+    container_name: seami_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-seami_db}
+      POSTGRES_USER: ${POSTGRES_USER:-seami_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-seami_super_secret_password_123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - seami_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-seami_user} -d ${POSTGRES_DB:-seami_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # -------------------------------------------------------------
+  # 2. Redis (Cache, Sessões e Filas de Mensageria)
+  # -------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: seami_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - seami_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # -------------------------------------------------------------
+  # 3. Aplicação Web Django (Auto-Reload Ativo)
+  # -------------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: seami_web
+    restart: unless-stopped
+    command: python manage.py runserver 0.0.0.0:8000
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DEBUG=True
+    volumes:
+      # Sincronização em tempo real do código do host com o container
+      - .:/app
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - seami_network
+
+  # -------------------------------------------------------------
+  # 4. n8n (Automações e Fluxos de Trabalho)
+  # -------------------------------------------------------------
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: seami_n8n
+    restart: unless-stopped
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    environment:
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - NODE_ENV=production
+      - WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://localhost:5678/}
+      - GENERIC_TIMEZONE=America/Sao_Paulo
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-seami_n8n_encryption_secret_key_32c}
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - seami_network
+
+# ---------------------------------------------------------------
+# Volumes Persistentes
+# ---------------------------------------------------------------
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  n8n_data:
+    driver: local
+  static_volume:
+    driver: local
+  media_volume:
+    driver: local
+
+# ---------------------------------------------------------------
+# Rede Interna
+# ---------------------------------------------------------------
+networks:
+  seami_network:
+    driver: bridge

@@ -1,0 +1,112 @@
+# =========================================================================
+# AMBIENTE, VARIÁVEIS SECRETAS E CHAVES DE API
+# =========================================================================
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.cert
+*.crt
+*.pfx
+*.p12
+secrets.json
+secrets.py
+credentials.json
+serviceAccount*.json
+client_secret*.json
+
+# =========================================================================
+# SCRIPTS DE TESTE E ARQUIVOS TEMPORÁRIOS
+# =========================================================================
+test_*.py
+temp_*.py
+scratch/
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+*.orig
+
+# =========================================================================
+# EXPORTAÇÕES, RELATÓRIOS E PLANILHAS GERADAS
+# =========================================================================
+*.xlsx
+*.xls
+*.csv
+*.pdf
+*.docx
+*.doc
+
+# =========================================================================
+# ARQUIVOS DE LOG E DADOS DE APLICAÇÃO / BANCO DE DADOS
+# =========================================================================
+*.log
+*.sqlite3
+*.sqlite3-journal
+*.db
+dumps/
+backups/
+media/
+staticfiles/
+
+# =========================================================================
+# PYTHON E BYTECODE
+# =========================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# =========================================================================
+# FRONTEND / NODE.JS (CASO PRESENTE)
+# =========================================================================
+node_modules/
+dist/
+build/
+.parcel-cache/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# =========================================================================
+# IDES, EDITORES E ARQUIVOS DE SISTEMA OPERACIONAL
+# =========================================================================
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================================================================
+# MANAGEMENT COMMANDS COM CHAVES DE API / SCRIPTS DE SINCRONIZAÇÃO
+# =========================================================================
+**/management/commands/*
+!**/management/commands/__init__.py
+presencas/management/commands/*
+accounts/management/commands/*
+
+# =========================================================================
+# DADOS
+# =========================================================================
+data/*
+entrypoints/*
+*.pyc

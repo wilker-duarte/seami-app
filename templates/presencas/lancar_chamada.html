@@ -1,0 +1,462 @@
+{% extends "base.html" %}
+
+{% block title %}Lançar Chamada - SEAMI{% endblock %}
+{% block page_title %}Lançar Chamada{% endblock %}
+{% block page_subtitle %}Lançamento de frequência e presenças diárias por sala de aula e turno.{% endblock %}
+
+{% block content %}
+<section class="panel-section active" style="display: flex; flex-direction: column; gap: 20px;">
+
+    <!-- ================================================================= -->
+    <!-- BARRA SUPERIOR: PILLS DE SALAS & CONTROLES DE TURNO               -->
+    <!-- ================================================================= -->
+    <div class="filter-card" style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; box-shadow: var(--shadow-sm);">
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 16px;">
+            
+            <!-- Seletores de Sala (Com Botão 'Todas as salas' e indicadores de status) -->
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+                <span style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-right: 4px;">Sala:</span>
+                
+                <!-- Botão 'Todas as salas' -->
+                <a href="?classroom=all&date={{ attendance_date }}&shift={{ shift_filter }}"
+                   style="padding: 8px 18px; border-radius: 999px; font-size: 13px; font-weight: 700; text-decoration: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px;
+                   {% if is_all_classrooms %}
+                       background-color: var(--color-primary); color: #ffffff; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+                   {% else %}
+                       background-color: var(--bg-input); color: var(--text-secondary); border: 1px solid var(--border-color);
+                   {% endif %}">
+                    <span>🏫</span>
+                    <span>Todas as salas</span>
+                    <span style="font-size: 10.5px; font-weight: 800; padding: 1px 6px; border-radius: 999px;
+                          {% if is_all_classrooms %}background-color: rgba(255,255,255,0.25); color: #ffffff;{% elif is_attendance_saved %}background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;{% else %}background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a;{% endif %}">
+                        {{ salas_lancadas_count }}/{{ total_salas_count }}
+                    </span>
+                </a>
+
+                {% for s in salas_status_list %}
+                    <a href="?classroom={{ s.turma.nome }}&date={{ attendance_date }}&shift={{ shift_filter }}"
+                       style="padding: 8px 16px; border-radius: 999px; font-size: 13px; font-weight: 700; text-decoration: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px;
+                       {% if not is_all_classrooms and s.turma.nome == selected_turma.nome %}
+                           background-color: var(--color-primary); color: #ffffff; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+                       {% else %}
+                           background-color: var(--bg-input); color: var(--text-secondary); border: 1px solid var(--border-color);
+                       {% endif %}">
+                        <span>{{ s.turma_style.emoji }} {{ s.turma.nome }}</span>
+                        {% if s.is_saved %}
+                            <span title="Chamada lançada nesta data" style="width: 7px; height: 7px; border-radius: 50%; background-color: #10b981; display: inline-block;"></span>
+                        {% else %}
+                            <span title="Chamada pendente nesta data" style="width: 7px; height: 7px; border-radius: 50%; background-color: #f59e0b; display: inline-block;"></span>
+                        {% endif %}
+                    </a>
+                {% endfor %}
+            </div>
+
+            <!-- Seletores de Turno (Com indicadores de status por turno) -->
+            <div style="display: flex; align-items: center; gap: 6px; background-color: var(--bg-input); padding: 4px; border-radius: 12px; border: 1px solid var(--border-color); flex-wrap: wrap;">
+                <a href="?classroom={{ current_classroom_param }}&date={{ attendance_date }}&shift=all"
+                   style="padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; text-decoration: none;
+                   {% if shift_filter == 'all' %}background-color: var(--color-primary); color: #ffffff;{% else %}color: var(--text-secondary);{% endif %}">
+                    Todos os Turnos
+                </a>
+                <a href="?classroom={{ current_classroom_param }}&date={{ attendance_date }}&shift=matutino"
+                   style="padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
+                   {% if shift_filter == 'matutino' %}background-color: var(--color-primary); color: #ffffff;{% else %}color: var(--text-secondary);{% endif %}">
+                    <span>Matutino</span>
+                    {% if shifts_saved_status.matutino.has_students %}
+                        <span style="width: 6px; height: 6px; border-radius: 50%; {% if shifts_saved_status.matutino.is_saved %}background-color: #10b981;{% else %}background-color: #f59e0b;{% endif %}; display: inline-block;"></span>
+                    {% endif %}
+                </a>
+                <a href="?classroom={{ current_classroom_param }}&date={{ attendance_date }}&shift=vespertino"
+                   style="padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
+                   {% if shift_filter == 'vespertino' %}background-color: var(--color-primary); color: #ffffff;{% else %}color: var(--text-secondary);{% endif %}">
+                    <span>Vespertino</span>
+                    {% if shifts_saved_status.vespertino.has_students %}
+                        <span style="width: 6px; height: 6px; border-radius: 50%; {% if shifts_saved_status.vespertino.is_saved %}background-color: #10b981;{% else %}background-color: #f59e0b;{% endif %}; display: inline-block;"></span>
+                    {% endif %}
+                </a>
+                <a href="?classroom={{ current_classroom_param }}&date={{ attendance_date }}&shift=integral"
+                   style="padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
+                   {% if shift_filter == 'integral' %}background-color: var(--color-primary); color: #ffffff;{% else %}color: var(--text-secondary);{% endif %}">
+                    <span>Integral</span>
+                    {% if shifts_saved_status.integral.has_students %}
+                        <span style="width: 6px; height: 6px; border-radius: 50%; {% if shifts_saved_status.integral.is_saved %}background-color: #10b981;{% else %}background-color: #f59e0b;{% endif %}; display: inline-block;"></span>
+                    {% endif %}
+                </a>
+            </div>
+        </div>
+
+        <!-- Ações em Lote e Resumo da Sala -->
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px;">
+            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; font-size: 13px; color: var(--text-secondary);">
+                <span>👥 Alunos: <strong style="color: var(--text-primary);">{{ total_alunos }}</strong></span>
+                <span>🟢 Presentes: <strong id="summary-presentes" style="color: var(--color-atestados);">{{ total_presentes }}</strong></span>
+                <span>🔴 Faltas: <strong id="summary-faltas" style="color: var(--color-faltas);">{{ total_faltas }}</strong></span>
+                <span>🟡 Justificadas: <strong id="summary-justificadas" style="color: var(--color-atrasos);">{{ total_justificadas }}</strong></span>
+                <span>📈 Frequência: <strong id="summary-taxa" style="color: var(--color-primary);">{{ taxa_presenca }}%</strong></span>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button type="button" onclick="marcarTodosPresentes()" class="secondary-btn" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid var(--color-atestados); background-color: var(--color-atestados-bg); color: var(--color-atestados); font-weight: 700; font-size: 12.5px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <i data-lucide="check-check" style="width: 16px; height: 16px;"></i>
+                    Marcar Todos Presentes
+                </button>
+                <button type="button" onclick="salvarChamada()" id="btn-save-chamada" class="primary-btn" style="padding: 8px 20px; border-radius: var(--radius-sm); background-color: var(--color-primary); color: #ffffff; border: none; font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 8px; cursor: pointer; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);">
+                    <i data-lucide="save" style="width: 16px; height: 16px;"></i>
+                    <span>Salvar Chamada</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Toast -->
+    <div id="toast-message" style="display: none; padding: 14px 20px; border-radius: var(--radius-md); font-size: 13.5px; font-weight: 600; margin-bottom: 8px; align-items: center; gap: 10px; box-shadow: var(--shadow-md);"></div>
+
+    <!-- ================================================================= -->
+    <!-- CORPO PRINCIPAL: CALENDÁRIO À ESQUERDA + LISTA DE ALUNOS           -->
+    <!-- ================================================================= -->
+    <div style="display: grid; grid-template-columns: 320px 1fr; gap: 20px; align-items: start;">
+        
+        <!-- CALENDÁRIO MENSAL -->
+        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; box-shadow: var(--shadow-sm);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+                <a href="?classroom={{ current_classroom_param }}&date={{ prev_date_str }}&shift={{ shift_filter }}"
+                   style="color: var(--text-secondary); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); text-decoration: none;">
+                    &larr;
+                </a>
+                <span style="font-family: var(--font-title); font-size: 14.5px; font-weight: 700; color: var(--text-primary);">
+                    {{ month_label }}
+                </span>
+                <a href="?classroom={{ current_classroom_param }}&date={{ next_date_str }}&shift={{ shift_filter }}"
+                   style="color: var(--text-secondary); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); text-decoration: none;">
+                    &rarr;
+                </a>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; margin-bottom: 8px;">
+                <span style="font-size: 11px; font-weight: 700; color: var(--text-light);">D</span>
+                <span style="font-size: 11px; font-weight: 700; color: var(--text-light);">S</span>
+                <span style="font-size: 11px; font-weight: 700; color: var(--text-light);">T</span>
+                <span style="font-size: 11px; font-weight: 700; color: var(--text-light);">Q</span>
+                <span style="font-size: 11px; font-weight: 700; color: var(--text-light);">Q</span>
+                <span style="font-size: 11px; font-weight: 700; color: var(--text-light);">S</span>
+                <span style="font-size: 11px; font-weight: 700; color: var(--text-light);">S</span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;">
+                {% for day in calendar_days %}
+                    {% if day.is_padding %}
+                        <div></div>
+                    {% else %}
+                        <a href="?classroom={{ current_classroom_param }}&date={{ day.date }}&shift={{ shift_filter }}"
+                           style="height: 36px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-decoration: none; border-radius: 8px; font-size: 12.5px; font-weight: 600; position: relative; transition: all 0.15s;
+                           {% if day.is_selected %}
+                               background-color: var(--color-primary); color: #ffffff; font-weight: 800;
+                           {% elif day.is_today %}
+                               border: 1.5px solid var(--color-primary); color: var(--color-primary);
+                           {% elif day.is_weekend %}
+                               color: var(--text-light); background-color: var(--bg-body);
+                           {% else %}
+                               color: var(--text-primary); background-color: var(--bg-input);
+                           {% endif %}">
+                            <span>{{ day.day }}</span>
+                            {% if day.has_attendance %}
+                                <span style="position: absolute; bottom: 3px; width: 4px; height: 4px; border-radius: 50%;
+                                      {% if day.is_selected %}background-color: #ffffff;{% else %}background-color: #10b981;{% endif %}"></span>
+                            {% endif %}
+                        </a>
+                    {% endif %}
+                {% endfor %}
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-color); font-size: 11.5px; color: var(--text-light);">
+                <span style="width: 6px; height: 6px; border-radius: 50%; background-color: #10b981; display: inline-block;"></span>
+                <span>Chamada realizada</span>
+            </div>
+        </div>
+
+        <!-- LISTA DE ALUNOS COM BOTÕES DE STATUS E INDICADORES -->
+        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); overflow: hidden;">
+            <div style="padding: 16px 20px; background-color: var(--bg-input); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <span style="font-family: var(--font-title); font-size: 15px; font-weight: 700; color: var(--text-primary);">
+                        {% if is_all_classrooms %}
+                            Lista Geral: Todas as Salas
+                        {% else %}
+                            Alunos Matriculados &bull; Sala {{ selected_turma.nome }}
+                        {% endif %}
+                    </span>
+                    <span style="font-size: 12px; color: var(--text-light);">
+                        {{ students_list|length }} alunos listados
+                    </span>
+                </div>
+
+                <!-- Indicadores de Status (Turnos e Geral da Turma / Todas as Salas) -->
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    
+                    <!-- Indicadores por Turno -->
+                    <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                        {% if shifts_saved_status.matutino.has_students %}
+                            <span style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;
+                                  {% if shifts_saved_status.matutino.is_saved %}background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;{% else %}background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a;{% endif %}">
+                                <span style="width: 6px; height: 6px; border-radius: 50%; {% if shifts_saved_status.matutino.is_saved %}background-color: #10b981;{% else %}background-color: #f59e0b;{% endif %}; display: inline-block;"></span>
+                                Manhã: {% if shifts_saved_status.matutino.is_saved %}Lançado{% else %}Pendente{% endif %}
+                            </span>
+                        {% endif %}
+
+                        {% if shifts_saved_status.vespertino.has_students %}
+                            <span style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;
+                                  {% if shifts_saved_status.vespertino.is_saved %}background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;{% else %}background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a;{% endif %}">
+                                <span style="width: 6px; height: 6px; border-radius: 50%; {% if shifts_saved_status.vespertino.is_saved %}background-color: #10b981;{% else %}background-color: #f59e0b;{% endif %}; display: inline-block;"></span>
+                                Tarde: {% if shifts_saved_status.vespertino.is_saved %}Lançado{% else %}Pendente{% endif %}
+                            </span>
+                        {% endif %}
+
+                        {% if shifts_saved_status.integral.has_students %}
+                            <span style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;
+                                  {% if shifts_saved_status.integral.is_saved %}background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;{% else %}background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a;{% endif %}">
+                                <span style="width: 6px; height: 6px; border-radius: 50%; {% if shifts_saved_status.integral.is_saved %}background-color: #10b981;{% else %}background-color: #f59e0b;{% endif %}; display: inline-block;"></span>
+                                Integral: {% if shifts_saved_status.integral.is_saved %}Lançado{% else %}Pendente{% endif %}
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Indicador Geral -->
+                    {% if is_all_classrooms %}
+                        <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 12px; font-size: 11.5px; font-weight: 700;
+                              {% if is_attendance_saved %}background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;{% elif salas_lancadas_count > 0 %}background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;{% else %}background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a;{% endif %}">
+                            <span style="width: 6px; height: 6px; border-radius: 50%; {% if is_attendance_saved %}background-color: #10b981;{% elif salas_lancadas_count > 0 %}background-color: #3b82f6;{% else %}background-color: #f59e0b;{% endif %}; display: inline-block;"></span>
+                            {{ salas_lancadas_count }} de {{ total_salas_count }} salas lançadas
+                        </span>
+                    {% else %}
+                        <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 12px; font-size: 11.5px; font-weight: 700;
+                              {% if is_attendance_saved %}background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;{% else %}background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a;{% endif %}">
+                            <span style="width: 6px; height: 6px; border-radius: 50%; {% if is_attendance_saved %}background-color: #10b981;{% else %}background-color: #f59e0b;{% endif %}; display: inline-block;"></span>
+                            {% if is_attendance_saved %}Chamada Salva{% else %}Chamada não realizada{% endif %}
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if students_list %}
+                <div style="display: flex; flex-direction: column;">
+                    {% for student in students_list %}
+                        <div class="student-row" id="row-{{ student.id }}" style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px;">
+                            
+                            <!-- Identificação do Aluno -->
+                            <div style="display: flex; align-items: center; gap: 14px;">
+                                <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #6366f1, #a855f7); color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13.5px;">
+                                    {{ student.nome|slice:":2"|upper }}
+                                </div>
+                                <div>
+                                    <div style="font-size: 14.5px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                                        <span>{{ student.nome }}</span>
+                                        {% if is_all_classrooms %}
+                                            <span style="background-color: {{ student.turma_style.bg }}; color: {{ student.turma_style.color }}; border: 1px solid {{ student.turma_style.border }}; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px;">
+                                                {{ student.turma_style.emoji }} Sala {{ student.turma_nome }}
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
+                                        <!-- Turno e Acompanhamento -->
+                                        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+                                            <span style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background-color: var(--bg-input); color: var(--text-secondary); border: 1px solid var(--border-color);">
+                                                {{ student.turno }}
+                                            </span>
+                                            {% if student.has_acompanhamento or student.acompanhamento_obs %}
+                                                <span style="font-size: 11.5px; font-weight: 700; padding: 2px 9px; border-radius: 6px; background-color: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; display: inline-flex; align-items: center; gap: 4px;">
+                                                    <span>🩺</span>
+                                                    <span>Acompanhamento: {{ student.acompanhamento_obs|default:"Especial" }}</span>
+                                                </span>
+                                            {% endif %}
+                                        </div>
+
+                                        <!-- Ausência Programada (Atestado Médico ou Falta Agendada) -->
+                                        {% if student.ausencia_programada %}
+                                            <div style="margin-top: 2px;">
+                                                {% if student.ausencia_programada.is_atestado %}
+                                                    <span style="font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 6px; background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a; display: inline-flex; align-items: center; gap: 5px;">
+                                                        <span>🏥</span>
+                                                        <span>Ausência Programada: Atestado Médico {{ student.ausencia_programada.periodo }}</span>
+                                                        {% if student.ausencia_programada.motivo %}
+                                                            <span style="font-weight: 500; opacity: 0.9;">&bull; {{ student.ausencia_programada.motivo }}</span>
+                                                        {% endif %}
+                                                    </span>
+                                                {% else %}
+                                                    <span style="font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 6px; background-color: #fef2f2; color: #dc2626; border: 1px solid #fecaca; display: inline-flex; align-items: center; gap: 5px;">
+                                                        <span>📅</span>
+                                                        <span>Ausência Programada: Falta Agendada {{ student.ausencia_programada.periodo }}</span>
+                                                        {% if student.ausencia_programada.motivo %}
+                                                            <span style="font-weight: 500; opacity: 0.9;">&bull; {{ student.ausencia_programada.motivo }}</span>
+                                                        {% endif %}
+                                                    </span>
+                                                {% endif %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Botões de Chamada (P / F / FJ) -->
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div class="attendance-btn-group" style="display: inline-flex; background-color: var(--bg-input); padding: 4px; border-radius: 12px; border: 1px solid var(--border-color); gap: 4px;">
+                                    
+                                    <button type="button" onclick="setStatus('{{ student.id }}', 'PRESENTE')"
+                                            id="btn-{{ student.id }}-PRESENTE"
+                                            style="padding: 6px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 700; border: none; cursor: pointer; transition: all 0.15s;
+                                            {% if student.status == 'PRESENTE' %}background-color: #10b981; color: #ffffff; box-shadow: 0 2px 8px rgba(16,185,129,0.35);{% else %}background: transparent; color: var(--text-secondary);{% endif %}">
+                                        Presente
+                                    </button>
+
+                                    <button type="button" onclick="setStatus('{{ student.id }}', 'AUSENTE')"
+                                            id="btn-{{ student.id }}-AUSENTE"
+                                            style="padding: 6px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 700; border: none; cursor: pointer; transition: all 0.15s;
+                                            {% if student.status == 'AUSENTE' %}background-color: #ef4444; color: #ffffff; box-shadow: 0 2px 8px rgba(239,68,68,0.35);{% else %}background: transparent; color: var(--text-secondary);{% endif %}">
+                                        Falta
+                                    </button>
+
+                                    <button type="button" onclick="setStatus('{{ student.id }}', 'JUSTIFICADO')"
+                                            id="btn-{{ student.id }}-JUSTIFICADO"
+                                            style="padding: 6px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 700; border: none; cursor: pointer; transition: all 0.15s;
+                                            {% if student.status == 'JUSTIFICADO' %}background-color: #f59e0b; color: #ffffff; box-shadow: 0 2px 8px rgba(245,158,11,0.35);{% else %}background: transparent; color: var(--text-secondary);{% endif %}">
+                                        Justificada
+                                    </button>
+                                </div>
+                            </div>
+
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div style="text-align: center; padding: 48px; color: var(--text-light);">
+                    <i data-lucide="user-x" style="width: 40px; height: 40px; margin-bottom: 8px; opacity: 0.5;"></i>
+                    <p>Nenhum aluno matriculado para o turno e sala selecionados.</p>
+                </div>
+            {% endif %}
+        </div>
+
+    </div>
+
+</section>
+
+<!-- Script de Interatividade e Salvamento Instantâneo via AJAX -->
+<script>
+    const attendanceState = {
+        {% for student in students_list %}
+            "{{ student.id }}": "{{ student.status }}",
+        {% endfor %}
+    };
+
+    function setStatus(studentId, status) {
+        attendanceState[studentId] = status;
+
+        ['PRESENTE', 'AUSENTE', 'JUSTIFICADO'].forEach(st => {
+            const btn = document.getElementById(`btn-${studentId}-${st}`);
+            if (!btn) return;
+            if (st === status) {
+                if (st === 'PRESENTE') {
+                    btn.style.backgroundColor = '#10b981';
+                    btn.style.color = '#ffffff';
+                    btn.style.boxShadow = '0 2px 8px rgba(16,185,129,0.35)';
+                } else if (st === 'AUSENTE') {
+                    btn.style.backgroundColor = '#ef4444';
+                    btn.style.color = '#ffffff';
+                    btn.style.boxShadow = '0 2px 8px rgba(239,68,68,0.35)';
+                } else if (st === 'JUSTIFICADO') {
+                    btn.style.backgroundColor = '#f59e0b';
+                    btn.style.color = '#ffffff';
+                    btn.style.boxShadow = '0 2px 8px rgba(245,158,11,0.35)';
+                }
+            } else {
+                btn.style.backgroundColor = 'transparent';
+                btn.style.color = 'var(--text-secondary)';
+                btn.style.boxShadow = 'none';
+            }
+        });
+
+        recalcSummary();
+    }
+
+    function marcarTodosPresentes() {
+        Object.keys(attendanceState).forEach(studentId => {
+            setStatus(studentId, 'PRESENTE');
+        });
+    }
+
+    function recalcSummary() {
+        let presentes = 0;
+        let faltas = 0;
+        let justificadas = 0;
+        const total = Object.keys(attendanceState).length;
+
+        Object.values(attendanceState).forEach(st => {
+            if (st === 'PRESENTE') presentes++;
+            else if (st === 'AUSENTE') faltas++;
+            else if (st === 'JUSTIFICADO') justificadas++;
+        });
+
+        document.getElementById('summary-presentes').innerText = presentes;
+        document.getElementById('summary-faltas').innerText = faltas;
+        document.getElementById('summary-justificadas').innerText = justificadas;
+        
+        const taxa = total > 0 ? Math.round((presentes / total) * 100) : 100;
+        document.getElementById('summary-taxa').innerText = `${taxa}%`;
+    }
+
+    async function salvarChamada() {
+        const btn = document.getElementById('btn-save-chamada');
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<span>Salvando...</span>`;
+
+        const items = Object.entries(attendanceState).map(([studentId, status]) => ({
+            student_id: parseInt(studentId, 10),
+            status: status
+        }));
+
+        const payload = {
+            turma_id: "{{ selected_turma.id|default:'' }}",
+            date: "{{ attendance_date }}",
+            shift: "{{ shift_filter }}",
+            items: items
+        };
+
+        try {
+            const response = await fetch("{% url 'presencas:salvar_chamada_lote' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            const toast = document.getElementById('toast-message');
+            toast.style.display = 'flex';
+
+            if (result.success) {
+                toast.style.backgroundColor = '#ecfdf5';
+                toast.style.color = '#065f46';
+                toast.style.border = '1px solid #a7f3d0';
+                toast.innerHTML = `<i data-lucide="check-circle" style="width: 18px; height: 18px;"></i> ${result.message}`;
+                setTimeout(() => {
+                    window.location.reload();
+                }, 800);
+            } else {
+                toast.style.backgroundColor = '#fef2f2';
+                toast.style.color = '#991b1b';
+                toast.style.border = '1px solid #fecaca';
+                toast.innerHTML = `<i data-lucide="alert-circle" style="width: 18px; height: 18px;"></i> Erro: ${result.error}`;
+            }
+            lucide.createIcons();
+            setTimeout(() => { toast.style.display = 'none'; }, 4000);
+        } catch (err) {
+            alert('Falha na comunicação com o servidor ao salvar chamada.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            lucide.createIcons();
+        }
+    }
+</script>
+{% endblock %}

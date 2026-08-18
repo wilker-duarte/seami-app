@@ -1,0 +1,287 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}EducaGestão - Portal Creche & SEAMI{% endblock %}</title>
+
+    <!-- Google Fonts: Outfit & Inter (Fontes Exatas do SEAMI) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons via CDN para ícones 100% idênticos -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js para Gráficos Analíticos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Folha de Estilos Exata do SEAMI -->
+    <link rel="stylesheet" href="{% static 'css/index.css' %}?v=2.0">
+
+    <style>
+        /* Ajustes finos para compatibilidade com Django Forms & Dropdowns */
+        .lucide {
+            vertical-align: middle;
+            width: 18px;
+            height: 18px;
+        }
+        .user-dropdown-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 8px);
+            min-width: 240px;
+            padding: 16px;
+            background-color: var(--bg-card);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border-color);
+            z-index: 1000;
+        }
+        .user-dropdown-menu.show {
+            display: block;
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="{% if request.COOKIES.theme == 'dark' %}dark-mode{% endif %}">
+    <div class="app-container">
+        <!-- ================================================================= -->
+        <!-- SIDEBAR DE NAVEGAÇÃO COMPLETA                                     -->
+        <!-- ================================================================= -->
+        <aside class="app-sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-container">
+                    <span class="logo-emoji">🧸</span>
+                    <div class="logo-text">
+                        <span class="brand-title">EducaGestão</span>
+                        <span class="brand-subtitle">Portal Creche</span>
+                    </div>
+                </div>
+                <button class="sidebar-close-btn" id="close-sidebar-btn" onclick="toggleSidebar(false)">
+                    <span style="font-size: 24px;">&times;</span>
+                </button>
+            </div>
+
+            <nav class="sidebar-menu">
+                <a href="{% url 'core:dashboard' %}" class="menu-item {% if active_tab == 'home' and not active_module %}active{% endif %}">
+                    <i data-lucide="home"></i>
+                    <span>Início</span>
+                </a>
+                <a href="{% url 'alunos' %}" class="menu-item {% if active_tab == 'students' %}active{% endif %}">
+                    <i data-lucide="baby"></i>
+                    <span>Alunos</span>
+                </a>
+
+                <!-- MÓDULO I: CONTROLE DE FREQUÊNCIA -->
+                <div class="menu-section" style="margin-top: 14px; margin-bottom: 6px;">
+                    <span class="menu-section-title" title="Aba exclusiva para o controle e relatórios consolidados de presenças e faltas dos alunos.">
+                        Módulo I: Controle de Frequência
+                    </span>
+                </div>
+
+                <a href="{% url 'presencas:lancar_chamada' %}" class="menu-item {% if active_tab == 'attendance' and active_module == 'lancamento' %}active{% endif %}" title="Lançamento de frequência e presenças por sala de aula.">
+                    <i data-lucide="clipboard-check"></i>
+                    <span>Lançar Chamada</span>
+                </a>
+                <a href="{% url 'presencas:consulta_chamada' %}" class="menu-item {% if active_tab == 'attendance' and active_module == 'consulta' %}active{% endif %}" title="Consulta histórica e exportação consolidada de presenças.">
+                    <i data-lucide="search"></i>
+                    <span>Registros e Exportação</span>
+                </a>
+                <a href="{% url 'presencas:consulta_chamada' %}?tab=relatorios" class="menu-item {% if active_tab == 'attendance' and active_module == 'relatorios' %}active{% endif %}" title="Relatórios & Situação do Aluno com a Frequência Diária Geral">
+                    <i data-lucide="bar-chart-3"></i>
+                    <span>Relatórios & Situação do Aluno</span>
+                </a>
+
+                <!-- MÓDULO II: CADERNO SEAMI -->
+                <div class="menu-section" style="margin-top: 14px; margin-bottom: 6px;">
+                    <span class="menu-section-title">
+                        Módulo II: Caderno SEAMI
+                    </span>
+                </div>
+
+                <a href="{% url 'caderno_seami_root' %}" class="menu-item {% if active_tab == 'seami_control' and not active_module %}active{% endif %}">
+                    <i data-lucide="book-open"></i>
+                    <span>Caderno SEAMI</span>
+                </a>
+
+                <div class="sidebar-submenu" style="display: flex; flex-direction: column; gap: 2px; padding-left: 8px; border-left: 1px solid var(--border-color); margin-left: 16px; margin-bottom: 8px;">
+                    <a href="{% url 'caderno_seami' 'faltas' %}" class="menu-item {% if active_tab == 'seami_control' and active_module == 'faltas' %}active{% endif %}" style="font-size: 13px; display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 8px;">
+                        <i data-lucide="calendar-x" style="color: var(--color-faltas);"></i>
+                        <span>Faltas</span>
+                    </a>
+                    <a href="{% url 'caderno_seami' 'atestados' %}" class="menu-item {% if active_tab == 'seami_control' and active_module == 'atestados' %}active{% endif %}" style="font-size: 13px; display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 8px;">
+                        <i data-lucide="activity" style="color: var(--color-atestados);"></i>
+                        <span>Atestados</span>
+                    </a>
+                    <a href="{% url 'caderno_seami' 'atrasos' %}" class="menu-item {% if active_tab == 'seami_control' and active_module == 'atrasos' %}active{% endif %}" style="font-size: 13px; display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 8px;">
+                        <i data-lucide="clock" style="color: var(--color-atrasos);"></i>
+                        <span>Atrasos</span>
+                    </a>
+                    <a href="{% url 'caderno_seami' 'saidas' %}" class="menu-item {% if active_tab == 'seami_control' and active_module == 'saidas' %}active{% endif %}" style="font-size: 13px; display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 8px;">
+                        <i data-lucide="log-out" style="color: var(--color-saidas);"></i>
+                        <span>Saídas Antecipadas</span>
+                    </a>
+                    <a href="{% url 'caderno_seami' 'amamentacao' %}" class="menu-item {% if active_tab == 'seami_control' and active_module == 'amamentacao' %}active{% endif %}" style="font-size: 13px; display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 8px;">
+                        <i data-lucide="heart" style="color: var(--color-amamentacao);"></i>
+                        <span>Amamentação</span>
+                    </a>
+                </div>
+
+                <a href="{% url 'relatorios' %}" class="menu-item {% if active_tab == 'reports' and request.GET.tab != 'frequencia' %}active{% endif %}">
+                    <i data-lucide="notebook-text"></i>
+                    <span>Relatórios do Caderno</span>
+                </a>
+            </nav>
+
+            <!-- Rodapé do Usuário na Sidebar -->
+            <div class="sidebar-footer">
+                <div class="user-profile-widget">
+                    <div class="user-avatar">
+                        {% if user.role == 'MASTER_ADMIN' or user.is_superuser %}👑{% elif user.role == 'DIRETOR' %}👩‍💼{% else %}👩‍🏫{% endif %}
+                    </div>
+                    <div class="user-info">
+                        <span class="user-name">{{ user.get_full_name|default:user.username }}</span>
+                        <span class="user-role-badge">
+                            {{ user.get_role_display }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ================================================================= -->
+        <!-- ÁREA PRINCIPAL DA APLICAÇÃO                                       -->
+        <!-- ================================================================= -->
+        <div class="app-main">
+            <!-- Header Superior com Busca, Modo Escuro e Perfil -->
+            <header class="app-header">
+                <div class="header-left">
+                    <button class="menu-toggle-btn" id="menu-toggle-btn" onclick="toggleSidebar(true)">
+                        <i data-lucide="menu"></i>
+                    </button>
+                    <div class="header-title-wrapper">
+                        <h1 class="page-title">{% block page_title %}Painel Geral{% endblock %}</h1>
+                        <p class="page-subtitle">{% block page_subtitle %}Visão geral e inteligência de frequência hoje.{% endblock %}</p>
+                    </div>
+                </div>
+
+                <div class="header-right">
+                    <!-- Busca Inteligente de Aluno -->
+                    <div class="search-bar-wrapper">
+                        <i data-lucide="search" class="search-icon"></i>
+                        <input type="text" placeholder="Buscar aluno ativo..." id="global-search-input">
+                    </div>
+
+                    <!-- Alternador de Tema Dark / Light -->
+                    <button class="theme-toggle-btn" id="theme-toggle-btn" onclick="toggleTheme()" title="Alternar Modo Escuro/Claro">
+                        <i data-lucide="moon" id="theme-icon"></i>
+                    </button>
+
+                    <!-- Menu de Perfil / RBAC Dropdown -->
+                    <div class="role-selector-wrapper" style="position: relative;">
+                        <button class="role-dropdown-trigger" onclick="toggleUserDropdown()" style="display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 24px; border: 1px solid var(--border-color); background-color: var(--bg-card); cursor: pointer;">
+                            <span style="font-size: 15px;">
+                                {% if user.role == 'MASTER_ADMIN' or user.is_superuser %}👑{% elif user.role == 'DIRETOR' %}👩‍💼{% else %}👤{% endif %}
+                            </span>
+                            <span style="font-size: 12px; font-weight: 700; color: var(--text-primary);">
+                                {{ user.get_role_display }}
+                            </span>
+                            <i data-lucide="chevron-down" style="width: 14px; height: 14px;"></i>
+                        </button>
+
+                        <div class="user-dropdown-menu" id="user-dropdown-menu">
+                            <div style="display: flex; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+                                <span style="font-size: 28px;">
+                                    {% if user.role == 'MASTER_ADMIN' or user.is_superuser %}👑{% elif user.role == 'DIRETOR' %}👩‍💼{% else %}👤{% endif %}
+                                </span>
+                                <div style="display: flex; flex-direction: column;">
+                                    <span style="font-weight: 700; font-size: 13.5px; color: var(--text-primary);">{{ user.get_full_name|default:user.username }}</span>
+                                    <span style="font-size: 11.5px; color: var(--text-secondary); word-break: break-all;">{{ user.email }}</span>
+                                </div>
+                            </div>
+
+                            <div style="padding: 8px 0; display: flex; flex-direction: column; gap: 4px;">
+                                {% if user.is_staff or user.is_master_admin %}
+                                    <a href="/admin/" style="width: 100%; padding: 8px 12px; display: flex; align-items: center; gap: 8px; border-radius: 8px; color: var(--color-primary); font-size: 12.5px; font-weight: 600; text-decoration: none;">
+                                        <i data-lucide="shield"></i> Gestão do Sistema (Admin)
+                                    </a>
+                                {% endif %}
+
+                                <form action="{% url 'accounts:logout' %}" method="post" style="width: 100%;">
+                                    {% csrf_token %}
+                                    <button type="submit" style="width: 100%; padding: 8px 12px; display: flex; align-items: center; gap: 8px; border-radius: 8px; border: none; background: transparent; color: var(--color-danger); font-size: 12.5px; font-weight: 600; cursor: pointer; text-align: left;">
+                                        <i data-lucide="log-out"></i> Encerrar Sessão
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Conteúdo Dinâmico da Página -->
+            <main>
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- Scripts de Interatividade -->
+    <script>
+        // Inicializa ícones Lucide
+        lucide.createIcons();
+
+        // Alternância de Tema Claro / Escuro com persistência em Cookie & LocalStorage
+        function toggleTheme() {
+            const isDark = document.body.classList.toggle('dark-mode');
+            document.cookie = `theme=${isDark ? 'dark' : 'light'}; path=/; max-age=31536000`;
+            localStorage.setItem('seami_theme', isDark ? 'dark' : 'light');
+            updateThemeIcon(isDark);
+        }
+
+        function updateThemeIcon(isDark) {
+            const icon = document.getElementById('theme-icon');
+            if (icon) {
+                icon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+                lucide.createIcons();
+            }
+        }
+
+        // Dropdown do Usuário
+        function toggleUserDropdown() {
+            const menu = document.getElementById('user-dropdown-menu');
+            if (menu) menu.classList.toggle('show');
+        }
+
+        // Mobile Sidebar Toggle
+        function toggleSidebar(open) {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) {
+                if (open) sidebar.classList.add('active');
+                else sidebar.classList.remove('active');
+            }
+        }
+
+        // Fecha menus ao clicar fora
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('user-dropdown-menu');
+            const trigger = document.querySelector('.role-dropdown-trigger');
+            if (dropdown && trigger && !trigger.contains(event.target) && !dropdown.contains(event.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
+
+        // Carrega preferência de tema salva
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('seami_theme');
+            if (savedTheme === 'dark' && !document.body.classList.contains('dark-mode')) {
+                document.body.classList.add('dark-mode');
+                updateThemeIcon(true);
+            }
+        });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

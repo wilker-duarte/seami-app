@@ -1,0 +1,1 @@
+"""Presencas module for SEAMI."""
