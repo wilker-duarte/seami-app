@@ -1,8 +1,13 @@
+import csv
 import json
 import calendar
 from datetime import datetime, date, timedelta
 from django.shortcuts import render, redirect
+from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
+from accounts.permissions import diretor_required
+
+
 from django.utils import timezone
 from django.db.models import Count, Q, Sum
 from presencas.models import (
@@ -1129,3 +1134,278 @@ def relatorios_view(request):
         return response
 
     return render(request, 'core/relatorios.html', context)
+
+
+@login_required
+@diretor_required
+def central_exportacao_view(request):
+    """
+    Central Administrativa de Exportação de Dados do SEAMI-App.
+    Exclusivo para Diretores e Master Admins.
+    Permite download direto em CSV (Excel) e JSON de todas as entidades do sistema.
+    """
+    from django.contrib import messages
+    from accounts.models import User, ConviteUsuario
+    from presencas.models import Turma, Aluno, DiarioDeClasse, RegistroPresenca, OcorrenciaCaderno
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'import_backup':
+            entity = request.POST.get('entity')
+            uploaded_file = request.FILES.get('file')
+            if not uploaded_file:
+                messages.error(request, "Por favor, selecione um arquivo CSV ou JSON para importar.")
+                return redirect('exportacao')
+
+            try:
+                from .import_service import process_backup_import
+                created, updated = process_backup_import(uploaded_file, entity, request.user)
+                entity_labels = {
+                    'turmas': 'Turmas / Salas',
+                    'alunos': 'Crianças / Alunos',
+                    'presencas': 'Registros de Frequência',
+                    'ocorrencias': 'Ocorrências do Caderno SEAMI',
+                }
+                lbl = entity_labels.get(entity, entity.title())
+                messages.success(
+                    request,
+                    f"Importação de {lbl} concluída com sucesso! "
+                    f"({created} criados, {updated} atualizados)."
+                )
+            except Exception as e:
+                messages.error(request, f"Erro ao processar importação: {str(e)}")
+
+            return redirect('exportacao')
+
+    download = request.GET.get('download')
+    fmt = request.GET.get('format', 'csv').lower()
+
+
+    if download:
+        timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
+
+        if download == 'alunos':
+            qs = Aluno.objects.select_related('turma').order_by('turma__nome', 'nome')
+            if fmt == 'json':
+                data = [
+                    {
+                        "id": a.id,
+                        "nome": a.nome,
+                        "turma": a.turma.nome if a.turma else "",
+                        "turno": a.get_turno_display(),
+                        "data_nascimento": a.data_nascimento.strftime("%d/%m/%Y") if a.data_nascimento else "",
+                        "data_entrada": a.data_entrada.strftime("%d/%m/%Y") if a.data_entrada else "",
+                        "data_desligamento": a.data_desligamento.strftime("%d/%m/%Y") if a.data_desligamento else "",
+                        "ativo": a.ativo,
+                        "has_acompanhamento": a.has_acompanhamento,
+                        "acompanhamento_obs": a.acompanhamento_obs,
+                        "acompanhamento_dias": a.acompanhamento_dias,
+                        "nome_responsavel": a.nome_responsavel,
+                        "telefone_responsavel": a.telefone_responsavel,
+                    }
+                    for a in qs
+                ]
+                resp = HttpResponse(json.dumps(data, indent=2, ensure_ascii=False), content_type="application/json; charset=utf-8")
+                resp['Content-Disposition'] = f'attachment; filename="alunos_seami_{timestamp}.json"'
+                return resp
+            else:
+                resp = HttpResponse(content_type="text/csv; charset=utf-8-sig")
+                resp['Content-Disposition'] = f'attachment; filename="alunos_seami_{timestamp}.csv"'
+                w = csv.writer(resp, delimiter=";")
+                w.writerow([
+                    "ID", "Nome da Criança", "Turma / Sala", "Turno", "Data de Nascimento",
+                    "Data de Entrada", "Data de Desligamento", "Status Ativo", "Acompanhamento Especial",
+                    "Observações Acompanhamento", "Dias de Acompanhamento", "Nome do Responsável", "Telefone do Responsável"
+                ])
+                for a in qs:
+                    w.writerow([
+                        a.id,
+                        a.nome,
+                        a.turma.nome if a.turma else "",
+                        a.get_turno_display(),
+                        a.data_nascimento.strftime("%d/%m/%Y") if a.data_nascimento else "",
+                        a.data_entrada.strftime("%d/%m/%Y") if a.data_entrada else "",
+                        a.data_desligamento.strftime("%d/%m/%Y") if a.data_desligamento else "",
+                        "Sim" if a.ativo else "Não",
+                        "Sim" if a.has_acompanhamento else "Não",
+                        a.acompanhamento_obs,
+                        a.acompanhamento_dias,
+                        a.nome_responsavel,
+                        a.telefone_responsavel,
+                    ])
+                return resp
+
+        elif download == 'presencas':
+            qs = RegistroPresenca.objects.select_related('aluno', 'turma', 'registrado_por').order_by('-data', 'turma__nome', 'aluno__nome')
+            if fmt == 'json':
+                data = [
+                    {
+                        "id": r.id,
+                        "data": r.data.strftime("%d/%m/%Y"),
+                        "turma": r.turma.nome if r.turma else "",
+                        "aluno": r.aluno.nome if r.aluno else "",
+                        "status": r.get_status_display(),
+                        "observacao": r.observacao,
+                        "registrado_por": r.registrado_por.get_full_name() or r.registrado_por.username if r.registrado_por else "",
+                        "criado_em": timezone.localtime(r.criado_em).strftime("%d/%m/%Y %H:%M:%S") if r.criado_em else "",
+                    }
+                    for r in qs
+                ]
+                resp = HttpResponse(json.dumps(data, indent=2, ensure_ascii=False), content_type="application/json; charset=utf-8")
+                resp['Content-Disposition'] = f'attachment; filename="registros_presenca_seami_{timestamp}.json"'
+                return resp
+            else:
+                resp = HttpResponse(content_type="text/csv; charset=utf-8-sig")
+                resp['Content-Disposition'] = f'attachment; filename="registros_presenca_seami_{timestamp}.csv"'
+                w = csv.writer(resp, delimiter=";")
+                w.writerow(["ID", "Data", "Turma", "Aluno", "Status de Presença", "Observação", "Registrado por", "Criado em"])
+                for r in qs:
+                    w.writerow([
+                        r.id,
+                        r.data.strftime("%d/%m/%Y"),
+                        r.turma.nome if r.turma else "",
+                        r.aluno.nome if r.aluno else "",
+                        r.get_status_display(),
+                        r.observacao,
+                        r.registrado_por.get_full_name() or r.registrado_por.username if r.registrado_por else "",
+                        timezone.localtime(r.criado_em).strftime("%d/%m/%Y %H:%M:%S") if r.criado_em else "",
+                    ])
+                return resp
+
+        elif download == 'ocorrencias':
+            qs = OcorrenciaCaderno.objects.select_related('aluno', 'turma', 'registrado_por').order_by('-data', '-criado_em')
+            if fmt == 'json':
+                data = [
+                    {
+                        "id": o.id,
+                        "tipo": o.get_tipo_display(),
+                        "aluno": o.aluno.nome if o.aluno else "",
+                        "turma": o.turma.nome if o.turma else "",
+                        "data_inicio": o.data.strftime("%d/%m/%Y"),
+                        "data_fim": o.data_fim.strftime("%d/%m/%Y") if o.data_fim else "",
+                        "periodo": o.periodo_formatado,
+                        "horario": str(o.horario) if o.horario else "",
+                        "horario_retorno": str(o.horario_retorno) if o.horario_retorno else "",
+                        "justificado": o.justificado,
+                        "avisado_pais": o.avisado_pais,
+                        "cid": o.cid,
+                        "motivo": o.motivo,
+                        "quantidade": o.quantidade,
+                        "observacao": o.observacao,
+                        "registrado_por": o.registrado_por.get_full_name() or o.registrado_por.username if o.registrado_por else "",
+                    }
+                    for o in qs
+                ]
+                resp = HttpResponse(json.dumps(data, indent=2, ensure_ascii=False), content_type="application/json; charset=utf-8")
+                resp['Content-Disposition'] = f'attachment; filename="caderno_seami_ocorrencias_{timestamp}.json"'
+                return resp
+            else:
+                resp = HttpResponse(content_type="text/csv; charset=utf-8-sig")
+                resp['Content-Disposition'] = f'attachment; filename="caderno_seami_ocorrencias_{timestamp}.csv"'
+                w = csv.writer(resp, delimiter=";")
+                w.writerow([
+                    "ID", "Tipo de Ocorrência", "Aluno", "Turma", "Data Início", "Data Fim",
+                    "Período Formatado", "Horário", "Retorno", "Justificado", "Avisado Pais", "CID", "Motivo", "Quantidade", "Observação", "Registrado por"
+                ])
+                for o in qs:
+                    w.writerow([
+                        o.id,
+                        o.get_tipo_display(),
+                        o.aluno.nome if o.aluno else "",
+                        o.turma.nome if o.turma else "",
+                        o.data.strftime("%d/%m/%Y"),
+                        o.data_fim.strftime("%d/%m/%Y") if o.data_fim else "",
+                        o.periodo_formatado,
+                        str(o.horario) if o.horario else "",
+                        str(o.horario_retorno) if o.horario_retorno else ("Sim" if o.retorna else "Não"),
+                        "Sim" if o.justificado else "Não",
+                        "Sim" if o.avisado_pais else "Não",
+                        o.cid,
+                        o.motivo,
+                        o.quantidade,
+                        o.observacao,
+                        o.registrado_por.get_full_name() or o.registrado_por.username if o.registrado_por else "",
+                    ])
+                return resp
+
+        elif download == 'turmas':
+            qs = Turma.objects.prefetch_related('professores', 'alunos').order_by('nome')
+            if fmt == 'json':
+                data = [
+                    {
+                        "id": t.id,
+                        "nome": t.nome,
+                        "faixa_etaria": t.faixa_etaria,
+                        "ano_letivo": t.ano_letivo,
+                        "ativo": t.ativo,
+                        "total_alunos": t.alunos.count(),
+                        "professores": [p.get_full_name() or p.username for p in t.professores.all()],
+                    }
+                    for t in qs
+                ]
+                resp = HttpResponse(json.dumps(data, indent=2, ensure_ascii=False), content_type="application/json; charset=utf-8")
+                resp['Content-Disposition'] = f'attachment; filename="turmas_seami_{timestamp}.json"'
+                return resp
+            else:
+                resp = HttpResponse(content_type="text/csv; charset=utf-8-sig")
+                resp['Content-Disposition'] = f'attachment; filename="turmas_seami_{timestamp}.csv"'
+                w = csv.writer(resp, delimiter=";")
+                w.writerow(["ID", "Nome da Turma", "Faixa Etária", "Ano Letivo", "Total de Alunos", "Professores Responsáveis", "Status Ativo"])
+                for t in qs:
+                    profs = ", ".join([p.get_full_name() or p.username for p in t.professores.all()])
+                    w.writerow([t.id, t.nome, t.faixa_etaria, t.ano_letivo, t.alunos.count(), profs, "Sim" if t.ativo else "Não"])
+                return resp
+
+        elif download == 'usuarios':
+            qs = User.objects.order_by('first_name', 'username')
+            if fmt == 'json':
+                data = [
+                    {
+                        "id": u.id,
+                        "username": u.username,
+                        "nome_completo": u.get_full_name(),
+                        "email": u.email,
+                        "perfil": u.get_role_display(),
+                        "telefone": u.telefone or "",
+                        "is_staff": u.is_staff,
+                        "is_active": u.is_active,
+                        "data_cadastro": timezone.localtime(u.date_joined).strftime("%d/%m/%Y %H:%M:%S") if u.date_joined else "",
+                    }
+                    for u in qs
+                ]
+                resp = HttpResponse(json.dumps(data, indent=2, ensure_ascii=False), content_type="application/json; charset=utf-8")
+                resp['Content-Disposition'] = f'attachment; filename="usuarios_seami_{timestamp}.json"'
+                return resp
+            else:
+                resp = HttpResponse(content_type="text/csv; charset=utf-8-sig")
+                resp['Content-Disposition'] = f'attachment; filename="usuarios_seami_{timestamp}.csv"'
+                w = csv.writer(resp, delimiter=";")
+                w.writerow(["ID", "Usuário", "Nome Completo", "E-mail", "Perfil de Acesso", "Telefone", "É Administrador (Staff)", "Ativo", "Data de Cadastro"])
+                for u in qs:
+                    w.writerow([
+                        u.id,
+                        u.username,
+                        u.get_full_name(),
+                        u.email,
+                        u.get_role_display(),
+                        u.telefone or "",
+                        "Sim" if u.is_staff else "Não",
+                        "Sim" if u.is_active else "Não",
+                        timezone.localtime(u.date_joined).strftime("%d/%m/%Y %H:%M:%S") if u.date_joined else "",
+                    ])
+                return resp
+
+    # Dados para renderização do Hub
+    context = {
+        'active_tab': 'admin_export',
+        'active_module': 'exportacao',
+        'total_alunos': Aluno.objects.count(),
+        'total_alunos_ativos': Aluno.objects.filter(ativo=True).count(),
+        'total_turmas': Turma.objects.count(),
+        'total_presencas': RegistroPresenca.objects.count(),
+        'total_ocorrencias': OcorrenciaCaderno.objects.count(),
+        'total_usuarios': User.objects.count(),
+        'total_convites': ConviteUsuario.objects.count(),
+    }
+    return render(request, 'core/central_exportacao.html', context)
+

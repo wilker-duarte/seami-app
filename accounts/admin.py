@@ -1,10 +1,11 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from core.admin_export import ExportActionMixin
 from .models import User, ConviteUsuario
 
 
 @admin.register(User)
-class UserAdmin(BaseUserAdmin):
+class UserAdmin(ExportActionMixin, BaseUserAdmin):
     fieldsets = BaseUserAdmin.fieldsets + (
         ('Controle de Acesso SEAMI', {'fields': ('role', 'telefone')}),
     )
@@ -17,8 +18,9 @@ class UserAdmin(BaseUserAdmin):
 
 
 @admin.register(ConviteUsuario)
-class ConviteUsuarioAdmin(admin.ModelAdmin):
+class ConviteUsuarioAdmin(ExportActionMixin, admin.ModelAdmin):
     list_display = ('nome', 'email', 'role', 'token', 'expira_em', 'utilizado', 'criado_em')
     list_filter = ('role', 'utilizado')
     search_fields = ('nome', 'email', 'token')
     readonly_fields = ('token', 'criado_em')
+

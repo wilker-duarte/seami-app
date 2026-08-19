@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import Turma, Aluno, DiarioDeClasse, RegistroPresenca
+from core.admin_export import ExportActionMixin
+from .models import Turma, Aluno, DiarioDeClasse, RegistroPresenca, OcorrenciaCaderno
 
 
 class RegistroPresencaInline(admin.TabularInline):
@@ -11,7 +12,7 @@ class RegistroPresencaInline(admin.TabularInline):
 
 
 @admin.register(Turma)
-class TurmaAdmin(admin.ModelAdmin):
+class TurmaAdmin(ExportActionMixin, admin.ModelAdmin):
     list_display = ('nome', 'faixa_etaria', 'ano_letivo', 'get_total_alunos', 'ativo', 'criado_em')
     list_filter = ('ano_letivo', 'ativo')
     search_fields = ('nome', 'faixa_etaria')
@@ -23,7 +24,7 @@ class TurmaAdmin(admin.ModelAdmin):
 
 
 @admin.register(Aluno)
-class AlunoAdmin(admin.ModelAdmin):
+class AlunoAdmin(ExportActionMixin, admin.ModelAdmin):
     list_display = ('nome', 'turma', 'turno', 'data_entrada', 'data_desligamento', 'has_acompanhamento', 'ativo')
     list_filter = ('turma', 'turno', 'has_acompanhamento', 'ativo')
     search_fields = ('nome', 'nome_responsavel', 'telefone_responsavel', 'acompanhamento_obs')
@@ -31,7 +32,7 @@ class AlunoAdmin(admin.ModelAdmin):
 
 
 @admin.register(DiarioDeClasse)
-class DiarioDeClasseAdmin(admin.ModelAdmin):
+class DiarioDeClasseAdmin(ExportActionMixin, admin.ModelAdmin):
     list_display = ('turma', 'data', 'turno', 'total_presentes', 'total_faltas', 'registrado_por', 'criado_em')
     list_filter = ('turma', 'turno', 'data')
     search_fields = ('turma__nome', 'observacao')
@@ -40,7 +41,7 @@ class DiarioDeClasseAdmin(admin.ModelAdmin):
 
 
 @admin.register(RegistroPresenca)
-class RegistroPresencaAdmin(admin.ModelAdmin):
+class RegistroPresencaAdmin(ExportActionMixin, admin.ModelAdmin):
     list_display = ('aluno', 'turma', 'data', 'status', 'registrado_por', 'criado_em')
     list_filter = ('status', 'data', 'turma')
     search_fields = ('aluno__nome', 'turma__nome', 'observacao')
@@ -48,11 +49,10 @@ class RegistroPresencaAdmin(admin.ModelAdmin):
     list_per_page = 50
 
 
-from .models import OcorrenciaCaderno
-
 @admin.register(OcorrenciaCaderno)
-class OcorrenciaCadernoAdmin(admin.ModelAdmin):
+class OcorrenciaCadernoAdmin(ExportActionMixin, admin.ModelAdmin):
     list_display = ('tipo', 'aluno', 'turma', 'data', 'justificado', 'registrado_por', 'criado_em')
     list_filter = ('tipo', 'turma', 'justificado', 'data')
     search_fields = ('aluno__nome', 'turma__nome', 'motivo', 'cid', 'observacao')
     date_hierarchy = 'data'
+

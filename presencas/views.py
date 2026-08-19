@@ -739,8 +739,89 @@ def lista_alunos_view(request):
     return render(request, 'presencas/lista_alunos.html', context)
 
 
-# Mantendo lista_turmas_view como alias para compatibilidade
-lista_turmas_view = lista_alunos_view
+@login_required
+def lista_turmas_view(request):
+    """
+    Página de Gestão, Criação e Edição de Turmas e Salas da Unidade Escolar.
+    """
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+
+    if request.method == 'POST':
+        # Somente Diretores ou Master Admin podem criar/editar turmas
+        if not (request.user.is_diretor or request.user.is_master_admin or request.user.is_superuser):
+            messages.error(request, "Apenas Diretores e Administradores Master têm permissão para alterar turmas.")
+            return redirect('presencas:lista_turmas')
+
+        action = request.POST.get('action')
+        turma_id = request.POST.get('turma_id')
+
+        if action in ['create', 'update']:
+            nome = request.POST.get('nome', '').strip()
+            faixa_etaria = request.POST.get('faixa_etaria', '').strip()
+            ano_letivo_str = request.POST.get('ano_letivo', '2026')
+            ativo = request.POST.get('ativo') == 'on'
+            professores_ids = request.POST.getlist('professores')
+
+            try:
+                ano_letivo = int(ano_letivo_str)
+            except ValueError:
+                ano_letivo = timezone.localdate().year
+
+            if not nome:
+                messages.error(request, "O nome da turma é obrigatório.")
+                return redirect('presencas:lista_turmas')
+
+            if action == 'create':
+                if Turma.objects.filter(nome__iexact=nome).exists():
+                    messages.error(request, f"Já existe uma turma cadastrada com o nome '{nome}'.")
+                    return redirect('presencas:lista_turmas')
+
+                turma = Turma.objects.create(
+                    nome=nome,
+                    faixa_etaria=faixa_etaria,
+                    ano_letivo=ano_letivo,
+                    ativo=ativo
+                )
+                if professores_ids:
+                    turma.professores.set(professores_ids)
+                messages.success(request, f"Turma '{turma.nome}' cadastrada com sucesso!")
+
+            elif action == 'update':
+                turma = get_object_or_404(Turma, id=turma_id)
+                if Turma.objects.filter(nome__iexact=nome).exclude(id=turma.id).exists():
+                    messages.error(request, f"Já existe outra turma com o nome '{nome}'.")
+                    return redirect('presencas:lista_turmas')
+
+                turma.nome = nome
+                turma.faixa_etaria = faixa_etaria
+                turma.ano_letivo = ano_letivo
+                turma.ativo = ativo
+                turma.save()
+                turma.professores.set(professores_ids)
+                messages.success(request, f"Turma '{turma.nome}' atualizada com sucesso!")
+
+        elif action == 'toggle_active':
+            turma = get_object_or_404(Turma, id=turma_id)
+            turma.ativo = not turma.ativo
+            turma.save()
+            status_txt = "ativada" if turma.ativo else "desativada"
+            messages.success(request, f"Turma '{turma.nome}' {status_txt} com sucesso!")
+
+        return redirect('presencas:lista_turmas')
+
+    turmas = Turma.objects.prefetch_related('professores', 'alunos').order_by('nome')
+    professores_disponiveis = User.objects.filter(is_active=True).order_by('first_name', 'username')
+
+    context = {
+        'turmas': turmas,
+        'professores_disponiveis': professores_disponiveis,
+        'active_tab': 'classrooms',
+        'active_module': None,
+    }
+    return render(request, 'presencas/lista_turmas.html', context)
+
+
 
 
 @login_required

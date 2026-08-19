@@ -133,7 +133,32 @@
                     <i data-lucide="notebook-text"></i>
                     <span>Relatórios do Caderno</span>
                 </a>
+
+                {% if user.is_authenticated and user.is_diretor or user.is_master_admin or user.is_superuser %}
+                <!-- SESSÃO ADMINISTRATIVA (DIRETORES E MASTER ADMIN) -->
+                <div class="menu-section" style="margin-top: 14px; margin-bottom: 6px;">
+                    <span class="menu-section-title" title="Área administrativa exclusiva para Diretores e Administradores Master">
+                        Administrativa
+                    </span>
+                </div>
+
+                <a href="{% url 'turmas' %}" class="menu-item {% if active_tab == 'classrooms' or request.resolver_match.url_name == 'turmas' or request.resolver_match.url_name == 'lista_turmas' %}active{% endif %}" title="Gerenciamento de Turmas e Salas de Aula">
+                    <i data-lucide="school"></i>
+                    <span>Turmas & Salas</span>
+                </a>
+
+                <a href="{% url 'exportacao' %}" class="menu-item {% if active_tab == 'admin_export' or request.resolver_match.url_name == 'exportacao' %}active{% endif %}" title="Central de Exportação de Dados em CSV e JSON">
+                    <i data-lucide="download"></i>
+                    <span>Central de Exportação</span>
+                </a>
+
+                <a href="/admin/" target="_blank" class="menu-item" title="Painel Django Admin (Gestão Técnica e Exportação do Sistema)">
+                    <i data-lucide="shield-check"></i>
+                    <span>Painel do Sistema (Admin)</span>
+                </a>
+                {% endif %}
             </nav>
+
 
             <!-- Rodapé do Usuário na Sidebar -->
             <div class="sidebar-footer">
