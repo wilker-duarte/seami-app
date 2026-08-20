@@ -50,6 +50,17 @@ class Turma(models.Model):
         return f"{self.nome} ({self.ano_letivo})"
 
 
+class AlunoQuerySet(models.QuerySet):
+    def ativos(self, target_date=None):
+        if target_date is None:
+            target_date = timezone.localdate()
+        return self.filter(ativo=True).filter(
+            models.Q(data_desligamento__isnull=True) | models.Q(data_desligamento__gte=target_date)
+        ).filter(
+            models.Q(data_entrada__isnull=True) | models.Q(data_entrada__lte=target_date)
+        )
+
+
 class Aluno(models.Model):
     nome = models.CharField(max_length=150, verbose_name='Nome da Criança')
     data_nascimento = models.DateField(null=True, blank=True, verbose_name='Data de Nascimento')
@@ -81,6 +92,8 @@ class Aluno(models.Model):
     telefone_responsavel = models.CharField(max_length=20, blank=True, verbose_name='Telefone do Responsável')
     ativo = models.BooleanField(default=True, verbose_name='Ativo')
     criado_em = models.DateTimeField(auto_now_add=True)
+
+    objects = AlunoQuerySet.as_manager()
 
     class Meta:
         verbose_name = 'Aluno'

@@ -126,11 +126,16 @@ def import_alunos(rows, user=None):
             if not nome:
                 continue
 
-            turma_name = r.get('Turma / Sala') or r.get('turma') or r.get('Turma') or 'Geral'
-            if ' (' in turma_name and turma_name.endswith(')'):
-                turma_name = turma_name.split(' (')[0].strip()
+            turma = None
+            turma_id = r.get('Turma ID') or r.get('turma_id')
+            if turma_id and str(turma_id).isdigit():
+                turma = Turma.objects.filter(id=int(turma_id)).first()
 
-            turma, _ = Turma.objects.get_or_create(nome=turma_name.strip(), defaults={'ano_letivo': 2026})
+            if not turma:
+                turma_name = r.get('Turma / Sala') or r.get('turma') or r.get('Turma') or 'Geral'
+                if ' (' in turma_name and turma_name.endswith(')'):
+                    turma_name = turma_name.split(' (')[0].strip()
+                turma, _ = Turma.objects.get_or_create(nome=turma_name.strip(), defaults={'ano_letivo': 2026})
 
             turno_str = (r.get('Turno') or r.get('turno') or 'integral').lower()
             turno = TurnoAluno.INTEGRAL
@@ -150,25 +155,47 @@ def import_alunos(rows, user=None):
             resp = r.get('Nome do Responsável') or r.get('nome_responsavel') or ''
             tel = r.get('Telefone do Responsável') or r.get('telefone_responsavel') or ''
 
-            aluno, was_created = Aluno.objects.get_or_create(
-                nome=nome.strip(),
-                turma=turma,
-                defaults={
-                    'turno': turno,
-                    'data_nascimento': nasc,
-                    'data_entrada': entrada or timezone.localdate(),
-                    'data_desligamento': deslig,
-                    'ativo': ativo,
-                    'has_acompanhamento': has_acomp,
-                    'acompanhamento_obs': acomp_obs,
-                    'acompanhamento_dias': acomp_dias,
-                    'nome_responsavel': resp,
-                    'telefone_responsavel': tel,
-                }
-            )
-            if was_created:
-                created += 1
+            aluno_id = r.get('ID') or r.get('id')
+            aluno = None
+            if aluno_id and str(aluno_id).isdigit():
+                aluno = Aluno.objects.filter(id=int(aluno_id)).first()
+
+            if not aluno:
+                aluno, was_created = Aluno.objects.get_or_create(
+                    nome=nome.strip(),
+                    turma=turma,
+                    defaults={
+                        'turno': turno,
+                        'data_nascimento': nasc,
+                        'data_entrada': entrada or timezone.localdate(),
+                        'data_desligamento': deslig,
+                        'ativo': ativo,
+                        'has_acompanhamento': has_acomp,
+                        'acompanhamento_obs': acomp_obs,
+                        'acompanhamento_dias': acomp_dias,
+                        'nome_responsavel': resp,
+                        'telefone_responsavel': tel,
+                    }
+                )
+                if was_created:
+                    created += 1
+                else:
+                    aluno.turma = turma
+                    aluno.turno = turno
+                    if nasc: aluno.data_nascimento = nasc
+                    if entrada: aluno.data_entrada = entrada
+                    aluno.data_desligamento = deslig
+                    aluno.ativo = ativo
+                    aluno.has_acompanhamento = has_acomp
+                    aluno.acompanhamento_obs = acomp_obs
+                    aluno.acompanhamento_dias = acomp_dias
+                    if resp: aluno.nome_responsavel = resp
+                    if tel: aluno.telefone_responsavel = tel
+                    aluno.save()
+                    updated += 1
             else:
+                aluno.nome = nome.strip()
+                aluno.turma = turma
                 aluno.turno = turno
                 if nasc: aluno.data_nascimento = nasc
                 if entrada: aluno.data_entrada = entrada
@@ -198,16 +225,26 @@ def import_presencas(rows, user=None):
 
     with transaction.atomic():
         for r in rows:
-            aluno_nome = r.get('Aluno') or r.get('aluno')
             data_val = parse_date_flexible(r.get('Data') or r.get('data'))
-            if not aluno_nome or not data_val:
+            if not data_val:
                 continue
 
-            turma_nome = r.get('Turma') or r.get('turma')
-            aluno = Aluno.objects.filter(nome__iexact=aluno_nome.strip()).first()
-            if not aluno:
+            aluno = None
+            aluno_id = r.get('Aluno ID') or r.get('aluno_id')
+            if aluno_id and str(aluno_id).isdigit():
+                aluno = Aluno.objects.filter(id=int(aluno_id)).first()
+
+            aluno_nome = r.get('Aluno') or r.get('aluno')
+            if not aluno and aluno_nome:
+                aluno = Aluno.objects.filter(nome__iexact=aluno_nome.strip()).first()
+
+            if not aluno and aluno_nome:
+                turma_nome = r.get('Turma') or r.get('turma')
                 turma, _ = Turma.objects.get_or_create(nome=(turma_nome or 'Geral').strip())
                 aluno = Aluno.objects.create(nome=aluno_nome.strip(), turma=turma)
+
+            if not aluno:
+                continue
 
             raw_status = str(r.get('Status de Presença') or r.get('status') or 'PRESENTE').lower().strip()
             status = StatusPresenca.PRESENTE
@@ -236,6 +273,7 @@ def import_presencas(rows, user=None):
                 reg.save()
                 updated += 1
     return created, updated
+
 
 
 def import_ocorrencias(rows, user=None):

@@ -47,8 +47,14 @@ scratch/
 *.sqlite3
 *.sqlite3-journal
 *.db
+*.sql
+*.dump
+*.tar
 dumps/
 backups/
+seami_production_backup.*
+*backup*.json
+*dump*.json
 media/
 staticfiles/
 

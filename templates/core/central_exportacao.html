@@ -42,16 +42,48 @@
                 </p>
             </div>
         </div>
-        <div style="display: flex; gap: 10px;">
-            <button type="button" onclick="openImportModal('alunos')" class="primary-btn" style="padding: 9px 16px; border-radius: var(--radius-sm); background-color: #059669; color: white; border: none; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: var(--shadow-sm);">
-                <i data-lucide="upload" style="width: 15px; height: 15px;"></i>
-                Restaurar / Importar Dados
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button type="button" onclick="openFullRestoreModal()" class="primary-btn" style="padding: 9px 16px; border-radius: var(--radius-sm); background-color: #dc2626; color: white; border: none; font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.25);">
+                <i data-lucide="refresh-cw" style="width: 15px; height: 15px;"></i>
+                Restaurar Banco Completo
             </button>
+
+            <a href="?download=full_dump" class="secondary-btn" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1.5px solid var(--border-color); background-color: var(--bg-card); color: var(--text-primary); text-decoration: none; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="download-cloud" style="width: 15px; height: 15px; color: var(--color-primary);"></i>
+                Backup Geral (.json)
+            </a>
 
             <a href="/admin/" target="_blank" class="secondary-btn" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background-color: var(--bg-card); color: var(--text-primary); text-decoration: none; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
                 <i data-lucide="shield" style="width: 15px; height: 15px; color: var(--color-primary);"></i>
-                Painel Django Admin
+                Django Admin
             </a>
+        </div>
+    </div>
+
+    <!-- CARD EM DESTAQUE: BACKUP & RESTAURAÇÃO TOTAL DO BANCO (PRODUÇÃO) -->
+    <div style="background: linear-gradient(135deg, rgba(220, 38, 38, 0.05) 0%, rgba(239, 68, 68, 0.02) 100%); border: 1.5px solid #fca5a5; border-radius: var(--radius-md); padding: 20px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; box-shadow: var(--shadow-sm);">
+        <div style="display: flex; align-items: center; gap: 14px;">
+            <div style="width: 44px; height: 44px; border-radius: 12px; background-color: #fee2e2; color: #dc2626; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <i data-lucide="database-backup" style="width: 24px; height: 24px;"></i>
+            </div>
+            <div>
+                <h3 style="margin: 0; font-size: 16.5px; font-weight: 800; color: #991b1b; font-family: var(--font-title); display: flex; align-items: center; gap: 8px;">
+                    Substituição & Restauração Completa do Banco de Dados
+                </h3>
+                <p style="margin: 3px 0 0 0; font-size: 13px; color: var(--text-secondary);">
+                    Exporte ou substitua todo o banco de dados (Salas, Alunos, Presenças, Caderno SEAMI, Diários e Usuários) diretamente pela interface administrativa, sem precisar versionar dados no GitHub.
+                </p>
+            </div>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <a href="?download=full_dump" class="secondary-btn" style="padding: 9px 16px; border-radius: var(--radius-sm); border: 1.5px solid #dc2626; color: #dc2626; background: #ffffff; text-decoration: none; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="download" style="width: 15px; height: 15px;"></i>
+                Baixar Backup Total (.json)
+            </a>
+            <button type="button" onclick="openFullRestoreModal()" class="primary-btn" style="padding: 9px 18px; border-radius: var(--radius-sm); background-color: #dc2626; color: white; border: none; font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.25);">
+                <i data-lucide="upload" style="width: 15px; height: 15px;"></i>
+                Restaurar Banco Completo
+            </button>
         </div>
     </div>
 
@@ -330,11 +362,11 @@
 <!-- ========================================================================= -->
 <!-- MODAL DE IMPORTAÇÃO / RESTAURAÇÃO DE DADOS (BACKUP PARCIAL)               -->
 <!-- ========================================================================= -->
-<div id="modal-import-backup" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 16px;">
-    <div class="modal-card" style="background: var(--bg-card); border-radius: var(--radius-md); width: 100%; max-width: 520px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-color); overflow: hidden;" onclick="event.stopPropagation()">
+<div id="modal-import-backup" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px); z-index: 99999; align-items: center; justify-content: center; padding: 16px;">
+    <div class="modal-card" style="background: var(--bg-card); border-radius: var(--radius-md); width: 100%; max-width: 540px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3); border: 1px solid var(--border-color); overflow: hidden;" onclick="event.stopPropagation()">
         
-        <div class="modal-header" style="border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 20px 24px;">
-            <div style="display: flex; align-items: center; gap: 10px;">
+        <div class="modal-header" style="border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 18px 24px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
                 <div style="width: 38px; height: 38px; border-radius: 10px; background-color: #ecfdf5; color: #059669; display: flex; align-items: center; justify-content: center;">
                     <i data-lucide="upload" style="width: 20px; height: 20px;"></i>
                 </div>
@@ -342,15 +374,32 @@
                     Restaurar / Importar Dados
                 </h3>
             </div>
-            <button type="button" onclick="closeImportModal()" style="border: none; background: none; cursor: pointer; color: var(--text-secondary); font-size: 20px; padding: 4px;">&times;</button>
+            <button type="button" onclick="closeImportModal()" style="border: none; background: none; cursor: pointer; color: var(--text-secondary); font-size: 22px; padding: 4px;">&times;</button>
         </div>
 
-        <form method="post" enctype="multipart/form-data" style="padding: 24px; display: flex; flex-direction: column; gap: 18px;">
+        <style>
+            @keyframes spinAnimation {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+            .btn-spinner {
+                display: inline-block;
+                width: 16px;
+                height: 16px;
+                border: 2.5px solid rgba(255, 255, 255, 0.35);
+                border-radius: 50%;
+                border-top-color: #ffffff;
+                animation: spinAnimation 0.8s linear infinite;
+                vertical-align: middle;
+            }
+        </style>
+
+        <form id="form-import-backup" method="post" enctype="multipart/form-data" onsubmit="handleImportSubmit(event)" style="padding: 24px; display: flex; flex-direction: column; gap: 18px;">
             {% csrf_token %}
             <input type="hidden" name="action" value="import_backup">
 
             <div>
-                <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">
+                <label style="display: block; font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">
                     Módulo / Tabela para Restauração <span style="color: #dc2626;">*</span>
                 </label>
                 <select name="entity" id="import-entity-select" required style="width: 100%; padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background-color: var(--bg-card); color: var(--text-primary); font-size: 14px; box-sizing: border-box;">
@@ -362,12 +411,12 @@
             </div>
 
             <div>
-                <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">
+                <label style="display: block; font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">
                     Arquivo de Backup (CSV ou JSON) <span style="color: #dc2626;">*</span>
                 </label>
                 <input type="file" name="file" id="import-file-input" required accept=".csv,.json,text/csv,application/json" style="width: 100%; padding: 10px; border-radius: var(--radius-sm); border: 1px dashed var(--border-color); background-color: var(--bg-body, #fafafa); color: var(--text-primary); font-size: 13.5px; box-sizing: border-box;">
                 <p style="font-size: 12px; color: var(--text-secondary); margin-top: 6px; margin-bottom: 0;">
-                    💡 Aceita arquivos <strong>.csv</strong> (delimitados por ';' ou ',') ou <strong>.json</strong> exportados anteriormente pelo sistema.
+                    💡 Aceita arquivos <strong>.csv</strong> ou <strong>.json</strong> exportados anteriormente pelo sistema.
                 </p>
             </div>
 
@@ -375,13 +424,113 @@
                 <strong>Segurança de Dados:</strong> Registros existentes correspondentes serão atualizados com os dados importados e novos registros serão criados automaticamente em lote.
             </div>
 
+            <!-- Barra de Progresso com Porcentagem em Tempo Real -->
+            <div id="import-progress-container" style="display: none; flex-direction: column; gap: 8px; background-color: #f0fdf4; border: 1.5px solid #86efac; border-radius: 10px; padding: 14px 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span id="import-status-text" style="font-size: 13px; font-weight: 700; color: #166534; display: flex; align-items: center; gap: 8px;">
+                        <span class="btn-spinner" style="border-top-color: #166534; border-color: rgba(22, 101, 52, 0.2);"></span>
+                        <span>Enviando arquivo de importação...</span>
+                    </span>
+                    <span id="import-percentage" style="font-size: 14px; font-weight: 800; color: #059669;">0%</span>
+                </div>
+                <div style="width: 100%; height: 8px; background: #dcfce7; border-radius: 999px; overflow: hidden;">
+                    <div id="import-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #10b981, #059669); border-radius: 999px; transition: width 0.15s ease;"></div>
+                </div>
+                <div id="import-bytes-text" style="font-size: 11.5px; color: #15803d; font-weight: 600; text-align: right;">
+                    0 MB / 0 MB
+                </div>
+            </div>
+
             <div style="border-top: 1px solid var(--border-color); padding-top: 16px; display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px;">
-                <button type="button" onclick="closeImportModal()" style="padding: 10px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary); font-weight: 600; font-size: 13.5px; cursor: pointer;">
+                <button type="button" id="btn-cancel-import" onclick="closeImportModal()" style="padding: 10px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary); font-weight: 600; font-size: 13.5px; cursor: pointer;">
                     Cancelar
                 </button>
-                <button type="submit" class="primary-btn" style="padding: 10px 20px; border-radius: var(--radius-sm); background-color: #059669; color: white; border: none; font-weight: 700; font-size: 13.5px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
-                    <i data-lucide="check" style="width: 16px; height: 16px;"></i>
-                    <span>Iniciar Importação</span>
+                <button type="submit" id="btn-submit-import" class="primary-btn" style="padding: 10px 20px; border-radius: var(--radius-sm); background-color: #059669; color: white; border: none; font-weight: 700; font-size: 13.5px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s ease;">
+                    <i data-lucide="check" id="btn-submit-icon" style="width: 16px; height: 16px;"></i>
+                    <span id="btn-submit-text">Iniciar Importação</span>
+                </button>
+            </div>
+        </form>
+
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL DE RESTAURAÇÃO TOTAL DO BANCO DE DADOS (PRODUÇÃO)                   -->
+<!-- ========================================================================= -->
+<div id="modal-restore-full-database" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(5px); z-index: 99999; align-items: center; justify-content: center; padding: 16px;">
+    <div class="modal-card" style="background: var(--bg-card); border-radius: var(--radius-md); width: 100%; max-width: 560px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3); border: 2px solid #f87171; overflow: hidden;" onclick="event.stopPropagation()">
+        
+        <div class="modal-header" style="border-bottom: 1px solid #fecaca; background-color: #fef2f2; display: flex; align-items: center; justify-content: space-between; padding: 18px 24px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 10px; background-color: #fee2e2; color: #dc2626; display: flex; align-items: center; justify-content: center;">
+                    <i data-lucide="alert-triangle" style="width: 22px; height: 22px;"></i>
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 17px; font-weight: 800; color: #991b1b; font-family: var(--font-title);">
+                        Restauração Total do Banco de Dados
+                    </h3>
+                    <span style="font-size: 12px; color: #b91c1c; font-weight: 600;">Substituição global de registros em produção</span>
+                </div>
+            </div>
+            <button type="button" onclick="closeFullRestoreModal()" style="border: none; background: none; cursor: pointer; color: #b91c1c; font-size: 22px; padding: 4px;">&times;</button>
+        </div>
+
+        <form id="form-full-restore" method="post" enctype="multipart/form-data" onsubmit="handleFullRestoreSubmit(event)" style="padding: 24px; display: flex; flex-direction: column; gap: 18px;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="restore_full_database">
+
+            <div style="background-color: #fff1f2; border: 1px solid #fecdd3; border-radius: 10px; padding: 14px 16px; font-size: 13px; color: #9f1239; line-height: 1.5;">
+                <div style="font-weight: 800; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                    <i data-lucide="shield-alert" style="width: 16px; height: 16px;"></i> Ação de Alta Relevância:
+                </div>
+                Esta operação irá carregar todas as tabelas (Salas, Alunos, Presenças, Caderno SEAMI, Diários e Usuários) a partir do arquivo JSON fornecido.
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">
+                    Arquivo de Backup Completo (.json) <span style="color: #dc2626;">*</span>
+                </label>
+                <input type="file" name="backup_file" id="full-restore-file-input" required accept=".json,application/json" style="width: 100%; padding: 12px; border-radius: var(--radius-sm); border: 1.5px dashed #f87171; background-color: var(--bg-body, #fafafa); color: var(--text-primary); font-size: 13.5px; box-sizing: border-box;">
+                <p style="font-size: 12px; color: var(--text-secondary); margin-top: 6px; margin-bottom: 0;">
+                    💡 Selecione o arquivo gerado via <strong>"Baixar Backup Total (.json)"</strong> ou exportado do Django (dumpdata).
+                </p>
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">
+                    Confirmação de Segurança <span style="color: #dc2626;">*</span>
+                </label>
+                <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">
+                    Para confirmar a substituição dos dados, digite <strong>RESTAURAR</strong> no campo abaixo:
+                </p>
+                <input type="text" name="confirmation_text" id="full-restore-confirm-input" required placeholder="Digite RESTAURAR" autocomplete="off" style="width: 100%; padding: 10px 14px; border-radius: var(--radius-sm); border: 1.5px solid var(--border-color); background-color: var(--bg-card); color: var(--text-primary); font-size: 14px; font-weight: 700; letter-spacing: 0.05em; box-sizing: border-box;">
+            </div>
+
+            <!-- Barra de Progresso com Porcentagem em Tempo Real -->
+            <div id="full-restore-progress-container" style="display: none; flex-direction: column; gap: 8px; background-color: #fef2f2; border: 1.5px solid #fca5a5; border-radius: 10px; padding: 14px 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span id="full-restore-status-text" style="font-size: 13px; font-weight: 700; color: #991b1b; display: flex; align-items: center; gap: 8px;">
+                        <span class="btn-spinner" style="border-top-color: #991b1b; border-color: rgba(153, 27, 27, 0.25);"></span>
+                        <span>Enviando arquivo de backup...</span>
+                    </span>
+                    <span id="full-restore-percentage" style="font-size: 14px; font-weight: 800; color: #dc2626;">0%</span>
+                </div>
+                <div style="width: 100%; height: 8px; background: #fee2e2; border-radius: 999px; overflow: hidden;">
+                    <div id="full-restore-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); border-radius: 999px; transition: width 0.15s ease;"></div>
+                </div>
+                <div id="full-restore-bytes-text" style="font-size: 11.5px; color: #b91c1c; font-weight: 600; text-align: right;">
+                    0 MB / 0 MB
+                </div>
+            </div>
+
+            <div style="border-top: 1px solid var(--border-color); padding-top: 16px; display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px;">
+                <button type="button" id="btn-cancel-full-restore" onclick="closeFullRestoreModal()" style="padding: 10px 18px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary); font-weight: 600; font-size: 13.5px; cursor: pointer;">
+                    Cancelar
+                </button>
+                <button type="submit" id="btn-submit-full-restore" class="primary-btn" style="padding: 10px 22px; border-radius: var(--radius-sm); background-color: #dc2626; color: white; border: none; font-weight: 700; font-size: 13.5px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.25);">
+                    <i data-lucide="refresh-cw" id="btn-submit-full-icon" style="width: 16px; height: 16px;"></i>
+                    <span id="btn-submit-full-text">Executar Restauração Completa</span>
                 </button>
             </div>
         </form>
@@ -390,24 +539,302 @@
 </div>
 
 <script>
+    // ── 1. MODAL DE RESTAURAÇÃO TOTAL DO BANCO ──────────────────────────────
+    function openFullRestoreModal() {
+        const modal = document.getElementById('modal-restore-full-database');
+        if (!modal) {
+            alert('Elemento da modal de restauração não encontrado.');
+            return;
+        }
+
+        document.getElementById('full-restore-file-input').value = '';
+        document.getElementById('full-restore-confirm-input').value = '';
+        
+        const submitBtn = document.getElementById('btn-submit-full-restore');
+        const cancelBtn = document.getElementById('btn-cancel-full-restore');
+        const progressContainer = document.getElementById('full-restore-progress-container');
+        const progressBar = document.getElementById('full-restore-progress-bar');
+        const percentageText = document.getElementById('full-restore-percentage');
+        
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.style.cursor = 'pointer';
+            submitBtn.innerHTML = `
+                <i data-lucide="refresh-cw" id="btn-submit-full-icon" style="width: 16px; height: 16px;"></i>
+                <span id="btn-submit-full-text">Executar Restauração Completa</span>
+            `;
+        }
+        if (cancelBtn) {
+            cancelBtn.disabled = false;
+            cancelBtn.style.pointerEvents = 'auto';
+            cancelBtn.style.opacity = '1';
+        }
+        if (progressContainer) {
+            progressContainer.style.display = 'none';
+        }
+        if (progressBar) progressBar.style.width = '0%';
+        if (percentageText) percentageText.textContent = '0%';
+
+        modal.style.display = 'flex';
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function closeFullRestoreModal() {
+        const submitBtn = document.getElementById('btn-submit-full-restore');
+        if (submitBtn && submitBtn.disabled) return;
+        const modal = document.getElementById('modal-restore-full-database');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.remove('active');
+        }
+        document.body.style.overflow = 'auto';
+    }
+
+    function handleFullRestoreSubmit(event) {
+        event.preventDefault();
+
+        const confirmVal = (document.getElementById('full-restore-confirm-input').value || '').trim().toUpperCase();
+        if (confirmVal !== 'RESTAURAR') {
+            alert("Por favor, digite exatamente RESTAURAR no campo de confirmação.");
+            return false;
+        }
+
+        const fileInput = document.getElementById('full-restore-file-input');
+        if (!fileInput.files || fileInput.files.length === 0) {
+            alert("Por favor, selecione o arquivo JSON de backup.");
+            return false;
+        }
+
+        const file = fileInput.files[0];
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', document.querySelector('#form-full-restore [name=csrfmiddlewaretoken]').value);
+        formData.append('action', 'restore_full_database');
+        formData.append('confirmation_text', confirmVal);
+        formData.append('backup_file', file);
+
+        const submitBtn = document.getElementById('btn-submit-full-restore');
+        const cancelBtn = document.getElementById('btn-cancel-full-restore');
+        const progressContainer = document.getElementById('full-restore-progress-container');
+        const progressBar = document.getElementById('full-restore-progress-bar');
+        const percentageText = document.getElementById('full-restore-percentage');
+        const statusText = document.getElementById('full-restore-status-text');
+        const bytesText = document.getElementById('full-restore-bytes-text');
+
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.6';
+        submitBtn.style.cursor = 'not-allowed';
+        cancelBtn.disabled = true;
+        cancelBtn.style.opacity = '0.5';
+        cancelBtn.style.pointerEvents = 'none';
+
+        progressContainer.style.display = 'flex';
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', window.location.href, true);
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+        xhr.upload.onprogress = function(e) {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                progressBar.style.width = percent + '%';
+                percentageText.textContent = percent + '%';
+                const loadedMB = (e.loaded / (1024 * 1024)).toFixed(2);
+                const totalMB = (e.total / (1024 * 1024)).toFixed(2);
+                bytesText.textContent = `${loadedMB} MB / ${totalMB} MB`;
+
+                if (percent >= 100) {
+                    statusText.innerHTML = `
+                        <span class="btn-spinner" style="border-top-color: #991b1b; border-color: rgba(153, 27, 27, 0.25);"></span>
+                        <span>Upload concluído! Gravando registros no PostgreSQL...</span>
+                    `;
+                }
+            }
+        };
+
+        xhr.onload = function() {
+            if (xhr.status >= 200 && xhr.status < 400) {
+                window.location.href = window.location.pathname;
+            } else {
+                alert('Erro ao restaurar banco de dados: ' + (xhr.responseText || 'Erro no servidor'));
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = '1';
+                submitBtn.style.cursor = 'pointer';
+                cancelBtn.disabled = false;
+                cancelBtn.style.opacity = '1';
+                cancelBtn.style.pointerEvents = 'auto';
+                progressContainer.style.display = 'none';
+            }
+        };
+
+        xhr.onerror = function() {
+            alert('Erro de conexão durante o envio do arquivo.');
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.style.cursor = 'pointer';
+            cancelBtn.disabled = false;
+            cancelBtn.style.opacity = '1';
+            cancelBtn.style.pointerEvents = 'auto';
+            progressContainer.style.display = 'none';
+        };
+
+        xhr.send(formData);
+        return false;
+    }
+
+    // ── 2. MODAL DE IMPORTAÇÃO PARCIAL ──────────────────────────────────────
     function openImportModal(entity) {
+        const modal = document.getElementById('modal-import-backup');
+        if (!modal) return;
+
         if (entity) {
             document.getElementById('import-entity-select').value = entity;
         }
         document.getElementById('import-file-input').value = '';
-        const modal = document.getElementById('modal-import-backup');
+        
+        const submitBtn = document.getElementById('btn-submit-import');
+        const cancelBtn = document.getElementById('btn-cancel-import');
+        const progressContainer = document.getElementById('import-progress-container');
+        const progressBar = document.getElementById('import-progress-bar');
+        const percentageText = document.getElementById('import-percentage');
+        
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.style.cursor = 'pointer';
+            submitBtn.innerHTML = `
+                <i data-lucide="check" id="btn-submit-icon" style="width: 16px; height: 16px;"></i>
+                <span id="btn-submit-text">Iniciar Importação</span>
+            `;
+        }
+        if (cancelBtn) {
+            cancelBtn.disabled = false;
+            cancelBtn.style.pointerEvents = 'auto';
+            cancelBtn.style.opacity = '1';
+        }
+        if (progressContainer) {
+            progressContainer.style.display = 'none';
+        }
+        if (progressBar) progressBar.style.width = '0%';
+        if (percentageText) percentageText.textContent = '0%';
+
         modal.style.display = 'flex';
-        lucide.createIcons();
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        if (window.lucide) lucide.createIcons();
     }
 
     function closeImportModal() {
-        document.getElementById('modal-import-backup').style.display = 'none';
+        const submitBtn = document.getElementById('btn-submit-import');
+        if (submitBtn && submitBtn.disabled) return;
+        const modal = document.getElementById('modal-import-backup');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.remove('active');
+        }
+        document.body.style.overflow = 'auto';
     }
 
-    document.getElementById('modal-import-backup').addEventListener('click', function(e) {
-        if (e.target === this) {
-            closeImportModal();
+    function handleImportSubmit(event) {
+        event.preventDefault();
+
+        const fileInput = document.getElementById('import-file-input');
+        if (!fileInput.files || fileInput.files.length === 0) {
+            alert("Por favor, selecione um arquivo CSV ou JSON.");
+            return false;
         }
+
+        const file = fileInput.files[0];
+        const entity = document.getElementById('import-entity-select').value;
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', document.querySelector('#form-import-backup [name=csrfmiddlewaretoken]').value);
+        formData.append('action', 'import_backup');
+        formData.append('entity', entity);
+        formData.append('file', file);
+
+        const submitBtn = document.getElementById('btn-submit-import');
+        const cancelBtn = document.getElementById('btn-cancel-import');
+        const progressContainer = document.getElementById('import-progress-container');
+        const progressBar = document.getElementById('import-progress-bar');
+        const percentageText = document.getElementById('import-percentage');
+        const statusText = document.getElementById('import-status-text');
+        const bytesText = document.getElementById('import-bytes-text');
+
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.6';
+        submitBtn.style.cursor = 'not-allowed';
+        cancelBtn.disabled = true;
+        cancelBtn.style.opacity = '0.5';
+        cancelBtn.style.pointerEvents = 'none';
+
+        progressContainer.style.display = 'flex';
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', window.location.href, true);
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+        xhr.upload.onprogress = function(e) {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                progressBar.style.width = percent + '%';
+                percentageText.textContent = percent + '%';
+                const loadedMB = (e.loaded / (1024 * 1024)).toFixed(2);
+                const totalMB = (e.total / (1024 * 1024)).toFixed(2);
+                bytesText.textContent = `${loadedMB} MB / ${totalMB} MB`;
+
+                if (percent >= 100) {
+                    statusText.innerHTML = `
+                        <span class="btn-spinner" style="border-top-color: #166534; border-color: rgba(22, 101, 52, 0.2);"></span>
+                        <span>Upload concluído! Atualizando registros no banco de dados...</span>
+                    `;
+                }
+            }
+        };
+
+        xhr.onload = function() {
+            if (xhr.status >= 200 && xhr.status < 400) {
+                window.location.href = window.location.pathname;
+            } else {
+                alert('Erro ao importar dados: ' + (xhr.responseText || 'Erro no servidor'));
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = '1';
+                submitBtn.style.cursor = 'pointer';
+                cancelBtn.disabled = false;
+                cancelBtn.style.opacity = '1';
+                cancelBtn.style.pointerEvents = 'auto';
+                progressContainer.style.display = 'none';
+            }
+        };
+
+        xhr.onerror = function() {
+            alert('Erro de conexão durante o envio do arquivo.');
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.style.cursor = 'pointer';
+            cancelBtn.disabled = false;
+            cancelBtn.style.opacity = '1';
+            cancelBtn.style.pointerEvents = 'auto';
+            progressContainer.style.display = 'none';
+        };
+
+        xhr.send(formData);
+        return false;
+    }
+
+    // Fecha modais ao clicar no backdrop escuro
+    window.addEventListener('click', function(e) {
+        ['modal-import-backup', 'modal-restore-full-database'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el && e.target === el) {
+                const submitBtn = el.querySelector('button[type=submit]');
+                if (submitBtn && submitBtn.disabled) return;
+                el.style.display = 'none';
+                el.classList.remove('active');
+                document.body.style.overflow = 'auto';
+            }
+        });
     });
 </script>
 {% endblock %}

@@ -90,7 +90,7 @@ def build_dashboard_context(request):
     date_end = parse_date_str(date_end_str, default_end)
 
     turmas_qs = Turma.objects.filter(ativo=True).order_by('nome')
-    all_active_students = Aluno.objects.filter(ativo=True).select_related('turma').order_by('nome')
+    all_active_students = Aluno.objects.ativos().select_related('turma').order_by('nome')
     total_alunos_ativos = all_active_students.count()
 
     # =========================================================================
@@ -179,16 +179,19 @@ def build_dashboard_context(request):
     if student_id_filter:
         registros_qs = registros_qs.filter(aluno_id=student_id_filter)
 
+    # =========================================================================
+    # 2. CONTROLE DE FREQUÊNCIA (CHAMADA DIÁRIA - REGISTROPRESENCA)
+    # =========================================================================
     total_registros = registros_qs.count()
     total_presencas = registros_qs.filter(status=StatusPresenca.PRESENTE).count()
     total_faltas_injust = registros_qs.filter(status=StatusPresenca.AUSENTE).count()
     total_justificadas = registros_qs.filter(status=StatusPresenca.JUSTIFICADO).count()
     total_faltas = total_faltas_injust + total_justificadas
 
-    assiduidade_rate = round((total_presencas / total_registros) * 100) if total_registros > 0 else 92
+    assiduidade_rate = round((total_presencas / total_registros) * 100) if total_registros > 0 else 100
 
     # =========================================================================
-    # 3. OCORRÊNCIAS DO CADERNO SEAMI NO PERÍODO
+    # 3. OCORRÊNCIAS DO CADERNO SEAMI NO PERÍODO (OCORRENCIACADERNO)
     # =========================================================================
     oc_qs = OcorrenciaCaderno.objects.filter(
         data__gte=date_start,
@@ -201,27 +204,70 @@ def build_dashboard_context(request):
     if student_id_filter:
         oc_qs = oc_qs.filter(aluno_id=student_id_filter)
 
+    # Faltas registradas no Caderno SEAMI
+    caderno_faltas_qs = oc_qs.filter(tipo=TipoOcorrencia.FALTA)
+    caderno_faltas_count = caderno_faltas_qs.count()
+    caderno_faltas_justificadas = caderno_faltas_qs.filter(justificado=True).count()
+    caderno_faltas_injustificadas = caderno_faltas_qs.filter(justificado=False).count()
+
+    # Atestados Médicos no Caderno SEAMI
     atestados_count = oc_qs.filter(tipo=TipoOcorrencia.ATESTADO).count()
-    atestados_ativos_hoje = OcorrenciaCaderno.objects.filter(
-        tipo=TipoOcorrencia.ATESTADO,
-        data__lte=today,
-        data_fim__gte=today
+    atest_qs_all = OcorrenciaCaderno.objects.filter(tipo=TipoOcorrencia.ATESTADO)
+    if classroom_filter:
+        atest_qs_all = atest_qs_all.filter(
+            Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
+        )
+    if student_id_filter:
+        atest_qs_all = atest_qs_all.filter(aluno_id=student_id_filter)
+
+    atestados_ativos_periodo = atest_qs_all.filter(
+        data__lte=date_end
+    ).exclude(
+        data_fim__lt=date_start
     ).count()
 
-    delays_count = oc_qs.filter(tipo=TipoOcorrencia.ATRASO).count()
-    saidas_count = oc_qs.filter(tipo=TipoOcorrencia.SAIDA).count()
-    saidas_retornos = oc_qs.filter(tipo=TipoOcorrencia.SAIDA, retorna=True).count()
-    amamentacao_count = oc_qs.filter(tipo=TipoOcorrencia.AMAMENTACAO).count()
+    # Atrasos e Minutos Acumulados (> 08:00)
+    atrasos_qs = oc_qs.filter(tipo=TipoOcorrencia.ATRASO)
+    delays_count = atrasos_qs.count()
+    delays_minutes = 0
+    for a in atrasos_qs:
+        if a.horario:
+            diff = (a.horario.hour * 60 + a.horario.minute) - (8 * 60)
+            if diff > 0:
+                delays_minutes += diff
+        else:
+            delays_minutes += 20
+
+    # Saídas Antecipadas
+    saidas_qs = oc_qs.filter(tipo=TipoOcorrencia.SAIDA)
+    saidas_count = saidas_qs.count()
+    saidas_retornos = saidas_qs.filter(retorna=True).count()
+
+    # Amamentação
+    amamentacao_qs = oc_qs.filter(tipo=TipoOcorrencia.AMAMENTACAO)
+    amamentacao_count = amamentacao_qs.count()
+    total_amam_mins = 0
+    for am in amamentacao_qs:
+        if am.horario and am.horario_retorno:
+            diff = (am.horario_retorno.hour * 60 + am.horario_retorno.minute) - (am.horario.hour * 60 + am.horario.minute)
+            if diff > 0:
+                total_amam_mins += diff
+    amamentacao_avg = round(total_amam_mins / amamentacao_count) if amamentacao_count > 0 else 0
+
 
     students_json_list = []
     for s in all_active_students:
         students_json_list.append({
             'id': s.id,
             'name': s.nome,
-            'classroom': s.turma.nome,
-            'turma_id': s.turma.id,
+            'nome': s.nome,
+            'classroom': s.turma.nome if s.turma else 'Geral',
+            'turma_nome': s.turma.nome if s.turma else 'Geral',
+            'turma_id': s.turma.id if s.turma else None,
             'entry_date': s.data_entrada.isoformat() if s.data_entrada else '',
             'shift': s.turno,
+            'turno': s.turno,
+            'turno_display': s.get_turno_display(),
             'has_acompanhamento': s.has_acompanhamento,
             'acompanhamento_obs': s.acompanhamento_obs,
         })
@@ -235,15 +281,18 @@ def build_dashboard_context(request):
     # 3. GRÁFICOS DO MÓDULO I: CONTROLE DE FREQUÊNCIA
     # =========================================================================
     # 1. Taxa de Assiduidade por Sala (Bar)
-    chart1_labels = []
+    classrooms_list = ['Alegria', 'Carinho', 'União', 'Amizade', 'Felicidade']
+    chart1_labels = classrooms_list
     chart1_data = []
-    for t in turmas_qs:
-        chart1_labels.append(t.nome)
-        t_regs = registros_qs.filter(turma=t)
-        t_total = t_regs.count()
-        t_pres = t_regs.filter(status=StatusPresenca.PRESENTE).count()
-        rate = round((t_pres / t_total) * 100) if t_total > 0 else 100
-        chart1_data.append(rate)
+    for c_name in classrooms_list:
+        if classroom_filter and c_name.lower() != classroom_filter.lower():
+            chart1_data.append(0)
+            continue
+        c_regs = registros_qs.filter(turma__nome__iexact=c_name)
+        c_active = c_regs.filter(status__in=[StatusPresenca.PRESENTE, StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO]).count()
+        c_pres = c_regs.filter(status=StatusPresenca.PRESENTE).count()
+        c_rate = round((c_pres / c_active) * 100) if c_active > 0 else 100
+        chart1_data.append(c_rate)
 
     # 2. Evolução Diária da Frequência (Line Area)
     chart2_labels = []
@@ -265,67 +314,119 @@ def build_dashboard_context(request):
         chart2_presentes = [0] * len(chart2_labels)
         chart2_faltas = [0] * len(chart2_labels)
 
-    # 7. Faltas por Aluno no Período — Justificadas vs Não Justificadas (Stacked Bar)
-    top_faltas_alunos = (
-        registros_qs.filter(Q(status=StatusPresenca.AUSENTE) | Q(status=StatusPresenca.JUSTIFICADO))
-        .values('aluno__nome')
-        .annotate(
-            faltas_n=Count('id', filter=Q(status=StatusPresenca.AUSENTE)),
-            faltas_j=Count('id', filter=Q(status=StatusPresenca.JUSTIFICADO)),
-            total_f=Count('id')
-        )
-        .order_by('-total_f')[:15]
-    )
-    chart7_labels = [i['aluno__nome'] for i in top_faltas_alunos] or ['Nenhum registro']
-    chart7_just = [i['faltas_j'] for i in top_faltas_alunos] or [0]
-    chart7_unjust = [i['faltas_n'] for i in top_faltas_alunos] or [0]
+    # -------------------------------------------------------------------------
+    # RANKINGS COMPLETOS DE FALTAS, ATRASOS E ATESTADOS (CADERNO SEAMI)
+    # -------------------------------------------------------------------------
+    # 7. Faltas por Aluno no Período (Caderno SEAMI)
+    faltas_by_student = {}
+    for o in oc_qs.filter(tipo=TipoOcorrencia.FALTA):
+        if not o.aluno:
+            continue
+        s_id = o.aluno_id
+        if s_id not in faltas_by_student:
+            faltas_by_student[s_id] = {
+                'id': s_id,
+                'name': o.aluno.nome,
+                'classroom': o.turma.nome if o.turma else (o.aluno.turma.nome if o.aluno.turma else 'Geral'),
+                'justified': 0,
+                'unjustified': 0,
+                'total': 0,
+                'has_acompanhamento': o.aluno.has_acompanhamento,
+                'acompanhamento_obs': o.aluno.acompanhamento_obs or '',
+            }
+        if o.justificado:
+            faltas_by_student[s_id]['justified'] += 1
+        else:
+            faltas_by_student[s_id]['unjustified'] += 1
+        faltas_by_student[s_id]['total'] += 1
 
-    # 8. Atrasos por Aluno no Período — Justificados vs Não Justificados (Stacked Bar)
-    top_atrasos_alunos = (
-        oc_qs.filter(tipo=TipoOcorrencia.ATRASO)
-        .values('aluno__nome')
-        .annotate(
-            just=Count('id', filter=Q(justificado=True)),
-            unjust=Count('id', filter=Q(justificado=False)),
-            total=Count('id')
-        )
-        .order_by('-total')[:15]
-    )
-    chart8_labels = [i['aluno__nome'] for i in top_atrasos_alunos] or ['Nenhum registro']
-    chart8_just = [i['just'] for i in top_atrasos_alunos] or [0]
-    chart8_unjust = [i['unjust'] for i in top_atrasos_alunos] or [0]
+    ranking_faltas = sorted(faltas_by_student.values(), key=lambda x: x['total'], reverse=True)
+    top15_faltas = ranking_faltas[:15]
+    chart7_labels = [s['name'] for s in top15_faltas] or ['Nenhum registro']
+    chart7_just = [s['justified'] for s in top15_faltas] or [0]
+    chart7_unjust = [s['unjustified'] for s in top15_faltas] or [0]
 
-    # 9. Atestados Médicos por Aluno no Período (Bar)
-    top_atestados_alunos = (
-        oc_qs.filter(tipo=TipoOcorrencia.ATESTADO)
-        .values('aluno__nome')
-        .annotate(total=Count('id'))
-        .order_by('-total')[:15]
-    )
-    chart9_labels = [i['aluno__nome'] for i in top_atestados_alunos] or ['Nenhum registro']
-    chart9_data = [i['total'] for i in top_atestados_alunos] or [0]
+    # 8. Atrasos por Aluno no Período (Caderno SEAMI)
+    atrasos_by_student = {}
+    for o in oc_qs.filter(tipo=TipoOcorrencia.ATRASO):
+        if not o.aluno:
+            continue
+        s_id = o.aluno_id
+        if s_id not in atrasos_by_student:
+            atrasos_by_student[s_id] = {
+                'id': s_id,
+                'name': o.aluno.nome,
+                'classroom': o.turma.nome if o.turma else (o.aluno.turma.nome if o.aluno.turma else 'Geral'),
+                'justified': 0,
+                'unjustified': 0,
+                'total': 0,
+                'has_acompanhamento': o.aluno.has_acompanhamento,
+                'acompanhamento_obs': o.aluno.acompanhamento_obs or '',
+            }
+        if o.justificado:
+            atrasos_by_student[s_id]['justified'] += 1
+        else:
+            atrasos_by_student[s_id]['unjustified'] += 1
+        atrasos_by_student[s_id]['total'] += 1
+
+    ranking_atrasos = sorted(atrasos_by_student.values(), key=lambda x: x['total'], reverse=True)
+    top15_atrasos = ranking_atrasos[:15]
+    chart8_labels = [s['name'] for s in top15_atrasos] or ['Nenhum registro']
+    chart8_just = [s['justified'] for s in top15_atrasos] or [0]
+    chart8_unjust = [s['unjustified'] for s in top15_atrasos] or [0]
+
+    # 9. Atestados Médicos por Aluno no Período (Caderno SEAMI)
+    atestados_by_student = {}
+    for o in oc_qs.filter(tipo=TipoOcorrencia.ATESTADO):
+        if not o.aluno:
+            continue
+        s_id = o.aluno_id
+        if s_id not in atestados_by_student:
+            atestados_by_student[s_id] = {
+                'id': s_id,
+                'name': o.aluno.nome,
+                'classroom': o.turma.nome if o.turma else (o.aluno.turma.nome if o.aluno.turma else 'Geral'),
+                'justified': 0,
+                'unjustified': 0,
+                'total': 0,
+                'has_acompanhamento': o.aluno.has_acompanhamento,
+                'acompanhamento_obs': o.aluno.acompanhamento_obs or '',
+            }
+        atestados_by_student[s_id]['total'] += 1
+
+    ranking_atestados = sorted(atestados_by_student.values(), key=lambda x: x['total'], reverse=True)
+    top15_atestados = ranking_atestados[:15]
+    chart9_labels = [s['name'] for s in top15_atestados] or ['Nenhum registro']
+    chart9_data = [s['total'] for s in top15_atestados] or [0]
 
     # =========================================================================
     # 4. GRÁFICOS DO MÓDULO II: CADERNO DE REGISTROS SEAMI
     # =========================================================================
-    # Volume de Atrasos Mensal (Line)
-    chart3_labels = [MONTHS_PT[m - 1] for m in range(1, 13)]
+    # Volume de Atrasos Mensal (Line - Últimos 6 meses)
+    chart3_labels = []
     chart3_data = []
-    for m in range(1, 13):
+    for i in range(5, -1, -1):
+        m_calc = today.month - i
+        y_calc = today.year
+        if m_calc <= 0:
+            m_calc += 12
+            y_calc -= 1
+        chart3_labels.append(f"{MONTHS_PT[m_calc - 1]}/{str(y_calc)[-2:]}")
         m_delays = OcorrenciaCaderno.objects.filter(
             tipo=TipoOcorrencia.ATRASO,
-            data__year=current_year,
-            data__month=m
+            data__year=y_calc,
+            data__month=m_calc
         )
         if classroom_filter:
             m_delays = m_delays.filter(Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None))
+        if student_id_filter:
+            m_delays = m_delays.filter(aluno_id=student_id_filter)
         chart3_data.append(m_delays.count())
 
     # Distribuição de Ocorrências (Donut)
     chart4_labels = ['Faltas', 'Atestados Médicos', 'Atrasos', 'Saídas Antecipadas', 'Amamentação']
-    faltas_caderno_count = oc_qs.filter(tipo=TipoOcorrencia.FALTA).count()
     chart4_data = [
-        faltas_caderno_count or total_faltas,
+        caderno_faltas_count,
         atestados_count,
         delays_count,
         saidas_count,
@@ -369,33 +470,81 @@ def build_dashboard_context(request):
         amam_total_periodo += qty_day
         cur_d += timedelta(days=1)
 
-    # Consolidado Mês a Mês: Frequência vs Matriculados
-    freq_mes_labels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
-    freq_mes_presentes = []
-    freq_mes_ausentes = []
+    # Consolidado Mês a Mês: Frequência vs Matriculados (Série Multiano 2019 a 2026)
+    from presencas.services import get_historical_frequency_data
+    hist_raw = get_historical_frequency_data()
 
+    hist_by_year = {}
+    available_years = set()
+
+    for item in hist_raw:
+        m_str = item.get('month', '')
+        if not m_str:
+            continue
+        parts = m_str.split('-')
+        y_str = parts[0]
+        m_num = int(parts[1])
+        available_years.add(int(y_str))
+        if y_str not in hist_by_year:
+            hist_by_year[y_str] = {m: {'present': 0, 'absent': 0, 'enrolled': 0} for m in range(1, 13)}
+        enr = item.get('enrolled', 0)
+        pres = item.get('present', 0)
+        absent = max(0, enr - pres)
+        hist_by_year[y_str][m_num] = {'present': pres, 'absent': absent, 'enrolled': enr}
+
+    if '2026' not in hist_by_year:
+        hist_by_year['2026'] = {m: {'present': 0, 'absent': 0, 'enrolled': 0} for m in range(1, 13)}
+    available_years.add(2026)
+
+    # Sobrescreve ano 2026 com as médias calculadas reais de chamada
     for m in range(1, 13):
-        if m <= today.month:
-            m_regs = RegistroPresenca.objects.filter(data__year=current_year, data__month=m)
-            if classroom_filter:
-                m_regs = m_regs.filter(Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None))
-            if student_id_filter:
-                m_regs = m_regs.filter(aluno_id=student_id_filter)
+        m_regs = RegistroPresenca.objects.filter(data__year=2026, data__month=m)
+        if classroom_filter:
+            m_regs = m_regs.filter(Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None))
+        if student_id_filter:
+            m_regs = m_regs.filter(aluno_id=student_id_filter)
 
-            dias_m = len(set(m_regs.values_list('data', flat=True)))
-            if dias_m > 0:
-                p_count = m_regs.filter(status=StatusPresenca.PRESENTE).count()
-                f_count = m_regs.filter(Q(status=StatusPresenca.AUSENTE) | Q(status=StatusPresenca.JUSTIFICADO)).count()
-                avg_p = round(p_count / dias_m, 1)
-                avg_f = round(f_count / dias_m, 1)
-            else:
-                avg_p = 0
-                avg_f = 0
-            freq_mes_presentes.append(avg_p)
-            freq_mes_ausentes.append(avg_f)
-        else:
-            freq_mes_presentes.append(0)
-            freq_mes_ausentes.append(0)
+        dias_m = len(set(m_regs.values_list('data', flat=True)))
+        if dias_m > 0:
+            p_count = m_regs.filter(status=StatusPresenca.PRESENTE).count()
+            f_count = m_regs.filter(Q(status=StatusPresenca.AUSENTE) | Q(status=StatusPresenca.JUSTIFICADO)).count()
+            avg_p = round(p_count / dias_m, 1)
+            avg_f = round(f_count / dias_m, 1)
+            hist_by_year['2026'][m] = {'present': avg_p, 'absent': avg_f, 'enrolled': round(avg_p + avg_f, 1)}
+
+    sorted_years = sorted(list(available_years))
+    year_charts_data = {}
+    for y in sorted_years:
+        y_str = str(y)
+        data_y = hist_by_year.get(y_str, {})
+        pres_list = [data_y.get(m, {}).get('present', 0) for m in range(1, 13)]
+        abs_list = [data_y.get(m, {}).get('absent', 0) for m in range(1, 13)]
+        year_charts_data[y_str] = {
+            'labels': MONTHS_PT,
+            'presentes': pres_list,
+            'ausentes': abs_list
+        }
+
+    # Visão 'all' com todos os meses cronológicos
+    all_months_labels = []
+    all_months_presentes = []
+    all_months_ausentes = []
+    for y in sorted_years:
+        y_str = str(y)
+        data_y = hist_by_year.get(y_str, {})
+        for m in range(1, 13):
+            item = data_y.get(m, {})
+            if y == 2026 and m > today.month and item.get('enrolled', 0) == 0:
+                continue
+            all_months_labels.append(f"{MONTHS_PT[m-1]}/{y_str[-2:]}")
+            all_months_presentes.append(item.get('present', 0))
+            all_months_ausentes.append(item.get('absent', 0))
+
+    year_charts_data['all'] = {
+        'labels': all_months_labels,
+        'presentes': all_months_presentes,
+        'ausentes': all_months_ausentes
+    }
 
     # =========================================================================
     # 6. DADOS DO CALENDÁRIO DIÁRIO DE FREQUÊNCIA
@@ -419,30 +568,33 @@ def build_dashboard_context(request):
         }
 
     # =========================================================================
-    # 7. HEADCOUNT MENSAL DE MATRICULADOS (JSON CACHEADO PARA ALTA PERFORMANCE)
+    # 7. HEADCOUNT MENSAL DE MATRICULADOS (ÚLTIMOS 6 MESES)
     # =========================================================================
-    headcount_payload = get_matriculados_headcount_json(year=current_year)
-    headcount_map = headcount_payload.get('headcount', {})
-
-    # Headcount dos últimos 6 meses (Março a Agosto / últimos 6 meses)
-    headcount_labels = []
-    headcount_data = []
+    hist_map = {h['month']: h['enrolled'] for h in hist_raw if 'month' in h and 'enrolled' in h}
+    matriculados_labels = []
+    matriculados_data = []
     for i in range(5, -1, -1):
         m_calc = today.month - i
         y_calc = today.year
         if m_calc <= 0:
             m_calc += 12
             y_calc -= 1
-        headcount_labels.append(MONTHS_PT[m_calc - 1])
-        m_key = f"{y_calc}-{m_calc:02d}"
-        val = headcount_map.get(m_key, total_alunos_ativos)
-        headcount_data.append(val)
+        m_str = f"{y_calc}-{str(m_calc).zfill(2)}"
+        matriculados_labels.append(f"{MONTHS_PT[m_calc - 1]}/{str(y_calc)[-2:]}")
 
-    chart10_labels = [MONTHS_PT[m - 1] for m in range(1, 9)]
-    chart10_data = [headcount_map.get(f"{current_year}-{m:02d}", total_alunos_ativos) for m in range(1, 9)]
+        if m_str in hist_map:
+            m_count = hist_map[m_str]
+        else:
+            last_d = calendar.monthrange(y_calc, m_calc)[1]
+            end_of_month = date(y_calc, m_calc, last_d)
+            start_of_month = date(y_calc, m_calc, 1)
 
-    chart11_labels = [MONTHS_PT[m - 1] for m in range(1, 9)]
-    chart11_data = [91, 89, 93, 90, 92, 94, 91, assiduidade_rate or 92]
+            m_count = Aluno.objects.filter(
+                Q(data_entrada__isnull=True) | Q(data_entrada__lte=end_of_month)
+            ).filter(
+                Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=start_of_month)
+            ).count()
+        matriculados_data.append(m_count)
 
     radar_risco = get_radar_alunos_em_risco(limite_faltas=3)
 
@@ -456,6 +608,8 @@ def build_dashboard_context(request):
         'student_id_filter': int(student_id_filter) if student_id_filter else '',
         'preset': preset,
         'turmas': turmas_qs,
+        'available_years': sorted_years,
+        'current_year': current_year,
         'all_active_students': all_active_students,
         'salas_cards_data': salas_cards_data,
         'novas_matriculas': novas_matriculas_qs,
@@ -464,6 +618,10 @@ def build_dashboard_context(request):
         'desligamentos_count': desligamentos_count,
         'radar_risco': radar_risco,
         'students_json': json.dumps(students_json_list),
+        'ranking_faltas_json': json.dumps(ranking_faltas),
+        'ranking_atrasos_json': json.dumps(ranking_atrasos),
+        'ranking_atestados_json': json.dumps(ranking_atestados),
+        'frequencia_anos_json': json.dumps(year_charts_data),
         'metrics': {
             'total_alunos': total_alunos_ativos,
             'assiduidade_rate': assiduidade_rate,
@@ -472,14 +630,17 @@ def build_dashboard_context(request):
             'total_faltas_injust': total_faltas_injust,
             'total_justificadas': total_justificadas,
             'total_registros': total_registros,
+            'caderno_faltas_count': caderno_faltas_count,
+            'caderno_faltas_justificadas': caderno_faltas_justificadas,
+            'caderno_faltas_injustificadas': caderno_faltas_injustificadas,
             'atestados_count': atestados_count,
-            'atestados_ativos_hoje': atestados_ativos_hoje,
+            'atestados_ativos_hoje': atestados_ativos_periodo,
             'delays_count': delays_count,
-            'delays_minutes': delays_count * 20,
+            'delays_minutes': delays_minutes,
             'saidas_count': saidas_count,
             'saidas_retornos': saidas_retornos,
             'amamentacao_count': amamentacao_count,
-            'amamentacao_avg': 35,
+            'amamentacao_avg': amamentacao_avg,
         },
         'amam_total': amam_total_periodo,
         'cal_by_day_json': json.dumps(cal_by_day),
@@ -492,10 +653,8 @@ def build_dashboard_context(request):
             'chart7': {'labels': chart7_labels, 'just': chart7_just, 'unjust': chart7_unjust},
             'chart8': {'labels': chart8_labels, 'just': chart8_just, 'unjust': chart8_unjust},
             'chart9': {'labels': chart9_labels, 'data': chart9_data},
-            'chart10': {'labels': chart10_labels, 'data': chart10_data},
-            'chart11': {'labels': chart11_labels, 'data': chart11_data},
-            'matriculados_6m': {'labels': headcount_labels, 'data': headcount_data},
-            'frequencia_mes_a_mes': {'labels': freq_mes_labels, 'presentes': freq_mes_presentes, 'ausentes': freq_mes_ausentes},
+            'matriculados_6m': {'labels': matriculados_labels, 'data': matriculados_data},
+            'frequencia_mes_a_mes': year_charts_data.get('2026', {}),
             'amam_diaria': {'labels': amam_labels, 'data': amam_values, 'total': amam_total_periodo},
         }),
         'active_tab': 'home',
@@ -558,28 +717,30 @@ def build_relatorios_context(request):
     # CÁLCULOS GERAIS DO ANO DE 2026 POR ALUNO (FALTAS E ATRASOS NO ANO)
     # Regra: Limite de 10 faltas por ano por aluno considera APENAS faltas NÃO justificadas (Jan a Dez)
     # =========================================================================
-    # Mapa de TODAS as faltas acumuladas no ano por aluno (para métrica global)
+    # CÁLCULOS GERAIS DO ANO DE 2026 POR ALUNO (FALTAS E ATRASOS NO CADERNO SEAMI)
+    # Regra: Limite de 10 faltas por ano por aluno considera faltas NÃO justificadas
+    # =========================================================================
+    # Mapa de faltas acumuladas no Caderno SEAMI no ano por aluno
     faltas_ano_agg = (
-        RegistroPresenca.objects.filter(
+        OcorrenciaCaderno.objects.filter(
+            tipo__in=[TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO],
             data__gte=year_start,
-            data__lte=year_end,
-            status__in=[StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO]
+            data__lte=year_end
         ).values('aluno_id').annotate(total_ano=Count('id'))
     )
-    mapa_faltas_ano = {item['aluno_id']: item['total_ano'] for item in faltas_ano_agg}
-
-    # Total geral de faltas no ano
+    mapa_faltas_ano = {item['aluno_id']: item['total_ano'] for item in faltas_ano_agg if item['aluno_id']}
     total_faltas_ano_geral = sum(mapa_faltas_ano.values())
 
-    # Mapa de faltas NÃO JUSTIFICADAS acumuladas no ano (Jan a Dez) por aluno
+    # Mapa de faltas NÃO JUSTIFICADAS acumuladas no ano
     faltas_nao_justificadas_ano_agg = (
-        RegistroPresenca.objects.filter(
+        OcorrenciaCaderno.objects.filter(
+            tipo=TipoOcorrencia.FALTA,
+            justificado=False,
             data__gte=year_start,
-            data__lte=year_end,
-            status=StatusPresenca.AUSENTE
+            data__lte=year_end
         ).values('aluno_id').annotate(total_nao_just_ano=Count('id'))
     )
-    mapa_faltas_nao_justificadas_ano = {item['aluno_id']: item['total_nao_just_ano'] for item in faltas_nao_justificadas_ano_agg}
+    mapa_faltas_nao_justificadas_ano = {item['aluno_id']: item['total_nao_just_ano'] for item in faltas_nao_justificadas_ano_agg if item['aluno_id']}
 
     # Alunos que atingiram o limite de 10 faltas NÃO justificadas no ano
     alunos_limite_10_count = sum(1 for tot in mapa_faltas_nao_justificadas_ano.values() if tot >= 10)
@@ -593,30 +754,30 @@ def build_relatorios_context(request):
         ).values('aluno_id').annotate(total_ano=Count('id'))
     )
     mapa_atrasos_ano = {item['aluno_id']: item['total_ano'] for item in atrasos_ano_agg if item['aluno_id']}
-    total_atrasos_ano_geral = sum(mapa_atrasos_ano.values()) or 8
+    total_atrasos_ano_geral = sum(mapa_atrasos_ano.values())
 
     # =========================================================================
-    # 1. ABA RELATÓRIO DE FALTAS
+    # 1. ABA RELATÓRIO DE FALTAS & ATESTADOS (CADERNO SEAMI)
     # =========================================================================
-    registros_faltas_qs = RegistroPresenca.objects.filter(
+    ocorrencias_faltas_qs = OcorrenciaCaderno.objects.filter(
+        tipo__in=[TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO],
         data__gte=date_start,
-        data__lte=date_end,
-        status__in=[StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO]
+        data__lte=date_end
     ).select_related('aluno', 'turma')
 
     if classroom_filter:
-        registros_faltas_qs = registros_faltas_qs.filter(
+        ocorrencias_faltas_qs = ocorrencias_faltas_qs.filter(
             Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
         )
     if student_id_filter:
-        registros_faltas_qs = registros_faltas_qs.filter(aluno_id=student_id_filter)
+        ocorrencias_faltas_qs = ocorrencias_faltas_qs.filter(aluno_id=student_id_filter)
 
     if justified_filter == 'sim':
-        registros_faltas_qs = registros_faltas_qs.filter(status=StatusPresenca.JUSTIFICADO)
+        ocorrencias_faltas_qs = ocorrencias_faltas_qs.filter(Q(justificado=True) | Q(tipo=TipoOcorrencia.ATESTADO))
     elif justified_filter == 'nao':
-        registros_faltas_qs = registros_faltas_qs.filter(status=StatusPresenca.AUSENTE)
+        ocorrencias_faltas_qs = ocorrencias_faltas_qs.filter(justificado=False, tipo=TipoOcorrencia.FALTA)
 
-    registros_faltas_qs = registros_faltas_qs.order_by('-data', 'aluno__nome')
+    ocorrencias_faltas_qs = ocorrencias_faltas_qs.order_by('-data', '-criado_em')
 
     faltas_tabela_list = []
     criancas_impactadas_faltas_set = set()
@@ -624,35 +785,41 @@ def build_relatorios_context(request):
     total_justificadas_periodo = 0
     total_nao_justificadas_periodo = 0
 
-    for reg in registros_faltas_qs:
+    for oc in ocorrencias_faltas_qs:
         total_faltas_periodo += 1
-        criancas_impactadas_faltas_set.add(reg.aluno_id)
-        is_just = (reg.status == StatusPresenca.JUSTIFICADO)
+        if oc.aluno_id:
+            criancas_impactadas_faltas_set.add(oc.aluno_id)
 
+        is_just = oc.justificado or (oc.tipo == TipoOcorrencia.ATESTADO)
         if is_just:
             total_justificadas_periodo += 1
         else:
             total_nao_justificadas_periodo += 1
 
-        nome_sala = reg.turma.nome.lower().strip()
+        nome_sala = oc.turma.nome.lower().strip() if oc.turma else ''
         turma_style = cores_salas.get(nome_sala, {'bg': '#f1f5f9', 'color': '#475569', 'border': '#cbd5e1', 'emoji': '🏫'})
-        
-        # Quantidade de faltas NÃO justificadas acumuladas de Jan a Dez
-        faltas_nao_just_aluno_ano = mapa_faltas_nao_justificadas_ano.get(reg.aluno_id, 0)
+        faltas_nao_just_aluno_ano = mapa_faltas_nao_justificadas_ano.get(oc.aluno_id, 0)
+
+        tipo_display = 'Atestado Médico' if oc.tipo == TipoOcorrencia.ATESTADO else ('Justificada' if oc.justificado else 'Não Justificada')
 
         faltas_tabela_list.append({
-            'data': reg.data,
-            'aluno': reg.aluno,
-            'turma': reg.turma,
+            'data': oc.data,
+            'data_fim': oc.data_fim,
+            'periodo_formatado': oc.periodo_formatado,
+            'aluno': oc.aluno,
+            'aluno_nome': oc.aluno.nome if oc.aluno else 'Não informado',
+            'turma': oc.turma,
+            'turma_nome': oc.turma.nome if oc.turma else 'Geral',
             'turma_style': turma_style,
-            'tipo_falta': 'Justificada' if is_just else 'Não Justificada',
+            'tipo_falta': tipo_display,
             'is_justificada': is_just,
-            'motivo': reg.observacao or ('Atestado / Justificativa médica' if is_just else 'Ausência sem justificativa comunicada'),
-            'responsavel': reg.aluno.nome_responsavel or 'Não informado',
-            'telefone_responsavel': reg.aluno.telefone_responsavel,
+            'cid': oc.cid,
+            'motivo': oc.motivo or ('Atestado Médico' if oc.tipo == TipoOcorrencia.ATESTADO else 'Ausência comunicada'),
+            'responsavel': oc.aluno.nome_responsavel if oc.aluno and oc.aluno.nome_responsavel else 'Responsável familiar',
+            'telefone_responsavel': oc.aluno.telefone_responsavel if oc.aluno else '',
             'faltas_no_ano': faltas_nao_just_aluno_ano,
             'is_alerta_10': faltas_nao_just_aluno_ano >= 10,
-            'comprovante': None,
+            'documento': oc.documento,
         })
 
     # =========================================================================
@@ -671,6 +838,11 @@ def build_relatorios_context(request):
     if student_id_filter:
         ocorrencias_atrasos_qs = ocorrencias_atrasos_qs.filter(aluno_id=student_id_filter)
 
+    if justified_filter == 'sim':
+        ocorrencias_atrasos_qs = ocorrencias_atrasos_qs.filter(justificado=True)
+    elif justified_filter == 'nao':
+        ocorrencias_atrasos_qs = ocorrencias_atrasos_qs.filter(justificado=False)
+
     atrasos_tabela_list = []
     criancas_impactadas_atrasos_set = set()
     total_atrasos_periodo = 0
@@ -688,11 +860,11 @@ def build_relatorios_context(request):
 
         nome_sala = oc.turma.nome.lower().strip() if oc.turma else ''
         turma_style = cores_salas.get(nome_sala, {'bg': '#f1f5f9', 'color': '#475569', 'border': '#cbd5e1', 'emoji': '🏫'})
-        atrasos_aluno_ano = mapa_atrasos_ano.get(oc.aluno_id, 1)
+        atrasos_aluno_ano = mapa_atrasos_ano.get(oc.aluno_id, 0)
 
         atrasos_tabela_list.append({
             'data': oc.data,
-            'horario': oc.horario.strftime('%H:%M') if oc.horario else '08:20',
+            'horario': oc.horario.strftime('%H:%M') if oc.horario else '08:00',
             'aluno': oc.aluno,
             'aluno_nome': oc.aluno.nome if oc.aluno else 'Não informado',
             'turma': oc.turma,
@@ -700,44 +872,12 @@ def build_relatorios_context(request):
             'turma_style': turma_style,
             'tipo_atraso': 'Justificado' if oc.justificado else 'Não Justificado',
             'is_justificado': oc.justificado,
-            'motivo': oc.motivo or 'Tolerância matinal excedida',
+            'motivo': oc.motivo or 'Tolerância matinal',
             'responsavel': oc.aluno.nome_responsavel if oc.aluno and oc.aluno.nome_responsavel else 'Responsável familiar',
             'atrasos_no_ano': atrasos_aluno_ano,
             'documento': oc.documento,
         })
 
-    # Caso ainda não haja ocorrências de atrasos salvas no banco, monta dados ilustrativos coerentes
-    if not atrasos_tabela_list:
-        mock_atrasos = [
-            {'data': date(2026, 8, 14), 'horario': '08:25', 'nome': 'Joaquim Silva', 'turma': 'Amizade', 'just': True, 'motivo': 'Trânsito na via principal', 'resp': 'Mariana Silva', 'ano': 4},
-            {'data': date(2026, 8, 12), 'horario': '08:30', 'nome': 'Arthur Santos', 'turma': 'União', 'just': False, 'motivo': 'Sem aviso prévio', 'resp': 'Carlos Santos', 'ano': 3},
-            {'data': date(2026, 8, 10), 'horario': '08:18', 'nome': 'Benicio Alves', 'turma': 'Carinho', 'just': True, 'motivo': 'Consulta médica matinal', 'resp': 'Renata Alves', 'ano': 3},
-            {'data': date(2026, 8, 8), 'horario': '08:22', 'nome': 'Catarina Lima', 'turma': 'Felicidade', 'just': False, 'motivo': 'Dificuldade de transporte', 'resp': 'Patrícia Lima', 'ano': 2},
-            {'data': date(2026, 8, 5), 'horario': '08:15', 'nome': 'Guilherme Rocha', 'turma': 'Alegria', 'just': True, 'motivo': 'Consulta pediátrica', 'resp': 'Lucas Rocha', 'ano': 2},
-        ]
-        for m in mock_atrasos:
-            total_atrasos_periodo += 1
-            if m['just']:
-                total_justificados_atrasos_periodo += 1
-            else:
-                total_nao_justificados_atrasos_periodo += 1
-            criancas_impactadas_atrasos_set.add(m['nome'])
-            t_style = cores_salas.get(m['turma'].lower(), {'bg': '#f1f5f9', 'color': '#475569', 'border': '#cbd5e1', 'emoji': '🏫'})
-            atrasos_tabela_list.append({
-                'data': m['data'],
-                'horario': m['horario'],
-                'aluno': None,
-                'aluno_nome': m['nome'],
-                'turma': None,
-                'turma_nome': m['turma'],
-                'turma_style': t_style,
-                'tipo_atraso': 'Justificado' if m['just'] else 'Não Justificado',
-                'is_justificado': m['just'],
-                'motivo': m['motivo'],
-                'responsavel': m['resp'],
-                'atrasos_no_ano': m['ano'],
-                'documento': None,
-            })
 
     # =========================================================================
     # 3. ABA FREQUÊNCIA VS MATRICULADOS
@@ -799,7 +939,7 @@ def build_relatorios_context(request):
 
     datas_chamada_distintas = set(registros_periodo_all.values_list('data', flat=True))
     dias_com_chamada_count = len(datas_chamada_distintas) or 22
-    total_matriculados_ativos = Aluno.objects.filter(ativo=True).count() or 120
+    total_matriculados_ativos = Aluno.objects.ativos().count()
 
     total_pres_p = registros_periodo_all.filter(status=StatusPresenca.PRESENTE).count()
     total_falt_p = registros_periodo_all.filter(status__in=[StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO]).count()
@@ -855,7 +995,7 @@ def build_relatorios_context(request):
             falt = regs_dt.filter(status__in=[StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO]).count()
             tot = pres + falt
             taxa = round((pres / tot) * 100) if tot > 0 else 100
-            mat_t = t.alunos.filter(ativo=True).count()
+            mat_t = t.alunos.ativos().count()
             t_style = cores_salas.get(t.nome.lower().strip(), {'bg': '#f1f5f9', 'color': '#475569', 'border': '#cbd5e1', 'emoji': '🏫'})
 
             freq_tabela_list.append({
@@ -906,7 +1046,7 @@ def build_relatorios_context(request):
         m_label = f"{MONTH_NAMES_PT[m_idx]} / {current_year}"
         for t in turmas_qs:
             t_style = cores_salas.get(t.nome.lower().strip(), {'bg': '#f1f5f9', 'color': '#475569', 'border': '#cbd5e1', 'emoji': '🏫'})
-            mat_t = t.alunos.filter(ativo=True).count()
+            mat_t = t.alunos.ativos().count()
             novas_t = novas_mat_qs.filter(turma=t, data_entrada__month=m_idx).count()
             desl_r_t = deslig_realizados_qs.filter(turma=t, data_desligamento__month=m_idx).count()
             desl_p_t = deslig_previstos_qs.filter(turma=t, data_desligamento__month=m_idx).count()
@@ -1150,7 +1290,55 @@ def central_exportacao_view(request):
 
     if request.method == 'POST':
         action = request.POST.get('action')
-        if action == 'import_backup':
+
+        # 1. RESTAURAÇÃO TOTAL DO BANCO DE DADOS (SUBSTITUIÇÃO COMPLETA)
+        if action == 'restore_full_database':
+            confirmation = request.POST.get('confirmation_text', '').strip().upper()
+            if confirmation != 'RESTAURAR':
+                messages.error(request, "Confirmação inválida. Digite exatamente 'RESTAURAR' para autorizar a substituição do banco.")
+                return redirect('exportacao')
+
+            uploaded_file = request.FILES.get('backup_file')
+            if not uploaded_file:
+                messages.error(request, "Por favor, selecione o arquivo JSON de backup completo.")
+                return redirect('exportacao')
+
+            import tempfile, os
+            from django.core.management import call_command
+            from presencas.services import sync_historical_frequency_from_supabase
+
+            try:
+                # Salva arquivo temporário
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.json', mode='wb') as tmp:
+                    for chunk in uploaded_file.chunks():
+                        tmp.write(chunk)
+                    tmp_path = tmp.name
+
+                try:
+                    # Executa o loaddata nativo do Django
+                    call_command('loaddata', tmp_path, verbosity=1)
+                    # Sincroniza a série histórica
+                    try:
+                        sync_historical_frequency_from_supabase()
+                    except Exception:
+                        pass
+
+                    messages.success(
+                        request,
+                        "🎉 BANCO DE DADOS COMPLETO RESTAURADO COM SUCESSO! "
+                        "Todos os registros, diários, frequências e ocorrências foram sincronizados no PostgreSQL."
+                    )
+                finally:
+                    if os.path.exists(tmp_path):
+                        os.remove(tmp_path)
+
+            except Exception as e:
+                messages.error(request, f"Erro ao restaurar banco completo: {str(e)}")
+
+            return redirect('exportacao')
+
+        # 2. RESTAURAÇÃO PARCIAL / IMPORTAÇÃO POR MÓDULO
+        elif action == 'import_backup':
             entity = request.POST.get('entity')
             uploaded_file = request.FILES.get('file')
             if not uploaded_file:
@@ -1180,9 +1368,35 @@ def central_exportacao_view(request):
     download = request.GET.get('download')
     fmt = request.GET.get('format', 'csv').lower()
 
-
     if download:
         timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
+
+        # 0. EXPORTAÇÃO GLOBAL DO BANCO DE DADOS COMPLETO (DJANGO FIXTURE)
+        if download == 'full_dump':
+            import tempfile, os
+            from django.core.management import call_command
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.json', mode='w', encoding='utf-8') as tmp:
+                tmp_path = tmp.name
+
+            try:
+                call_command(
+                    'dumpdata',
+                    natural_foreign=True,
+                    natural_primary=True,
+                    exclude=['contenttypes', 'auth.Permission'],
+                    indent=2,
+                    output=tmp_path
+                )
+                with open(tmp_path, 'rb') as f:
+                    file_content = f.read()
+            finally:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+
+            resp = HttpResponse(file_content, content_type="application/json; charset=utf-8")
+            resp['Content-Disposition'] = f'attachment; filename="seami_backup_completo_{timestamp}.json"'
+            return resp
 
         if download == 'alunos':
             qs = Aluno.objects.select_related('turma').order_by('turma__nome', 'nome')
@@ -1191,6 +1405,7 @@ def central_exportacao_view(request):
                     {
                         "id": a.id,
                         "nome": a.nome,
+                        "turma_id": a.turma_id,
                         "turma": a.turma.nome if a.turma else "",
                         "turno": a.get_turno_display(),
                         "data_nascimento": a.data_nascimento.strftime("%d/%m/%Y") if a.data_nascimento else "",
@@ -1213,7 +1428,7 @@ def central_exportacao_view(request):
                 resp['Content-Disposition'] = f'attachment; filename="alunos_seami_{timestamp}.csv"'
                 w = csv.writer(resp, delimiter=";")
                 w.writerow([
-                    "ID", "Nome da Criança", "Turma / Sala", "Turno", "Data de Nascimento",
+                    "ID", "Nome da Criança", "Turma ID", "Turma / Sala", "Turno", "Data de Nascimento",
                     "Data de Entrada", "Data de Desligamento", "Status Ativo", "Acompanhamento Especial",
                     "Observações Acompanhamento", "Dias de Acompanhamento", "Nome do Responsável", "Telefone do Responsável"
                 ])
@@ -1221,6 +1436,7 @@ def central_exportacao_view(request):
                     w.writerow([
                         a.id,
                         a.nome,
+                        a.turma_id or "",
                         a.turma.nome if a.turma else "",
                         a.get_turno_display(),
                         a.data_nascimento.strftime("%d/%m/%Y") if a.data_nascimento else "",
@@ -1242,7 +1458,9 @@ def central_exportacao_view(request):
                     {
                         "id": r.id,
                         "data": r.data.strftime("%d/%m/%Y"),
+                        "turma_id": r.turma_id,
                         "turma": r.turma.nome if r.turma else "",
+                        "aluno_id": r.aluno_id,
                         "aluno": r.aluno.nome if r.aluno else "",
                         "status": r.get_status_display(),
                         "observacao": r.observacao,
@@ -1258,12 +1476,14 @@ def central_exportacao_view(request):
                 resp = HttpResponse(content_type="text/csv; charset=utf-8-sig")
                 resp['Content-Disposition'] = f'attachment; filename="registros_presenca_seami_{timestamp}.csv"'
                 w = csv.writer(resp, delimiter=";")
-                w.writerow(["ID", "Data", "Turma", "Aluno", "Status de Presença", "Observação", "Registrado por", "Criado em"])
+                w.writerow(["ID", "Data", "Turma ID", "Turma", "Aluno ID", "Aluno", "Status de Presença", "Observação", "Registrado por", "Criado em"])
                 for r in qs:
                     w.writerow([
                         r.id,
                         r.data.strftime("%d/%m/%Y"),
+                        r.turma_id or "",
                         r.turma.nome if r.turma else "",
+                        r.aluno_id or "",
                         r.aluno.nome if r.aluno else "",
                         r.get_status_display(),
                         r.observacao,
@@ -1279,7 +1499,10 @@ def central_exportacao_view(request):
                     {
                         "id": o.id,
                         "tipo": o.get_tipo_display(),
+                        "tipo_raw": o.tipo,
+                        "aluno_id": o.aluno_id,
                         "aluno": o.aluno.nome if o.aluno else "",
+                        "turma_id": o.turma_id,
                         "turma": o.turma.nome if o.turma else "",
                         "data_inicio": o.data.strftime("%d/%m/%Y"),
                         "data_fim": o.data_fim.strftime("%d/%m/%Y") if o.data_fim else "",
@@ -1304,14 +1527,16 @@ def central_exportacao_view(request):
                 resp['Content-Disposition'] = f'attachment; filename="caderno_seami_ocorrencias_{timestamp}.csv"'
                 w = csv.writer(resp, delimiter=";")
                 w.writerow([
-                    "ID", "Tipo de Ocorrência", "Aluno", "Turma", "Data Início", "Data Fim",
+                    "ID", "Tipo de Ocorrência", "Aluno ID", "Aluno", "Turma ID", "Turma", "Data Início", "Data Fim",
                     "Período Formatado", "Horário", "Retorno", "Justificado", "Avisado Pais", "CID", "Motivo", "Quantidade", "Observação", "Registrado por"
                 ])
                 for o in qs:
                     w.writerow([
                         o.id,
                         o.get_tipo_display(),
+                        o.aluno_id or "",
                         o.aluno.nome if o.aluno else "",
+                        o.turma_id or "",
                         o.turma.nome if o.turma else "",
                         o.data.strftime("%d/%m/%Y"),
                         o.data_fim.strftime("%d/%m/%Y") if o.data_fim else "",
@@ -1327,6 +1552,7 @@ def central_exportacao_view(request):
                         o.registrado_por.get_full_name() or o.registrado_por.username if o.registrado_por else "",
                     ])
                 return resp
+
 
         elif download == 'turmas':
             qs = Turma.objects.prefetch_related('professores', 'alunos').order_by('nome')
