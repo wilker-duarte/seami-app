@@ -75,7 +75,15 @@
                 </p>
             </div>
         </div>
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+            <form method="POST" style="margin: 0;" onsubmit="return confirm('Deseja sincronizar todas as ocorrências, turmas, alunos e presenças diretamente do Supabase agora?');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="sync_supabase">
+                <button type="submit" class="secondary-btn" style="padding: 9px 16px; border-radius: var(--radius-sm); border: 1.5px solid #2563eb; color: #2563eb; background: #eff6ff; font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                    <i data-lucide="cloud-lightning" style="width: 15px; height: 15px;"></i>
+                    Sincronizar Direto do Supabase
+                </button>
+            </form>
             <a href="?download=full_dump" class="secondary-btn" style="padding: 9px 16px; border-radius: var(--radius-sm); border: 1.5px solid #dc2626; color: #dc2626; background: #ffffff; text-decoration: none; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
                 <i data-lucide="download" style="width: 15px; height: 15px;"></i>
                 Baixar Backup Total (.json)

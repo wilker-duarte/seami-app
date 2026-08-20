@@ -123,6 +123,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # Redirecionamentos de Login
 LOGIN_URL = 'accounts:login'
 LOGIN_REDIRECT_URL = 'core:dashboard'
+LOGOUT_REDIRECT_URL = 'accounts:login'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Limites de Upload de Campos e Formulários em Lote (evita TooManyFieldsSent)

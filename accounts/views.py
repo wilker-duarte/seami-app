@@ -1,9 +1,17 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from django.contrib.auth import login
+from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from .models import ConviteUsuario
 from .services import ativar_usuario_por_token, gerar_e_enviar_convite
+
+
+def logout_view(request):
+    """
+    Encerra a sessão do usuário e redireciona de volta para a tela de login oficial do SEAMI.
+    """
+    logout(request)
+    return redirect('accounts:login')
 
 
 def primeiro_acesso_view(request):
