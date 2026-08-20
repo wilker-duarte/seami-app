@@ -255,17 +255,16 @@ def import_presencas(rows, user=None):
 
             obs = r.get('Observação') or r.get('observacao') or ''
 
-            reg, was_created = RegistroPresenca.objects.get_or_create(
-                aluno=aluno,
-                data=data_val,
-                defaults={
-                    'turma': aluno.turma,
-                    'status': status,
-                    'observacao': obs,
-                    'registrado_por': user,
-                }
-            )
-            if was_created:
+            reg = RegistroPresenca.objects.filter(aluno=aluno, data=data_val).first()
+            if not reg:
+                RegistroPresenca.objects.create(
+                    aluno=aluno,
+                    data=data_val,
+                    turma=aluno.turma,
+                    status=status,
+                    observacao=obs,
+                    registrado_por=user,
+                )
                 created += 1
             else:
                 reg.status = status
@@ -290,65 +289,114 @@ def import_ocorrencias(rows, user=None):
 
     with transaction.atomic():
         for r in rows:
-            tipo_raw = str(r.get('Tipo de Ocorrência') or r.get('tipo') or 'falta').lower()
+            tipo_raw = str(
+                r.get('tipo_raw') or r.get('tipo') or r.get('Tipo de Ocorrência') or r.get('Tipo') or 'falta'
+            ).lower().strip()
             tipo = TipoOcorrencia.FALTA
             for k, v in tipo_map.items():
                 if k in tipo_raw:
                     tipo = v
                     break
 
-            aluno_nome = r.get('Aluno') or r.get('aluno')
-            data_val = parse_date_flexible(r.get('Data Início') or r.get('data') or r.get('Data'))
+            data_val = parse_date_flexible(
+                r.get('data_inicio') or r.get('data') or r.get('Data Início') or r.get('Data Inicio') or r.get('Data')
+            )
             if not data_val:
                 continue
 
+            aluno_nome = r.get('aluno') or r.get('Aluno')
+            aluno_id = r.get('aluno_id') or r.get('Aluno ID')
             aluno = None
+            if aluno_id and str(aluno_id).isdigit():
+                aluno = Aluno.objects.filter(id=int(aluno_id)).first()
+            if not aluno and aluno_nome and str(aluno_nome).strip() != "Amamentação Geral":
+                aluno = Aluno.objects.filter(nome__iexact=str(aluno_nome).strip()).first()
+
             turma = None
-            if aluno_nome and aluno_nome != "Amamentação Geral":
-                aluno = Aluno.objects.filter(nome__iexact=aluno_nome.strip()).first()
-                if aluno:
-                    turma = aluno.turma
+            turma_id = r.get('turma_id') or r.get('Turma ID')
+            if turma_id and str(turma_id).isdigit():
+                turma = Turma.objects.filter(id=int(turma_id)).first()
+            if not turma and aluno:
+                turma = aluno.turma
+            if not turma:
+                turma_nome = r.get('turma') or r.get('Turma')
+                if turma_nome:
+                    turma = Turma.objects.filter(nome__iexact=str(turma_nome).strip()).first()
 
-            data_fim = parse_date_flexible(r.get('Data Fim') or r.get('data_fim'))
-            justificado = parse_bool(r.get('Justificado', r.get('justificado', False)))
-            avisado_pais = parse_bool(r.get('Avisado aos Pais', r.get('avisado_pais', False)))
-            cid = r.get('CID') or r.get('cid') or ''
-            motivo = r.get('Motivo') or r.get('motivo') or ''
-            obs = r.get('Observação') or r.get('observacao') or ''
-            horario_val = r.get('Horário') or r.get('horario')
-            horario_retorno_val = r.get('Horário Retorno') or r.get('horario_retorno')
-            qtd_val = r.get('Quantidade') or r.get('quantidade') or 1
+            data_fim = parse_date_flexible(r.get('data_fim') or r.get('Data Fim')) or data_val
+            justificado = parse_bool(r.get('justificado', r.get('Justificado', False)))
+            avisado_pais = parse_bool(r.get('avisado_pais', r.get('Avisado Pais', r.get('Avisado aos Pais', False))))
+            cid = r.get('cid') or r.get('CID') or ''
+            motivo = r.get('motivo') or r.get('Motivo') or ''
+            obs = r.get('observacao') or r.get('Observação') or r.get('Observacao') or ''
+            horario_val = r.get('horario') or r.get('Horário') or r.get('Horario') or ''
+            horario_retorno_val = r.get('horario_retorno') or r.get('Retorno') or r.get('Horário Retorno') or ''
+            qtd_val = r.get('quantidade') or r.get('Quantidade') or 1
 
-            ocorrencia, was_created = OcorrenciaCaderno.objects.get_or_create(
-                tipo=tipo,
-                aluno=aluno,
-                data=data_val,
-                motivo=motivo,
-                defaults={
-                    'turma': turma,
-                    'data_fim': data_fim,
-                    'justificado': justificado,
-                    'avisado_pais': avisado_pais,
-                    'cid': cid,
-                    'observacao': obs,
-                    'horario': horario_val if horario_val else None,
-                    'horario_retorno': horario_retorno_val if horario_retorno_val else None,
-                    'quantidade': int(qtd_val) if str(qtd_val).isdigit() else 1,
-                    'registrado_por': user,
-                }
-            )
-            if was_created:
+            # Converte horario se for formato válido HH:MM ou HH:MM:SS
+            h_obj = None
+            if horario_val and ':' in str(horario_val):
+                try:
+                    parts = str(horario_val).strip().split(':')
+                    h_obj = datetime.strptime(f"{int(parts[0]):02d}:{int(parts[1]):02d}", "%H:%M").time()
+                except Exception:
+                    h_obj = None
+
+            hr_obj = None
+            if horario_retorno_val and ':' in str(horario_retorno_val):
+                try:
+                    parts = str(horario_retorno_val).strip().split(':')
+                    hr_obj = datetime.strptime(f"{int(parts[0]):02d}:{int(parts[1]):02d}", "%H:%M").time()
+                except Exception:
+                    hr_obj = None
+
+            existing = None
+            row_id = r.get('id') or r.get('ID')
+            if row_id and str(row_id).isdigit():
+                existing = OcorrenciaCaderno.objects.filter(id=int(row_id)).first()
+
+            if not existing:
+                lookup = OcorrenciaCaderno.objects.filter(
+                    tipo=tipo,
+                    aluno=aluno,
+                    data=data_val,
+                )
+                if motivo:
+                    lookup = lookup.filter(motivo=motivo)
+                if h_obj:
+                    lookup = lookup.filter(horario=h_obj)
+                existing = lookup.first()
+
+            if not existing:
+                OcorrenciaCaderno.objects.create(
+                    tipo=tipo,
+                    aluno=aluno,
+                    turma=turma,
+                    data=data_val,
+                    data_fim=data_fim,
+                    justificado=justificado,
+                    avisado_pais=avisado_pais,
+                    cid=cid,
+                    motivo=motivo,
+                    observacao=obs,
+                    horario=h_obj,
+                    horario_retorno=hr_obj,
+                    quantidade=int(qtd_val) if str(qtd_val).isdigit() else 1,
+                    registrado_por=user,
+                )
                 created += 1
             else:
-                ocorrencia.data_fim = data_fim
-                ocorrencia.justificado = justificado
-                ocorrencia.avisado_pais = avisado_pais
-                ocorrencia.cid = cid
-                ocorrencia.observacao = obs
-                if horario_val: ocorrencia.horario = horario_val
-                if horario_retorno_val: ocorrencia.horario_retorno = horario_retorno_val
-                ocorrencia.save()
+                existing.turma = turma or existing.turma
+                existing.data_fim = data_fim
+                existing.justificado = justificado
+                existing.avisado_pais = avisado_pais
+                existing.cid = cid
+                existing.observacao = obs
+                if h_obj: existing.horario = h_obj
+                if hr_obj: existing.horario_retorno = hr_obj
+                existing.save()
                 updated += 1
+
     return created, updated
 
 
