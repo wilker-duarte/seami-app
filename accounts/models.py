@@ -4,7 +4,9 @@ from django.db import models
 class UserRole(models.TextChoices):
     MASTER_ADMIN = 'MASTER_ADMIN', 'Master Admin'
     DIRETOR = 'DIRETOR', 'Diretor(a)'
+    COORDENADOR = 'COORDENADOR', 'Coordenador(a)'
     PROFESSOR = 'PROFESSOR', 'Professor(a)'
+    AUXILIAR = 'AUXILIAR', 'Auxiliar'
 
 class UserManager(BaseUserManager):
     def create_superuser(self, username, email=None, password=None, **extra_fields):
@@ -60,6 +62,14 @@ class User(AbstractUser):
     @property
     def is_professor(self):
         return self.role == UserRole.PROFESSOR
+
+    @property
+    def is_coordenador(self):
+        return self.role == UserRole.COORDENADOR
+
+    @property
+    def is_auxiliar(self):
+        return self.role == UserRole.AUXILIAR
 
 
 class ConviteUsuario(models.Model):

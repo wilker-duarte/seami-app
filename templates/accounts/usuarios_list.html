@@ -1,0 +1,520 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Gestão de Usuários - SEAMI{% endblock %}
+{% block page_title %}Usuários do Sistema{% endblock %}
+{% block page_subtitle %}Gerenciamento de acessos e equipe do SEAMI.{% endblock %}
+
+{% block content %}
+<section class="panel-section active" style="display: flex; flex-direction: column; gap: 24px;">
+
+    <!-- Mensagens do Sistema (Toasts / Alertas) -->
+    {% if messages %}
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            {% for message in messages %}
+                <div style="padding: 14px 18px; border-radius: var(--radius-sm); font-size: 13.5px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; {% if message.tags == 'error' %}background-color: #fef2f2; color: #b91c1c; border: 1px solid #fecaca;{% else %}background-color: #f0fdf4; color: #166534; border: 1px solid #bbf7d0;{% endif %}">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <i data-lucide="{% if message.tags == 'error' %}alert-circle{% else %}check-circle-2{% endif %}" style="width: 18px; height: 18px;"></i>
+                        <span>{{ message }}</span>
+                    </div>
+                    <button type="button" onclick="this.parentElement.remove()" style="background: none; border: none; cursor: pointer; color: inherit; font-size: 18px; line-height: 1;">&times;</button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Cabeçalho Informativo & Ações Rápidas -->
+    <div style="background: linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(99, 102, 241, 0.03) 100%); border: 1px solid var(--border-color); border-left: 4px solid var(--color-primary); border-radius: var(--radius-md); padding: 20px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <div style="width: 48px; height: 48px; border-radius: 12px; background-color: var(--color-primary-light, #eff6ff); color: var(--color-primary); display: flex; align-items: center; justify-content: center;">
+                <i data-lucide="users" style="width: 26px; height: 26px;"></i>
+            </div>
+            <div>
+                <h2 style="font-family: var(--font-title); font-size: 18px; font-weight: 700; color: var(--text-primary); margin: 0;">
+                    Equipe e Usuários Cadastrados
+                </h2>
+                <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px; margin-bottom: 0;">
+                    Visualização, cadastro, edição e exclusão de membros da equipe do SEAMI.
+                </p>
+            </div>
+        </div>
+
+        {% if pode_cadastrar %}
+        <div>
+            <button type="button" onclick="openNovoUsuarioModal()" class="primary-btn" style="padding: 10px 18px; border-radius: var(--radius-sm); background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%); color: white; border: none; font-size: 13.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(67, 56, 202, 0.25);">
+                <i data-lucide="user-plus" style="width: 17px; height: 17px;"></i>
+                <span>Cadastrar Novo Usuário</span>
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Barra de Filtros e Busca -->
+    <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <form method="get" action="{% url 'accounts:usuarios_list' %}" style="display: flex; gap: 12px; flex-wrap: wrap; width: 100%; max-width: 680px;">
+            <div style="position: relative; flex: 1; min-width: 220px;">
+                <i data-lucide="search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-secondary);"></i>
+                <input type="text" name="q" value="{{ busca_q }}" placeholder="Buscar por nome, e-mail ou usuário..." 
+                       style="width: 100%; padding: 9px 12px 9px 36px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background-color: var(--bg-input, transparent); color: var(--text-primary); font-size: 13.5px; box-sizing: border-box;">
+            </div>
+
+            <select name="role" style="padding: 9px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background-color: var(--bg-card); color: var(--text-primary); font-size: 13.5px; cursor: pointer;">
+                <option value="">Todos os Perfis</option>
+                {% for r_code, r_label in roles_disponiveis %}
+                    <option value="{{ r_code }}" {% if role_selecionada == r_code %}selected{% endif %}>{{ r_label }}</option>
+                {% endfor %}
+            </select>
+
+            <button type="submit" style="padding: 9px 16px; border-radius: var(--radius-sm); background-color: var(--bg-card); border: 1.5px solid var(--border-color); color: var(--text-primary); font-size: 13.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="filter" style="width: 15px; height: 15px;"></i>
+                Filtrar
+            </button>
+
+            {% if busca_q or role_selecionada %}
+                <a href="{% url 'accounts:usuarios_list' %}" style="padding: 9px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); color: var(--text-secondary); text-decoration: none; font-size: 13.5px; display: inline-flex; align-items: center;">
+                    Limpar
+                </a>
+            {% endif %}
+        </form>
+
+        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">
+            Total: <span style="color: var(--color-primary); font-weight: 700;">{{ usuarios.count }}</span> usuário(s)
+        </div>
+    </div>
+
+    <!-- Tabela de Usuários -->
+    <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-sm);">
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13.5px;">
+                <thead>
+                    <tr style="background-color: rgba(0, 0, 0, 0.02); border-bottom: 1px solid var(--border-color); color: var(--text-secondary); font-weight: 600; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <th style="padding: 14px 20px;">Usuário / Nome</th>
+                        <th style="padding: 14px 20px;">E-mail</th>
+                        <th style="padding: 14px 20px;">Perfil de Acesso</th>
+                        <th style="padding: 14px 20px;">Contato</th>
+                        <th style="padding: 14px 20px;">Status</th>
+                        <th style="padding: 14px 20px;">Cadastrado em</th>
+                        {% if pode_cadastrar %}
+                            <th style="padding: 14px 20px; text-align: right;">Ações</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in usuarios %}
+                        <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.15s ease;" onmouseover="this.style.backgroundColor='rgba(0,0,0,0.015)'" onmouseout="this.style.backgroundColor='transparent'">
+                            <td style="padding: 14px 20px;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div style="width: 36px; height: 36px; border-radius: 50%; background-color: var(--color-primary-light, #eff6ff); color: var(--color-primary); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700;">
+                                        {% if u.role == 'DIRETOR' %}👩‍💼{% elif u.role == 'COORDENADOR' %}🧑‍🏫{% elif u.role == 'AUXILIAR' %}🤝{% else %}👩‍🏫{% endif %}
+                                    </div>
+                                    <div style="display: flex; flex-direction: column;">
+                                        <span style="font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                                            {{ u.get_full_name|default:u.username }}
+                                            {% if u.id == request.user.id %}
+                                                <span style="font-size: 10px; background-color: #e0e7ff; color: #3730a3; padding: 1px 6px; border-radius: 4px; font-weight: 700;">Você</span>
+                                            {% endif %}
+                                        </span>
+                                        <span style="font-size: 12px; color: var(--text-secondary);">
+                                            @{{ u.username }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="padding: 14px 20px; color: var(--text-primary);">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <i data-lucide="mail" style="width: 14px; height: 14px; color: var(--text-secondary);"></i>
+                                    <span>{{ u.email|default:"—" }}</span>
+                                </div>
+                            </td>
+                            <td style="padding: 14px 20px;">
+                                {% if u.role == 'DIRETOR' or u.role == 'MASTER_ADMIN' %}
+                                    <span style="background-color: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+                                        <i data-lucide="shield-check" style="width: 12px; height: 12px;"></i> {{ u.get_role_display }}
+                                    </span>
+                                {% elif u.role == 'COORDENADOR' %}
+                                    <span style="background-color: #e0e7ff; color: #3730a3; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+                                        <i data-lucide="award" style="width: 12px; height: 12px;"></i> {{ u.get_role_display }}
+                                    </span>
+                                {% elif u.role == 'AUXILIAR' %}
+                                    <span style="background-color: #f3f4f6; color: #374151; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+                                        <i data-lucide="user-check" style="width: 12px; height: 12px;"></i> {{ u.get_role_display }}
+                                    </span>
+                                {% else %}
+                                    <span style="background-color: #ecfdf5; color: #065f46; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+                                        <i data-lucide="book-open" style="width: 12px; height: 12px;"></i> {{ u.get_role_display }}
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 14px 20px; color: var(--text-secondary);">
+                                {{ u.telefone|default:"—" }}
+                            </td>
+                            <td style="padding: 14px 20px;">
+                                {% if u.is_active %}
+                                    <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: #16a34a;">
+                                        <span style="width: 8px; height: 8px; border-radius: 50%; background-color: #16a34a;"></span>
+                                        Ativo
+                                    </span>
+                                {% else %}
+                                    <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: #dc2626;">
+                                        <span style="width: 8px; height: 8px; border-radius: 50%; background-color: #dc2626;"></span>
+                                        Inativo
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 14px 20px; color: var(--text-secondary); font-size: 12.5px;">
+                                {{ u.date_joined|date:"d/m/Y H:i" }}
+                            </td>
+                            {% if pode_cadastrar %}
+                            <td style="padding: 14px 20px; text-align: right;">
+                                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                                    <!-- Botão Editar -->
+                                    <button type="button" 
+                                            onclick="openEditarUsuarioModal('{{ u.id }}', '{{ u.first_name|escapejs }}', '{{ u.email|escapejs }}', '{{ u.role }}', '{{ u.telefone|default:''|escapejs }}', {{ u.is_active|yesno:'true,false' }})"
+                                            title="Editar Usuário"
+                                            style="padding: 6px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background-color: var(--bg-card); color: var(--color-primary); cursor: pointer; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                                        <i data-lucide="edit-2" style="width: 14px; height: 14px;"></i>
+                                        <span>Editar</span>
+                                    </button>
+
+                                    <!-- Botão Excluir -->
+                                    {% if u.id != request.user.id %}
+                                        <button type="button" 
+                                                onclick="openExcluirUsuarioModal('{{ u.id }}', '{{ u.first_name|default:u.username|escapejs }}', '{{ u.email|escapejs }}')"
+                                                title="Excluir Usuário"
+                                                style="padding: 6px 10px; border-radius: var(--radius-sm); border: 1px solid #fecaca; background-color: #fef2f2; color: #dc2626; cursor: pointer; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                                            <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                                            <span>Excluir</span>
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            {% endif %}
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="{% if pode_cadastrar %}7{% else %}6{% endif %}" style="padding: 48px 20px; text-align: center; color: var(--text-secondary);">
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+                                    <i data-lucide="user-x" style="width: 40px; height: 40px; color: var(--text-secondary); opacity: 0.6;"></i>
+                                    <span style="font-size: 15px; font-weight: 600;">Nenhum usuário encontrado.</span>
+                                    <span style="font-size: 13px;">Tente ajustar os termos de busca ou filtros.</span>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- ================================================================= -->
+<!-- MODAL DE CADASTRO DE NOVO USUÁRIO                                 -->
+<!-- ================================================================= -->
+{% if pode_cadastrar %}
+<div id="novo-usuario-modal" style="display: none; position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 16px;">
+    <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 20px; width: 100%; max-width: 500px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden; animation: modalFadeIn 0.2s ease-out;">
+        
+        <!-- Topo da Modal -->
+        <div style="padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; background: linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(99, 102, 241, 0.02) 100%);">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 10px; background-color: var(--color-primary-light, #eff6ff); color: var(--color-primary); display: flex; align-items: center; justify-content: center;">
+                    <i data-lucide="user-plus" style="width: 20px; height: 20px;"></i>
+                </div>
+                <div>
+                    <h3 style="font-family: var(--font-title); font-size: 16.5px; font-weight: 700; color: var(--text-primary); margin: 0;">
+                        Cadastrar Novo Usuário
+                    </h3>
+                    <p style="font-size: 12px; color: var(--text-secondary); margin: 2px 0 0;">
+                        Adicione um educador ou membro da equipe ao SEAMI
+                    </p>
+                </div>
+            </div>
+            <button type="button" onclick="closeNovoUsuarioModal()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 24px; line-height: 1; padding: 4px;">&times;</button>
+        </div>
+
+        <!-- Formulário -->
+        <form method="post" action="{% url 'accounts:usuarios_list' %}" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+            {% csrf_token %}
+
+            <div>
+                <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">
+                    Nome Completo <span style="color: var(--color-danger);">*</span>
+                </label>
+                <input type="text" name="nome" required placeholder="ex: Maria Oliveira"
+                       style="width: 100%; padding: 10px 14px; border-radius: var(--radius-sm); border: 1.5px solid var(--border-color); background-color: var(--bg-input, transparent); color: var(--text-primary); font-size: 13.5px; outline: none; box-sizing: border-box;">
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">
+                    E-mail <span style="color: var(--color-danger);">*</span>
+                </label>
+                <input type="email" name="email" required placeholder="ex: maria.oliveira@seami.edu"
+                       style="width: 100%; padding: 10px 14px; border-radius: var(--radius-sm); border: 1.5px solid var(--border-color); background-color: var(--bg-input, transparent); color: var(--text-primary); font-size: 13.5px; outline: none; box-sizing: border-box;">
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">
+                    Perfil de Acesso <span style="color: var(--color-danger);">*</span>
+                </label>
+                <select name="role" required style="width: 100%; padding: 10px 14px; border-radius: var(--radius-sm); border: 1.5px solid var(--border-color); background-color: var(--bg-card); color: var(--text-primary); font-size: 13.5px; outline: none; box-sizing: border-box; cursor: pointer;">
+                    <option value="PROFESSOR">Professor(a)</option>
+                    <option value="COORDENADOR">Coordenador(a)</option>
+                    <option value="DIRETOR">Diretor(a)</option>
+                    <option value="AUXILIAR">Auxiliar</option>
+                </select>
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">
+                    Telefone / WhatsApp <span style="font-size: 11px; color: var(--text-secondary); font-weight: normal;">(Opcional)</span>
+                </label>
+                <input type="text" name="telefone" placeholder="ex: (11) 99999-8888"
+                       style="width: 100%; padding: 10px 14px; border-radius: var(--radius-sm); border: 1.5px solid var(--border-color); background-color: var(--bg-input, transparent); color: var(--text-primary); font-size: 13.5px; outline: none; box-sizing: border-box;">
+            </div>
+
+            <!-- Aviso de Senha Padrão Inicial -->
+            <div style="padding: 12px 16px; border-radius: 12px; background-color: #eff6ff; border: 1px solid #dbeafe; color: #1e40af; font-size: 12.5px; line-height: 1.4; display: flex; align-items: flex-start; gap: 10px;">
+                <i data-lucide="info" style="width: 18px; height: 18px; color: #2563eb; flex-shrink: 0; margin-top: 2px;"></i>
+                <div>
+                    <strong>Senha Inicial Padrão:</strong> O usuário será cadastrado com a senha inicial <code style="background-color: #dbeafe; padding: 2px 6px; border-radius: 4px; font-weight: 700;">Seami@2026</code>. O usuário poderá alterá-la a qualquer momento após o login.
+                </div>
+            </div>
+
+            <!-- Rodapé / Botões da Modal -->
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                <button type="button" onclick="closeNovoUsuarioModal()" style="padding: 10px 16px; border-radius: var(--radius-sm); border: 1.5px solid var(--border-color); background-color: transparent; color: var(--text-primary); font-size: 13.5px; font-weight: 600; cursor: pointer;">
+                    Cancelar
+                </button>
+                <button type="submit" style="padding: 10px 20px; border-radius: var(--radius-sm); background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%); color: #ffffff; border: none; font-size: 13.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(67, 56, 202, 0.25);">
+                    <i data-lucide="check" style="width: 16px; height: 16px;"></i>
+                    <span>Cadastrar Usuário</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- MODAL DE EDIÇÃO DE USUÁRIO                                        -->
+<!-- ================================================================= -->
+<div id="editar-usuario-modal" style="display: none; position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 16px;">
+    <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 20px; width: 100%; max-width: 500px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden; animation: modalFadeIn 0.2s ease-out;">
+        
+        <!-- Topo da Modal -->
+        <div style="padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; background: linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(99, 102, 241, 0.02) 100%);">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 10px; background-color: var(--color-primary-light, #eff6ff); color: var(--color-primary); display: flex; align-items: center; justify-content: center;">
+                    <i data-lucide="user-cog" style="width: 20px; height: 20px;"></i>
+                </div>
+                <div>
+                    <h3 style="font-family: var(--font-title); font-size: 16.5px; font-weight: 700; color: var(--text-primary); margin: 0;">
+                        Editar Usuário
+                    </h3>
+                    <p style="font-size: 12px; color: var(--text-secondary); margin: 2px 0 0;">
+                        Atualize as informações cadastrais e perfil de acesso
+                    </p>
+                </div>
+            </div>
+            <button type="button" onclick="closeEditarUsuarioModal()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 24px; line-height: 1; padding: 4px;">&times;</button>
+        </div>
+
+        <!-- Formulário de Edição -->
+        <form id="form-editar-usuario" method="post" action="" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+            {% csrf_token %}
+
+            <div>
+                <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">
+                    Nome Completo <span style="color: var(--color-danger);">*</span>
+                </label>
+                <input type="text" name="nome" id="edit-nome" required
+                       style="width: 100%; padding: 10px 14px; border-radius: var(--radius-sm); border: 1.5px solid var(--border-color); background-color: var(--bg-input, transparent); color: var(--text-primary); font-size: 13.5px; outline: none; box-sizing: border-box;">
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">
+                    E-mail <span style="color: var(--color-danger);">*</span>
+                </label>
+                <input type="email" name="email" id="edit-email" required
+                       style="width: 100%; padding: 10px 14px; border-radius: var(--radius-sm); border: 1.5px solid var(--border-color); background-color: var(--bg-input, transparent); color: var(--text-primary); font-size: 13.5px; outline: none; box-sizing: border-box;">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div>
+                    <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">
+                        Perfil de Acesso <span style="color: var(--color-danger);">*</span>
+                    </label>
+                    <select name="role" id="edit-role" required style="width: 100%; padding: 10px 14px; border-radius: var(--radius-sm); border: 1.5px solid var(--border-color); background-color: var(--bg-card); color: var(--text-primary); font-size: 13.5px; outline: none; box-sizing: border-box; cursor: pointer;">
+                        <option value="PROFESSOR">Professor(a)</option>
+                        <option value="COORDENADOR">Coordenador(a)</option>
+                        <option value="DIRETOR">Diretor(a)</option>
+                        <option value="AUXILIAR">Auxiliar</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">
+                        Status da Conta <span style="color: var(--color-danger);">*</span>
+                    </label>
+                    <select name="is_active" id="edit-is-active" required style="width: 100%; padding: 10px 14px; border-radius: var(--radius-sm); border: 1.5px solid var(--border-color); background-color: var(--bg-card); color: var(--text-primary); font-size: 13.5px; outline: none; box-sizing: border-box; cursor: pointer;">
+                        <option value="1">Ativo (Acesso Liberado)</option>
+                        <option value="0">Inativo (Acesso Bloqueado)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">
+                    Telefone / WhatsApp <span style="font-size: 11px; color: var(--text-secondary); font-weight: normal;">(Opcional)</span>
+                </label>
+                <input type="text" name="telefone" id="edit-telefone" placeholder="ex: (11) 99999-8888"
+                       style="width: 100%; padding: 10px 14px; border-radius: var(--radius-sm); border: 1.5px solid var(--border-color); background-color: var(--bg-input, transparent); color: var(--text-primary); font-size: 13.5px; outline: none; box-sizing: border-box;">
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">
+                    Redefinir Senha <span style="font-size: 11px; color: var(--text-secondary); font-weight: normal;">(Deixe em branco para manter a atual)</span>
+                </label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" name="nova_senha" id="edit-nova-senha" placeholder="Digite uma nova senha ou use o botão ao lado"
+                           style="flex: 1; padding: 10px 14px; border-radius: var(--radius-sm); border: 1.5px solid var(--border-color); background-color: var(--bg-input, transparent); color: var(--text-primary); font-size: 13.5px; outline: none; box-sizing: border-box;">
+                    <button type="button" onclick="document.getElementById('edit-nova-senha').value='Seami@2026'" title="Preencher com senha padrão Seami@2026"
+                            style="padding: 0 12px; border-radius: var(--radius-sm); border: 1.5px solid var(--border-color); background-color: var(--bg-card); color: var(--color-primary); font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap;">
+                        Padrão
+                    </button>
+                </div>
+            </div>
+
+            <!-- Rodapé / Botões da Modal -->
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                <button type="button" onclick="closeEditarUsuarioModal()" style="padding: 10px 16px; border-radius: var(--radius-sm); border: 1.5px solid var(--border-color); background-color: transparent; color: var(--text-primary); font-size: 13.5px; font-weight: 600; cursor: pointer;">
+                    Cancelar
+                </button>
+                <button type="submit" style="padding: 10px 20px; border-radius: var(--radius-sm); background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%); color: #ffffff; border: none; font-size: 13.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(67, 56, 202, 0.25);">
+                    <i data-lucide="save" style="width: 16px; height: 16px;"></i>
+                    <span>Salvar Alterações</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- MODAL DE CONFIRMAÇÃO DE EXCLUSÃO DE USUÁRIO                       -->
+<!-- ================================================================= -->
+<div id="excluir-usuario-modal" style="display: none; position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 16px;">
+    <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 20px; width: 100%; max-width: 460px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden; animation: modalFadeIn 0.2s ease-out;">
+        
+        <!-- Topo da Modal de Exclusão -->
+        <div style="padding: 24px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px;">
+            <div style="width: 56px; height: 56px; border-radius: 50%; background-color: #fee2e2; color: #dc2626; display: flex; align-items: center; justify-content: center; font-size: 26px;">
+                <i data-lucide="alert-triangle" style="width: 28px; height: 28px;"></i>
+            </div>
+            <div>
+                <h3 style="font-family: var(--font-title); font-size: 18px; font-weight: 700; color: var(--text-primary); margin: 0;">
+                    Excluir Usuário?
+                </h3>
+                <p style="font-size: 13.5px; color: var(--text-secondary); margin: 8px 0 0; line-height: 1.5;">
+                    Tem certeza de que deseja excluir o usuário <strong id="excluir-usuario-nome" style="color: var(--text-primary);"></strong> (<span id="excluir-usuario-email"></span>)?
+                </p>
+                <p style="font-size: 12px; color: #dc2626; margin: 8px 0 0; font-weight: 600;">
+                    ⚠️ Esta ação é irreversível e removerá o acesso desta conta.
+                </p>
+            </div>
+        </div>
+
+        <!-- Formulário de Exclusão -->
+        <form id="form-excluir-usuario" method="post" action="" style="padding: 0 24px 24px; display: flex; gap: 12px; justify-content: center;">
+            {% csrf_token %}
+            <button type="button" onclick="closeExcluirUsuarioModal()" style="flex: 1; padding: 11px; border-radius: var(--radius-sm); border: 1.5px solid var(--border-color); background-color: transparent; color: var(--text-primary); font-size: 13.5px; font-weight: 600; cursor: pointer;">
+                Cancelar
+            </button>
+            <button type="submit" style="flex: 1; padding: 11px; border-radius: var(--radius-sm); background-color: #dc2626; color: #ffffff; border: none; font-size: 13.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 10px rgba(220, 38, 38, 0.25);">
+                <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                <span>Sim, Excluir</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Modal de Novo Usuário
+    function openNovoUsuarioModal() {
+        const modal = document.getElementById('novo-usuario-modal');
+        if (modal) {
+            modal.style.display = 'flex';
+            lucide.createIcons();
+        }
+    }
+
+    function closeNovoUsuarioModal() {
+        const modal = document.getElementById('novo-usuario-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+
+    // Modal de Editar Usuário
+    function openEditarUsuarioModal(id, nome, email, role, telefone, isActive) {
+        const modal = document.getElementById('editar-usuario-modal');
+        const form = document.getElementById('form-editar-usuario');
+        if (modal && form) {
+            form.action = `/accounts/usuarios/${id}/editar/`;
+            document.getElementById('edit-nome').value = nome;
+            document.getElementById('edit-email').value = email;
+            document.getElementById('edit-role').value = role;
+            document.getElementById('edit-telefone').value = telefone;
+            document.getElementById('edit-is-active').value = isActive ? '1' : '0';
+            document.getElementById('edit-nova-senha').value = '';
+
+            modal.style.display = 'flex';
+            lucide.createIcons();
+        }
+    }
+
+    function closeEditarUsuarioModal() {
+        const modal = document.getElementById('editar-usuario-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+
+    // Modal de Excluir Usuário
+    function openExcluirUsuarioModal(id, nome, email) {
+        const modal = document.getElementById('excluir-usuario-modal');
+        const form = document.getElementById('form-excluir-usuario');
+        if (modal && form) {
+            form.action = `/accounts/usuarios/${id}/excluir/`;
+            document.getElementById('excluir-usuario-nome').textContent = nome;
+            document.getElementById('excluir-usuario-email').textContent = email;
+
+            modal.style.display = 'flex';
+            lucide.createIcons();
+        }
+    }
+
+    function closeExcluirUsuarioModal() {
+        const modal = document.getElementById('excluir-usuario-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+
+    // Fecha modais clicando no backdrop
+    window.addEventListener('click', function(e) {
+        const modalNovo = document.getElementById('novo-usuario-modal');
+        const modalEdit = document.getElementById('editar-usuario-modal');
+        const modalExcluir = document.getElementById('excluir-usuario-modal');
+        if (e.target === modalNovo) closeNovoUsuarioModal();
+        if (e.target === modalEdit) closeEditarUsuarioModal();
+        if (e.target === modalExcluir) closeExcluirUsuarioModal();
+    });
+</script>
+{% endif %}
+
+<style>
+@keyframes modalFadeIn {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+}
+</style>
+{% endblock %}
