@@ -311,9 +311,13 @@ def import_ocorrencias(rows, user=None):
 
             data_fim = parse_date_flexible(r.get('Data Fim') or r.get('data_fim'))
             justificado = parse_bool(r.get('Justificado', r.get('justificado', False)))
+            avisado_pais = parse_bool(r.get('Avisado aos Pais', r.get('avisado_pais', False)))
             cid = r.get('CID') or r.get('cid') or ''
             motivo = r.get('Motivo') or r.get('motivo') or ''
             obs = r.get('Observação') or r.get('observacao') or ''
+            horario_val = r.get('Horário') or r.get('horario')
+            horario_retorno_val = r.get('Horário Retorno') or r.get('horario_retorno')
+            qtd_val = r.get('Quantidade') or r.get('quantidade') or 1
 
             ocorrencia, was_created = OcorrenciaCaderno.objects.get_or_create(
                 tipo=tipo,
@@ -324,8 +328,12 @@ def import_ocorrencias(rows, user=None):
                     'turma': turma,
                     'data_fim': data_fim,
                     'justificado': justificado,
+                    'avisado_pais': avisado_pais,
                     'cid': cid,
                     'observacao': obs,
+                    'horario': horario_val if horario_val else None,
+                    'horario_retorno': horario_retorno_val if horario_retorno_val else None,
+                    'quantidade': int(qtd_val) if str(qtd_val).isdigit() else 1,
                     'registrado_por': user,
                 }
             )
@@ -334,8 +342,11 @@ def import_ocorrencias(rows, user=None):
             else:
                 ocorrencia.data_fim = data_fim
                 ocorrencia.justificado = justificado
+                ocorrencia.avisado_pais = avisado_pais
                 ocorrencia.cid = cid
                 ocorrencia.observacao = obs
+                if horario_val: ocorrencia.horario = horario_val
+                if horario_retorno_val: ocorrencia.horario_retorno = horario_retorno_val
                 ocorrencia.save()
                 updated += 1
     return created, updated
