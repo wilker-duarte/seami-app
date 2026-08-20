@@ -1,0 +1,15 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="0; url={% url 'accounts:login' %}">
+    <title>Redirecionando...</title>
+    <script>
+        window.location.href = "{% url 'accounts:login' %}";
+    </script>
+</head>
+<body style="margin: 0; background: #0f172a; color: #ffffff; display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif;">
+    <p>Encerrando sessão e redirecionando para o login do SEAMI...</p>
+</body>
+</html>
