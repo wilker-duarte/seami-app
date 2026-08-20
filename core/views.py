@@ -681,7 +681,12 @@ def build_relatorios_context(request):
     year_start = date(current_year, 1, 1)
     year_end = date(current_year, 12, 31)
 
-    active_tab = request.GET.get('tab', 'faltas')  # 'faltas' | 'atrasos' | 'frequencia' | 'matriculas'
+    active_tab = request.GET.get('subtab', request.GET.get('tab', 'faltas')).strip()
+    if active_tab == 'relatorios' or active_tab not in ['faltas', 'atrasos', 'frequencia', 'matriculas']:
+        active_tab = request.GET.get('subtab', request.GET.get('tab_relatorio', 'faltas')).strip()
+        if active_tab not in ['faltas', 'atrasos', 'frequencia', 'matriculas']:
+            active_tab = 'faltas'
+
     date_start_str = request.GET.get('date_start')
     date_end_str = request.GET.get('date_end')
     classroom_filter = request.GET.get('classroom', '').strip()
@@ -713,37 +718,25 @@ def build_relatorios_context(request):
     }
 
     # =========================================================================
-    # =========================================================================
-    # CÁLCULOS GERAIS DO ANO DE 2026 POR ALUNO (FALTAS E ATRASOS NO ANO)
-    # Regra: Limite de 10 faltas por ano por aluno considera APENAS faltas NÃO justificadas (Jan a Dez)
-    # =========================================================================
     # CÁLCULOS GERAIS DO ANO DE 2026 POR ALUNO (FALTAS E ATRASOS NO CADERNO SEAMI)
-    # Regra: Limite de 10 faltas por ano por aluno considera faltas NÃO justificadas
     # =========================================================================
-    # Mapa de faltas acumuladas no Caderno SEAMI no ano por aluno
     faltas_ano_agg = (
         OcorrenciaCaderno.objects.filter(
-            tipo__in=[TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO],
+            tipo=TipoOcorrencia.FALTA,
             data__gte=year_start,
             data__lte=year_end
-        ).values('aluno_id').annotate(total_ano=Count('id'))
+        ).values('aluno_id', 'aluno__nome').annotate(total_ano=Count('id'))
     )
     mapa_faltas_ano = {item['aluno_id']: item['total_ano'] for item in faltas_ano_agg if item['aluno_id']}
     total_faltas_ano_geral = sum(mapa_faltas_ano.values())
 
-    # Mapa de faltas NÃO JUSTIFICADAS acumuladas no ano
-    faltas_nao_justificadas_ano_agg = (
-        OcorrenciaCaderno.objects.filter(
-            tipo=TipoOcorrencia.FALTA,
-            justificado=False,
-            data__gte=year_start,
-            data__lte=year_end
-        ).values('aluno_id').annotate(total_nao_just_ano=Count('id'))
-    )
-    mapa_faltas_nao_justificadas_ano = {item['aluno_id']: item['total_nao_just_ano'] for item in faltas_nao_justificadas_ano_agg if item['aluno_id']}
-
-    # Alunos que atingiram o limite de 10 faltas NÃO justificadas no ano
-    alunos_limite_10_count = sum(1 for tot in mapa_faltas_nao_justificadas_ano.values() if tot >= 10)
+    # Alunos que atingiram o limite de 10+ faltas no ano
+    alunos_limite_10_list = [
+        item['aluno__nome'] for item in faltas_ano_agg
+        if item['total_ano'] >= 10 and item['aluno__nome']
+    ]
+    alunos_limite_10_count = len(alunos_limite_10_list)
+    alunos_limite_10_nomes = ", ".join(alunos_limite_10_list)
 
     # Mapa de atrasos acumulados no ano por aluno
     atrasos_ano_agg = (
@@ -757,25 +750,28 @@ def build_relatorios_context(request):
     total_atrasos_ano_geral = sum(mapa_atrasos_ano.values())
 
     # =========================================================================
-    # 1. ABA RELATÓRIO DE FALTAS & ATESTADOS (CADERNO SEAMI)
+    # 1. ABA RELATÓRIO DE FALTAS (CADERNO SEAMI)
     # =========================================================================
     ocorrencias_faltas_qs = OcorrenciaCaderno.objects.filter(
-        tipo__in=[TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO],
+        tipo=TipoOcorrencia.FALTA,
         data__gte=date_start,
         data__lte=date_end
     ).select_related('aluno', 'turma')
 
+    classroom_clean = classroom_filter.replace('Sala', '').replace('sala', '').strip()
     if classroom_filter:
         ocorrencias_faltas_qs = ocorrencias_faltas_qs.filter(
-            Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
+            Q(turma__nome__iexact=classroom_filter) |
+            Q(turma__nome__iexact=classroom_clean) |
+            Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
         )
-    if student_id_filter:
-        ocorrencias_faltas_qs = ocorrencias_faltas_qs.filter(aluno_id=student_id_filter)
+    if student_id_filter and student_id_filter.isdigit():
+        ocorrencias_faltas_qs = ocorrencias_faltas_qs.filter(aluno_id=int(student_id_filter))
 
     if justified_filter == 'sim':
-        ocorrencias_faltas_qs = ocorrencias_faltas_qs.filter(Q(justificado=True) | Q(tipo=TipoOcorrencia.ATESTADO))
+        ocorrencias_faltas_qs = ocorrencias_faltas_qs.filter(justificado=True)
     elif justified_filter == 'nao':
-        ocorrencias_faltas_qs = ocorrencias_faltas_qs.filter(justificado=False, tipo=TipoOcorrencia.FALTA)
+        ocorrencias_faltas_qs = ocorrencias_faltas_qs.filter(justificado=False)
 
     ocorrencias_faltas_qs = ocorrencias_faltas_qs.order_by('-data', '-criado_em')
 
@@ -790,7 +786,7 @@ def build_relatorios_context(request):
         if oc.aluno_id:
             criancas_impactadas_faltas_set.add(oc.aluno_id)
 
-        is_just = oc.justificado or (oc.tipo == TipoOcorrencia.ATESTADO)
+        is_just = bool(oc.justificado)
         if is_just:
             total_justificadas_periodo += 1
         else:
@@ -798,9 +794,9 @@ def build_relatorios_context(request):
 
         nome_sala = oc.turma.nome.lower().strip() if oc.turma else ''
         turma_style = cores_salas.get(nome_sala, {'bg': '#f1f5f9', 'color': '#475569', 'border': '#cbd5e1', 'emoji': '🏫'})
-        faltas_nao_just_aluno_ano = mapa_faltas_nao_justificadas_ano.get(oc.aluno_id, 0)
+        faltas_aluno_ano = mapa_faltas_ano.get(oc.aluno_id, 0)
 
-        tipo_display = 'Atestado Médico' if oc.tipo == TipoOcorrencia.ATESTADO else ('Justificada' if oc.justificado else 'Não Justificada')
+        tipo_display = 'Justificada' if oc.justificado else 'Não Justificada'
 
         faltas_tabela_list.append({
             'data': oc.data,
@@ -814,12 +810,13 @@ def build_relatorios_context(request):
             'tipo_falta': tipo_display,
             'is_justificada': is_just,
             'cid': oc.cid,
-            'motivo': oc.motivo or ('Atestado Médico' if oc.tipo == TipoOcorrencia.ATESTADO else 'Ausência comunicada'),
+            'motivo': oc.motivo.strip() if oc.motivo and oc.motivo.strip() else '',
             'responsavel': oc.aluno.nome_responsavel if oc.aluno and oc.aluno.nome_responsavel else 'Responsável familiar',
             'telefone_responsavel': oc.aluno.telefone_responsavel if oc.aluno else '',
-            'faltas_no_ano': faltas_nao_just_aluno_ano,
-            'is_alerta_10': faltas_nao_just_aluno_ano >= 10,
+            'faltas_no_ano': faltas_aluno_ano,
+            'is_alerta_10': faltas_aluno_ano >= 10,
             'documento': oc.documento,
+            'comprovante': oc.documento,
         })
 
     # =========================================================================
@@ -833,10 +830,12 @@ def build_relatorios_context(request):
 
     if classroom_filter:
         ocorrencias_atrasos_qs = ocorrencias_atrasos_qs.filter(
-            Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
+            Q(turma__nome__iexact=classroom_filter) |
+            Q(turma__nome__iexact=classroom_clean) |
+            Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
         )
-    if student_id_filter:
-        ocorrencias_atrasos_qs = ocorrencias_atrasos_qs.filter(aluno_id=student_id_filter)
+    if student_id_filter and student_id_filter.isdigit():
+        ocorrencias_atrasos_qs = ocorrencias_atrasos_qs.filter(aluno_id=int(student_id_filter))
 
     if justified_filter == 'sim':
         ocorrencias_atrasos_qs = ocorrencias_atrasos_qs.filter(justificado=True)
@@ -872,10 +871,12 @@ def build_relatorios_context(request):
             'turma_style': turma_style,
             'tipo_atraso': 'Justificado' if oc.justificado else 'Não Justificado',
             'is_justificado': oc.justificado,
-            'motivo': oc.motivo or 'Tolerância matinal',
+            'motivo': oc.motivo.strip() if oc.motivo and oc.motivo.strip() else '',
             'responsavel': oc.aluno.nome_responsavel if oc.aluno and oc.aluno.nome_responsavel else 'Responsável familiar',
+            'telefone_responsavel': oc.aluno.telefone_responsavel if oc.aluno else '',
             'atrasos_no_ano': atrasos_aluno_ano,
             'documento': oc.documento,
+            'comprovante': oc.documento,
         })
 
 
@@ -1083,6 +1084,8 @@ def build_relatorios_context(request):
             'total_ano': total_faltas_ano_geral or total_faltas_periodo,
             'criancas_impactadas': len(criancas_impactadas_faltas_set),
             'limite_10_ano': alunos_limite_10_count,
+            'alunos_limite_10': alunos_limite_10_count,
+            'alunos_limite_10_nomes': alunos_limite_10_nomes,
         },
         'faltas_tabela': faltas_tabela_list,
 

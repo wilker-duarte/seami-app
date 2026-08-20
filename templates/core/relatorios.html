@@ -160,7 +160,7 @@
         <!-- 6 Cards de Indicadores de Faltas -->
         <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px;">
             <div class="metric-card" style="border-left: 4px solid #ef4444;">
-                <div class="metric-header"><span class="metric-title">Faltas Registradas</span><div class="metric-icon-box" style="background: #fef2f2; color: #ef4444;"><i data-lucide="calendar-x"></i></div></div>
+                <div class="metric-header"><span class="metric-title">Faltas no Filtro</span><div class="metric-icon-box" style="background: #fef2f2; color: #ef4444;"><i data-lucide="calendar-x"></i></div></div>
                 <div class="metric-value" style="color: #991b1b;">{{ faltas_cards.total_periodo }}</div>
                 <div class="metric-footer" style="color: #991b1b;"><span>No período filtrado</span></div>
             </div>
@@ -168,7 +168,7 @@
             <div class="metric-card" style="border-left: 4px solid #10b981;">
                 <div class="metric-header"><span class="metric-title">✅ Justificadas</span><div class="metric-icon-box" style="background: #ecfdf5; color: #10b981;"><i data-lucide="check-circle-2"></i></div></div>
                 <div class="metric-value" style="color: #047857;">{{ faltas_cards.justificadas_periodo }}</div>
-                <div class="metric-footer" style="color: #047857;"><span>Com atestado / aviso</span></div>
+                <div class="metric-footer" style="color: #047857;"><span>Com aviso prévio</span></div>
             </div>
 
             <div class="metric-card" style="border-left: 4px solid #dc2626;">
@@ -180,7 +180,7 @@
             <div class="metric-card" style="border-left: 4px solid #6366f1;">
                 <div class="metric-header"><span class="metric-title">📅 Total Ano {{ current_year }}</span><div class="metric-icon-box" style="background: #e0e7ff; color: #6366f1;"><i data-lucide="calendar"></i></div></div>
                 <div class="metric-value" style="color: #4338ca;">{{ faltas_cards.total_ano }}</div>
-                <div class="metric-footer" style="color: #4338ca;"><span>Acumulado no ano letivo</span></div>
+                <div class="metric-footer" style="color: #4338ca;"><span>{{ faltas_cards.justificadas_periodo }} just. · {{ faltas_cards.nao_justificadas_periodo }} n/just.</span></div>
             </div>
 
             <div class="metric-card" style="border-left: 4px solid #f59e0b;">
@@ -190,13 +190,13 @@
             </div>
 
             <div class="metric-card" style="border-left: 4px solid #e11d48; {% if faltas_cards.limite_10_ano > 0 %}background: #fff1f2;{% endif %}">
-                <div class="metric-header"><span class="metric-title" style="color: #9f1239; font-weight: 700;">⚠️ Limite 10 Faltas Não Just./Ano</span><div class="metric-icon-box" style="background: #ffe4e6; color: #e11d48;"><i data-lucide="alert-triangle"></i></div></div>
+                <div class="metric-header"><span class="metric-title" style="color: #9f1239; font-weight: 700;">Limite de 10 Faltas/Ano</span><div class="metric-icon-box" style="background: #ffe4e6; color: #e11d48;"><i data-lucide="alert-triangle"></i></div></div>
                 <div class="metric-value" style="color: #e11d48;">{{ faltas_cards.limite_10_ano }}</div>
-                <div class="metric-footer" style="color: #9f1239;"><span>Alunos com 10+ faltas não just.</span></div>
+                <div class="metric-footer" style="color: #9f1239;"><span title="{{ faltas_cards.alunos_limite_10_nomes }}">{% if faltas_cards.alunos_limite_10_nomes %}{{ faltas_cards.alunos_limite_10_nomes|truncatechars:38 }}{% else %}Nenhum aluno atingiu o limite{% endif %}</span></div>
             </div>
         </div>
 
-        <!-- Tabela: Data | Criança | Sala | Tipo de Falta | Justificativa / Motivo | Responsável | Faltas Não Just. no Ano | Comprovante -->
+        <!-- Tabela: Data | Criança | Sala | Tipo de Falta | Justificativa / Motivo | Faltas no Ano | Comprovante -->
         <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden;">
             <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); background-color: var(--bg-body); font-weight: 700; color: var(--text-primary); display: flex; align-items: center; justify-content: space-between;">
                 <span>Quadro Detalhado de Faltas</span>
@@ -211,8 +211,7 @@
                             <th style="padding: 12px 16px;">Sala</th>
                             <th style="padding: 12px 16px; text-align: center;">Tipo de Falta</th>
                             <th style="padding: 12px 16px;">Justificativa / Motivo</th>
-                            <th style="padding: 12px 16px;">Responsável</th>
-                            <th style="padding: 12px 16px; text-align: center;" title="Faltas não justificadas acumuladas de Janeiro a Dezembro">Faltas Não Just. no Ano</th>
+                            <th style="padding: 12px 16px; text-align: center;" title="Faltas acumuladas no ano letivo (Limite de 10 faltas)">Faltas no Ano</th>
                             <th style="padding: 12px 16px; text-align: center;">Comprovante</th>
                         </tr>
                     </thead>
@@ -220,10 +219,10 @@
                         {% for row in faltas_tabela %}
                         <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.15s;" onmouseenter="this.style.backgroundColor='var(--bg-input)'" onmouseleave="this.style.backgroundColor='transparent'">
                             <td style="padding: 12px 16px; font-weight: 600; white-space: nowrap;">{{ row.data|date:"d/m/Y" }}</td>
-                            <td style="padding: 12px 16px; font-weight: 700; color: var(--text-primary);">{{ row.aluno.nome }}</td>
+                            <td style="padding: 12px 16px; font-weight: 700; color: var(--text-primary);">{{ row.aluno_nome|default:row.aluno.nome }}</td>
                             <td style="padding: 12px 16px;">
                                 <span style="background-color: {{ row.turma_style.bg }}; color: {{ row.turma_style.color }}; border: 1px solid {{ row.turma_style.border }}; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px;">
-                                    {{ row.turma_style.emoji }} Sala {{ row.turma.nome }}
+                                    {{ row.turma_style.emoji }} Sala {{ row.turma_nome|default:row.turma.nome }}
                                 </span>
                             </td>
                             <td style="padding: 12px 16px; text-align: center;">
@@ -233,21 +232,27 @@
                                     <span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px;">❌ Não Justificada</span>
                                 {% endif %}
                             </td>
-                            <td style="padding: 12px 16px; font-size: 12.5px; color: var(--text-secondary);">{{ row.motivo }}</td>
-                            <td style="padding: 12px 16px; font-size: 12.5px;">
-                                {{ row.responsavel }}
-                                {% if row.telefone_responsavel %}<span style="color: var(--text-light); font-size: 11px;"> ({{ row.telefone_responsavel }})</span>{% endif %}
+                            <td style="padding: 12px 16px; font-size: 12.5px; color: var(--text-secondary);">
+                                {% if row.motivo %}
+                                    {{ row.motivo }}
+                                {% else %}
+                                    <em style="color: var(--text-light, #94a3b8); font-style: italic;">Sem justificativa</em>
+                                {% endif %}
                             </td>
                             <td style="padding: 12px 16px; text-align: center;">
                                 {% if row.is_alerta_10 %}
-                                    <span style="background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 2px 8px; border-radius: 6px; font-weight: 800; font-size: 12px;">⚠️ {{ row.faltas_no_ano }}</span>
+                                    <span style="background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; padding: 2px 8px; border-radius: 6px; font-weight: 800; font-size: 12px;" title="{{ row.faltas_no_ano }} faltas acumuladas no ano">
+                                        ⚠️ {{ row.faltas_no_ano }}/10
+                                    </span>
                                 {% else %}
-                                    <span style="font-weight: 700; color: var(--text-primary);">{{ row.faltas_no_ano }}</span>
+                                    <span style="font-weight: 700; color: var(--text-primary);" title="{{ row.faltas_no_ano }} faltas acumuladas no ano">
+                                        {{ row.faltas_no_ano }}/10
+                                    </span>
                                 {% endif %}
                             </td>
                             <td style="padding: 12px 16px; text-align: center;">
                                 {% if row.comprovante %}
-                                    <button type="button" onclick="viewDoc('{{ row.comprovante.url }}', '{{ row.aluno.nome|escapejs }}')" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-body); font-size: 11.5px; cursor: pointer;">
+                                    <button type="button" onclick="viewDoc('{{ row.comprovante.url }}', '{{ row.aluno_nome|default:row.aluno.nome|escapejs }}')" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-body); font-size: 11.5px; cursor: pointer;">
                                         📄 Ver
                                     </button>
                                 {% else %}
@@ -256,7 +261,7 @@
                             </td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="8" style="text-align: center; padding: 36px; color: var(--text-secondary);">Nenhum registro de falta no período selecionado.</td></tr>
+                        <tr><td colspan="7" style="text-align: center; padding: 36px; color: var(--text-secondary);">Nenhum registro de falta no período selecionado.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -319,7 +324,6 @@
                             <th style="padding: 12px 16px;">Sala</th>
                             <th style="padding: 12px 16px; text-align: center;">Tipo de Atraso</th>
                             <th style="padding: 12px 16px;">Justificativa / Motivo</th>
-                            <th style="padding: 12px 16px;">Responsável</th>
                             <th style="padding: 12px 16px; text-align: center;">Atrasos no Ano</th>
                             <th style="padding: 12px 16px; text-align: center;">Comprovante</th>
                         </tr>
@@ -337,13 +341,18 @@
                             </td>
                             <td style="padding: 12px 16px; text-align: center;">
                                 {% if row.is_justificado %}
-                                    <span style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px;">✅ Justificado</span>
+                                     <span style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px;">✅ Justificado</span>
                                 {% else %}
-                                    <span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px;">❌ Não Justificado</span>
+                                     <span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px;">❌ Não Justificado</span>
                                 {% endif %}
                             </td>
-                            <td style="padding: 12px 16px; font-size: 12.5px; color: var(--text-secondary);">{{ row.motivo }}</td>
-                            <td style="padding: 12px 16px; font-size: 12.5px;">{{ row.responsavel }}</td>
+                            <td style="padding: 12px 16px; font-size: 12.5px; color: var(--text-secondary);">
+                                {% if row.motivo %}
+                                    {{ row.motivo }}
+                                {% else %}
+                                    <em style="color: var(--text-light, #94a3b8); font-style: italic;">Sem justificativa</em>
+                                {% endif %}
+                            </td>
                             <td style="padding: 12px 16px; text-align: center; font-weight: 700; color: #d97706;">{{ row.atrasos_no_ano }}</td>
                             <td style="padding: 12px 16px; text-align: center;">
                                 {% if row.documento %}
