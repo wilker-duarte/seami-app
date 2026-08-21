@@ -144,6 +144,9 @@ def import_alunos(rows, user=None):
             has_acomp = parse_bool(r.get('Acompanhamento Especial', r.get('has_acompanhamento', False)))
             acomp_obs = r.get('Observações Acompanhamento') or r.get('acompanhamento_obs') or ''
             acomp_dias = r.get('Dias de Acompanhamento') or r.get('acompanhamento_dias') or ''
+            alergias = r.get('Alergias') or r.get('alergias') or ''
+            restricoes = r.get('Restrições Alimentares') or r.get('restricoes_alimentares') or r.get('Restricoes Alimentares') or ''
+            comorbidades = r.get('Comorbidades') or r.get('comorbidades') or ''
             resp = r.get('Nome do Responsável') or r.get('nome_responsavel') or ''
             tel = r.get('Telefone do Responsável') or r.get('telefone_responsavel') or ''
 
@@ -165,6 +168,9 @@ def import_alunos(rows, user=None):
                         'has_acompanhamento': has_acomp,
                         'acompanhamento_obs': acomp_obs,
                         'acompanhamento_dias': acomp_dias,
+                        'alergias': alergias,
+                        'restricoes_alimentares': restricoes,
+                        'comorbidades': comorbidades,
                         'nome_responsavel': resp,
                         'telefone_responsavel': tel,
                     }
@@ -181,6 +187,9 @@ def import_alunos(rows, user=None):
                     aluno.has_acompanhamento = has_acomp
                     aluno.acompanhamento_obs = acomp_obs
                     aluno.acompanhamento_dias = acomp_dias
+                    if alergias: aluno.alergias = alergias
+                    if restricoes: aluno.restricoes_alimentares = restricoes
+                    if comorbidades: aluno.comorbidades = comorbidades
                     if resp: aluno.nome_responsavel = resp
                     if tel: aluno.telefone_responsavel = tel
                     aluno.save()
@@ -196,6 +205,9 @@ def import_alunos(rows, user=None):
                 aluno.has_acompanhamento = has_acomp
                 aluno.acompanhamento_obs = acomp_obs
                 aluno.acompanhamento_dias = acomp_dias
+                if alergias: aluno.alergias = alergias
+                if restricoes: aluno.restricoes_alimentares = restricoes
+                if comorbidades: aluno.comorbidades = comorbidades
                 if resp: aluno.nome_responsavel = resp
                 if tel: aluno.telefone_responsavel = tel
                 aluno.save()
@@ -203,17 +215,109 @@ def import_alunos(rows, user=None):
     return created, updated
 
 
+def parse_status_presenca(raw_status, obs=""):
+    """
+    Identifica de forma robusta e precisa o StatusPresenca.
+    Garante que 'Falta Justificada' venha antes de 'Falta' simples para evitar falsos positivos.
+    """
+    raw = str(raw_status or '').lower().strip()
+    obs_lower = str(obs or '').lower().strip()
+
+    # 1. Falta Justificada (deve ser verificada antes de 'falta')
+    if any(k in raw for k in ['falta justificada', 'justificado', 'justificada', '(fj)']) or raw == 'fj' or 'falta justificada' in obs_lower or 'fj' in obs_lower:
+        return StatusPresenca.JUSTIFICADO
+
+    # 2. Presença Parcial
+    if any(k in raw for k in ['parcial', 'presença parcial', 'presenca parcial']):
+        return StatusPresenca.PARCIAL
+
+    # 3. Recesso Escolar
+    if any(k in raw for k in ['recesso', '(re)']) or raw == 're':
+        return StatusPresenca.RECESSO
+
+    # 4. Feriado
+    if any(k in raw for k in ['feriado', '(fe)']) or raw == 'fe':
+        return StatusPresenca.FERIADO
+
+    # 5. Falta Simples / Ausente
+    if any(k in raw for k in ['falta', 'ausente', '(f)']) or raw == 'f':
+        return StatusPresenca.AUSENTE
+
+    # 6. Presente
+    if any(k in raw for k in ['presente', '(p)']) or raw == 'p':
+        return StatusPresenca.PRESENTE
+
+    # Direct Enum matching
+    for choice_val, choice_label in StatusPresenca.choices:
+        if raw == choice_val.lower() or raw == choice_label.lower():
+            return choice_val
+
+    return StatusPresenca.PRESENTE
+
+
+def parse_turnos_presenca(aluno, status, obs=""):
+    """
+    Deduz os status individuais de turno (matutino/vespertino) com base na observação ou status geral.
+    """
+    from presencas.models import StatusTurnoPresenca
+    obs_lower = str(obs or '').lower()
+    m, v = None, None
+
+    if 'matutino fj' in obs_lower or 'matutino justificado' in obs_lower:
+        m = StatusTurnoPresenca.JUSTIFICADO
+    elif 'matutino ok' in obs_lower or 'matutino presente' in obs_lower:
+        m = StatusTurnoPresenca.PRESENTE
+    elif 'matutino falta' in obs_lower or 'matutino ausente' in obs_lower:
+        m = StatusTurnoPresenca.AUSENTE
+
+    if 'vespertino fj' in obs_lower or 'vespertino justificado' in obs_lower:
+        v = StatusTurnoPresenca.JUSTIFICADO
+    elif 'vespertino ok' in obs_lower or 'vespertino presente' in obs_lower:
+        v = StatusTurnoPresenca.PRESENTE
+    elif 'vespertino falta' in obs_lower or 'vespertino ausente' in obs_lower:
+        v = StatusTurnoPresenca.AUSENTE
+
+    turno_aluno = (aluno.turno or 'integral').lower() if aluno else 'integral'
+
+    if turno_aluno == 'matutino':
+        v = StatusTurnoPresenca.NA
+        if m is None:
+            if status == StatusPresenca.JUSTIFICADO:
+                m = StatusTurnoPresenca.JUSTIFICADO
+            elif status == StatusPresenca.AUSENTE:
+                m = StatusTurnoPresenca.AUSENTE
+            else:
+                m = StatusTurnoPresenca.PRESENTE
+    elif turno_aluno == 'vespertino':
+        m = StatusTurnoPresenca.NA
+        if v is None:
+            if status == StatusPresenca.JUSTIFICADO:
+                v = StatusTurnoPresenca.JUSTIFICADO
+            elif status == StatusPresenca.AUSENTE:
+                v = StatusTurnoPresenca.AUSENTE
+            else:
+                v = StatusTurnoPresenca.PRESENTE
+    else:  # integral
+        if m is None:
+            if status == StatusPresenca.JUSTIFICADO:
+                m = StatusTurnoPresenca.JUSTIFICADO
+            elif status == StatusPresenca.AUSENTE:
+                m = StatusTurnoPresenca.AUSENTE
+            else:
+                m = StatusTurnoPresenca.PRESENTE
+        if v is None:
+            if status == StatusPresenca.JUSTIFICADO:
+                v = StatusTurnoPresenca.JUSTIFICADO
+            elif status == StatusPresenca.AUSENTE:
+                v = StatusTurnoPresenca.AUSENTE
+            else:
+                v = StatusTurnoPresenca.PRESENTE
+
+    return m, v
+
+
 def import_presencas(rows, user=None):
     created, updated = 0, 0
-    status_map = {
-        'presente': StatusPresenca.PRESENTE,
-        'falta': StatusPresenca.AUSENTE,
-        'ausente': StatusPresenca.AUSENTE,
-        'falta justificada': StatusPresenca.JUSTIFICADO,
-        'justificado': StatusPresenca.JUSTIFICADO,
-        'recesso': StatusPresenca.RECESSO,
-        'feriado': StatusPresenca.FERIADO,
-    }
 
     with transaction.atomic():
         for r in rows:
@@ -228,24 +332,21 @@ def import_presencas(rows, user=None):
 
             aluno_nome = r.get('Aluno') or r.get('aluno')
             if not aluno and aluno_nome:
-                aluno = Aluno.objects.filter(nome__iexact=aluno_nome.strip()).first()
+                aluno = Aluno.objects.filter(nome__iexact=str(aluno_nome).strip()).first()
 
             if not aluno and aluno_nome:
                 turma_nome = r.get('Turma') or r.get('turma')
                 turma, _ = Turma.objects.get_or_create(nome=(turma_nome or 'Geral').strip())
-                aluno = Aluno.objects.create(nome=aluno_nome.strip(), turma=turma)
+                aluno = Aluno.objects.create(nome=str(aluno_nome).strip(), turma=turma)
 
             if not aluno:
                 continue
 
-            raw_status = str(r.get('Status de Presença') or r.get('status') or 'PRESENTE').lower().strip()
-            status = StatusPresenca.PRESENTE
-            for k, v in status_map.items():
-                if k in raw_status:
-                    status = v
-                    break
+            raw_status = str(r.get('Status de Presença') or r.get('status') or 'PRESENTE').strip()
+            obs = str(r.get('Observação') or r.get('observacao') or '').strip()
 
-            obs = r.get('Observação') or r.get('observacao') or ''
+            status = parse_status_presenca(raw_status, obs)
+            status_m, status_v = parse_turnos_presenca(aluno, status, obs)
 
             reg = RegistroPresenca.objects.filter(aluno=aluno, data=data_val).first()
             if not reg:
@@ -254,13 +355,18 @@ def import_presencas(rows, user=None):
                     data=data_val,
                     turma=aluno.turma,
                     status=status,
+                    status_matutino=status_m,
+                    status_vespertino=status_v,
                     observacao=obs,
                     registrado_por=user,
                 )
                 created += 1
             else:
                 reg.status = status
-                if obs: reg.observacao = obs
+                reg.status_matutino = status_m
+                reg.status_vespertino = status_v
+                if obs:
+                    reg.observacao = obs
                 reg.save()
                 updated += 1
     return created, updated
@@ -514,9 +620,9 @@ def import_enfermaria(rows, user=None):
             motivo_detalhado = r.get('motivo_detalhado') or r.get('Motivo Detalhado') or ''
             cid = r.get('cid') or r.get('CID') or ''
             obs_med = r.get('observacoes_medicas') or r.get('Observações Médicas / Conduta') or r.get('Observações Médicas') or r.get('Observacao') or ''
-            saida_imed = parse_bool(r.get('saida_imediata', r.get('Saída Imediata', False)))
-            retornara = parse_bool(r.get('retornara_dia_seguinte', r.get('Retornará no Dia Seguinte', True)))
-            data_retorno = parse_date_flexible(r.get('data_retorno_prevista') or r.get('Data Retorno') or r.get('Data Prevista de Retorno'))
+            saida_imed = parse_bool(r.get('saida_imediata', r.get('Saída Imediata', r.get('Saida Imediata', False))))
+            retornara = parse_bool(r.get('retornara_dia_seguinte', r.get('Retorna no Dia Seguinte', r.get('Retornará no Dia Seguinte', True))))
+            data_retorno = parse_date_flexible(r.get('data_retorno_prevista') or r.get('Data Prevista Retorno') or r.get('Data Retorno') or r.get('Data Prevista de Retorno'))
 
             existing = None
             row_id = r.get('id') or r.get('ID')

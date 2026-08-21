@@ -159,11 +159,11 @@
                     <div class="filter-grid">
                         <div class="filter-group">
                             <label>Data Inicial</label>
-                            <input type="date" name="date_start" value="{{ date_start }}" onchange="this.form.submit()">
+                            <input type="date" name="date_start" id="dashboard_date_start" value="{{ date_start }}" onchange="const p = document.getElementById('preset-input'); if(p) p.value='custom'; this.form.submit()">
                         </div>
                         <div class="filter-group">
                             <label>Data Final</label>
-                            <input type="date" name="date_end" value="{{ date_end }}" onchange="this.form.submit()">
+                            <input type="date" name="date_end" id="dashboard_date_end" value="{{ date_end }}" onchange="const p = document.getElementById('preset-input'); if(p) p.value='custom'; this.form.submit()">
                         </div>
                         <div class="filter-group">
                             <label>Sala/Turma</label>
@@ -1104,8 +1104,50 @@
         }
 
         function setPreset(presetName) {
-            document.getElementById('preset-input').value = presetName;
-            document.getElementById('dashboard-filter-form').submit();
+            const today = new Date();
+            const inputStart = document.getElementById('dashboard_date_start') || document.querySelector('#dashboard-filter-form input[name="date_start"]');
+            const inputEnd = document.getElementById('dashboard_date_end') || document.querySelector('#dashboard-filter-form input[name="date_end"]');
+            const presetInput = document.getElementById('preset-input');
+            const form = document.getElementById('dashboard-filter-form');
+
+            const formatDate = (d) => {
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${y}-${m}-${day}`;
+            };
+
+            if (presetName === 'today') {
+                if (inputStart) inputStart.value = formatDate(today);
+                if (inputEnd) inputEnd.value = formatDate(today);
+            } else if (presetName === 'thisMonth') {
+                const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+                const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                if (inputStart) inputStart.value = formatDate(firstDay);
+                if (inputEnd) inputEnd.value = formatDate(lastDay);
+            } else if (presetName === 'lastMonth') {
+                const firstDayPrev = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                const lastDayPrev = new Date(today.getFullYear(), today.getMonth(), 0);
+                if (inputStart) inputStart.value = formatDate(firstDayPrev);
+                if (inputEnd) inputEnd.value = formatDate(lastDayPrev);
+            } else if (presetName === 'semester') {
+                const curMonth = today.getMonth() + 1;
+                const curYear = today.getFullYear();
+                if (curMonth <= 6) {
+                    if (inputStart) inputStart.value = `${curYear}-01-01`;
+                    if (inputEnd) inputEnd.value = `${curYear}-06-30`;
+                } else {
+                    if (inputStart) inputStart.value = `${curYear}-07-01`;
+                    if (inputEnd) inputEnd.value = `${curYear}-12-31`;
+                }
+            } else if (presetName === 'year') {
+                const curYear = today.getFullYear();
+                if (inputStart) inputStart.value = `${curYear}-01-01`;
+                if (inputEnd) inputEnd.value = `${curYear}-12-31`;
+            }
+
+            if (presetInput) presetInput.value = presetName;
+            if (form) form.submit();
         }
 
         function setReportPreset(preset) {

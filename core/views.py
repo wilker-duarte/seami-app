@@ -56,38 +56,58 @@ def build_dashboard_context(request):
     student_id_filter = request.GET.get('student_id', '').strip()
     preset = request.GET.get('preset', 'thisMonth')
 
-    # Calcula datas padrão conforme o preset se não vierem explícitas
-    if not date_start_str or not date_end_str:
-        if preset == 'year':
-            default_start = date(current_year, 1, 1)
-            default_end = date(current_year, 12, 31)
-        elif preset == 'today':
-            default_start = today
-            default_end = today
-        elif preset == 'lastMonth':
-            prev_m = today.month - 1 if today.month > 1 else 12
-            prev_y = today.year if today.month > 1 else today.year - 1
-            num_days_prev = calendar.monthrange(prev_y, prev_m)[1]
-            default_start = date(prev_y, prev_m, 1)
-            default_end = date(prev_y, prev_m, num_days_prev)
-        elif preset == 'semester':
-            if today.month <= 6:
-                default_start = date(current_year, 1, 1)
-                default_end = date(current_year, 6, 30)
-            else:
-                default_start = date(current_year, 7, 1)
-                default_end = date(current_year, 12, 31)
-        else:  # thisMonth
-            num_days = calendar.monthrange(today.year, today.month)[1]
-            default_start = date(today.year, today.month, 1)
-            default_end = date(today.year, today.month, num_days)
-    else:
-        num_days = calendar.monthrange(today.year, today.month)[1]
-        default_start = date(today.year, today.month, 1)
-        default_end = date(today.year, today.month, num_days)
+    # Períodos de referência para presets
+    num_days_this_month = calendar.monthrange(today.year, today.month)[1]
+    this_month_start = date(today.year, today.month, 1)
+    this_month_end = date(today.year, today.month, num_days_this_month)
 
-    date_start = parse_date_str(date_start_str, default_start)
-    date_end = parse_date_str(date_end_str, default_end)
+    prev_m = today.month - 1 if today.month > 1 else 12
+    prev_y = today.year if today.month > 1 else today.year - 1
+    num_days_prev = calendar.monthrange(prev_y, prev_m)[1]
+    last_month_start = date(prev_y, prev_m, 1)
+    last_month_end = date(prev_y, prev_m, num_days_prev)
+
+    if today.month <= 6:
+        sem_start = date(current_year, 1, 1)
+        sem_end = date(current_year, 6, 30)
+    else:
+        sem_start = date(current_year, 7, 1)
+        sem_end = date(current_year, 12, 31)
+
+    year_start = date(current_year, 1, 1)
+    year_end = date(current_year, 12, 31)
+
+    if preset == 'today':
+        preset_start, preset_end = today, today
+    elif preset == 'lastMonth':
+        preset_start, preset_end = last_month_start, last_month_end
+    elif preset == 'semester':
+        preset_start, preset_end = sem_start, sem_end
+    elif preset == 'year':
+        preset_start, preset_end = year_start, year_end
+    else:
+        preset_start, preset_end = this_month_start, this_month_end
+
+    if not date_start_str or not date_end_str:
+        date_start = preset_start
+        date_end = preset_end
+    else:
+        date_start = parse_date_str(date_start_str, preset_start)
+        date_end = parse_date_str(date_end_str, preset_end)
+
+    # Sincroniza o preset conforme as datas
+    if date_start == today and date_end == today:
+        preset = 'today'
+    elif date_start == this_month_start and date_end == this_month_end:
+        preset = 'thisMonth'
+    elif date_start == last_month_start and date_end == last_month_end:
+        preset = 'lastMonth'
+    elif date_start == sem_start and date_end == sem_end:
+        preset = 'semester'
+    elif date_start == year_start and date_end == year_end:
+        preset = 'year'
+    else:
+        preset = 'custom'
 
     turmas_qs = Turma.objects.filter(ativo=True).order_by('nome')
     all_active_students = Aluno.objects.ativos().select_related('turma').order_by('nome')
@@ -1509,6 +1529,9 @@ def central_exportacao_view(request):
                         "aluno_id": r.aluno_id,
                         "aluno": r.aluno.nome if r.aluno else "",
                         "status": r.get_status_display(),
+                        "status_key": r.status,
+                        "status_matutino": r.status_matutino,
+                        "status_vespertino": r.status_vespertino,
                         "observacao": r.observacao,
                         "registrado_por": r.registrado_por.get_full_name() or r.registrado_por.username if r.registrado_por else "",
                         "criado_em": timezone.localtime(r.criado_em).strftime("%d/%m/%Y %H:%M:%S") if r.criado_em else "",
@@ -1522,7 +1545,7 @@ def central_exportacao_view(request):
                 resp = HttpResponse(content_type="text/csv; charset=utf-8-sig")
                 resp['Content-Disposition'] = f'attachment; filename="3_registros_presenca_seami_{timestamp}.csv"'
                 w = csv.writer(resp, delimiter=";")
-                w.writerow(["ID", "Data", "Turma ID", "Turma", "Aluno ID", "Aluno", "Status de Presença", "Observação", "Registrado por", "Criado em"])
+                w.writerow(["ID", "Data", "Turma ID", "Turma", "Aluno ID", "Aluno", "Status de Presença", "Status Matutino", "Status Vespertino", "Observação", "Registrado por", "Criado em"])
                 for r in qs:
                     w.writerow([
                         r.id,
@@ -1532,6 +1555,8 @@ def central_exportacao_view(request):
                         r.aluno_id or "",
                         r.aluno.nome if r.aluno else "",
                         r.get_status_display(),
+                        r.get_status_matutino_display() if hasattr(r, 'get_status_matutino_display') else r.status_matutino,
+                        r.get_status_vespertino_display() if hasattr(r, 'get_status_vespertino_display') else r.status_vespertino,
                         r.observacao,
                         r.registrado_por.get_full_name() or r.registrado_por.username if r.registrado_por else "",
                         timezone.localtime(r.criado_em).strftime("%d/%m/%Y %H:%M:%S") if r.criado_em else "",

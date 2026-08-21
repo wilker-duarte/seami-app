@@ -1834,11 +1834,20 @@ body.dark-mode .receipt-signature-box {
     border: 1px solid var(--border-color);
     padding: 4px 10px;
     border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    color: var(--text-secondary);
 }
 
 .preset-btn:hover {
     border-color: var(--color-primary);
     color: var(--color-primary);
+}
+
+.preset-btn.active {
+    background-color: var(--brand-primary, #6366f1) !important;
+    border-color: var(--brand-primary, #6366f1) !important;
+    color: #ffffff !important;
 }
 
 .report-stats-banner {
