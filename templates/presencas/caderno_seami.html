@@ -464,7 +464,7 @@
                             🗓️ {{ hist.month_label }}
                         </td>
                         <td style="padding: 14px 18px; text-align: center; color: #db2777; font-weight: 800; font-size: 15px;">
-                            {{ hist.total_quantity }} <span style="font-size: 12px; font-weight: 600; color: #be185d;">{{ hist.total_quantity|pluralize:"atendimento,atendimentos" }}</span>
+                            {{ hist.total_quantity }} <span style="font-size: 12px; font-weight: 600; color: #be185d;">{{ hist.total_quantity|pluralize:"utilização,utilizações" }}</span>
                         </td>
                         <td style="padding: 14px 18px; color: var(--text-secondary);">
                             {% if hist.is_daily_sum %}
@@ -1601,7 +1601,7 @@
                             callbacks: {
                                 label: function(context) {
                                     const val = context.parsed.y;
-                                    return ` ${val} ${val === 1 ? 'atendimento no mês' : 'atendimentos no mês'}`;
+                                    return ` ${val} ${val === 1 ? 'utilização no mês' : 'utilizações no mês'}`;
                                 }
                             }
                         }

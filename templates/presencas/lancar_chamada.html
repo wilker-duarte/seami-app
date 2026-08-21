@@ -95,7 +95,22 @@
                 <span>📈 Frequência: <strong id="summary-taxa" style="color: var(--color-primary);">{{ taxa_presenca }}%</strong></span>
             </div>
 
-            <div style="display: flex; gap: 10px;">
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+                <!-- Botão Mostrar Pendências -->
+                <button type="button" onclick="abrirModalPendencias()" class="secondary-btn" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid #f59e0b; background-color: #fffbeb; color: #b45309; font-weight: 700; font-size: 12.5px; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.15s; box-shadow: 0 1px 3px rgba(245,158,11,0.15);">
+                    <i data-lucide="alert-circle" style="width: 16px; height: 16px; color: #d97706;"></i>
+                    <span>Mostrar Pendências</span>
+                    {% if total_pendentes_dia > 0 %}
+                        <span style="background-color: #d97706; color: #ffffff; font-size: 10.5px; font-weight: 800; padding: 1px 6px; border-radius: 999px;">{{ total_pendentes_dia }}</span>
+                    {% endif %}
+                </button>
+
+                <!-- Botão Filtrar Apenas Pendentes na Tabela -->
+                <button type="button" id="btn-toggle-pendentes" onclick="toggleFiltroPendentes()" style="padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background-color: var(--bg-card); color: var(--text-secondary); font-weight: 700; font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.15s;">
+                    <i data-lucide="filter" style="width: 14px; height: 14px;"></i>
+                    <span id="btn-toggle-pendentes-label">Apenas Pendentes</span>
+                </button>
+
                 <button type="button" onclick="marcarTodosPresentes()" class="secondary-btn" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid var(--color-atestados); background-color: var(--color-atestados-bg); color: var(--color-atestados); font-weight: 700; font-size: 12.5px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
                     <i data-lucide="check-check" style="width: 16px; height: 16px;"></i>
                     Marcar Todos Presentes
@@ -240,7 +255,7 @@
             {% if students_list %}
                 <div style="display: flex; flex-direction: column;">
                     {% for student in students_list %}
-                        <div class="student-row" id="row-{{ student.id }}" style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px;">
+                        <div class="student-row" id="row-{{ student.id }}" data-is-pendente="{{ student.is_pendente|yesno:'true,false' }}" style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px;">
                             
                             <!-- Identificação do Aluno -->
                             <div style="display: flex; align-items: center; gap: 14px;">
@@ -257,7 +272,7 @@
                                         {% endif %}
                                     </div>
                                     <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
-                                        <!-- Turno e Acompanhamento -->
+                                        <!-- Turno, Acompanhamento e Pendência -->
                                         <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
                                             <span style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background-color: var(--bg-input); color: var(--text-secondary); border: 1px solid var(--border-color);">
                                                 {{ student.turno }}
@@ -268,7 +283,23 @@
                                                     <span>Acompanhamento: {{ student.acompanhamento_obs|default:"Especial" }}</span>
                                                 </span>
                                             {% endif %}
+                                            {% if student.is_pendente %}
+                                                <span style="font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a; display: inline-flex; align-items: center; gap: 4px;">
+                                                    <i data-lucide="clock-alert" style="width: 12px; height: 12px; color: #d97706;"></i>
+                                                    <span>{{ student.motivo_pendencia }}</span>
+                                                </span>
+                                            {% endif %}
                                         </div>
+
+                                        <!-- Evidência por Turno / Observação da Chamada -->
+                                        {% if student.obs %}
+                                            <div style="margin-top: 2px;">
+                                                <span style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 6px; background-color: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border-color); display: inline-flex; align-items: center; gap: 4px;">
+                                                    <i data-lucide="clock" style="width: 12px; height: 12px; color: var(--color-primary);"></i>
+                                                    <span>{{ student.obs }}</span>
+                                                </span>
+                                            </div>
+                                        {% endif %}
 
                                         <!-- Ausência Programada (Atestado Médico ou Falta Agendada) -->
                                         {% if student.ausencia_programada %}
@@ -458,5 +489,163 @@
             lucide.createIcons();
         }
     }
+
+    // =========================================================================
+    // CONTROLE DO MODAL DE PENDÊNCIAS E FILTRO NA TABELA
+    // =========================================================================
+    function abrirModalPendencias() {
+        const modal = document.getElementById('modal-pendencias');
+        if (modal) {
+            modal.style.display = 'flex';
+            lucide.createIcons();
+        }
+    }
+
+    function fecharModalPendencias() {
+        const modal = document.getElementById('modal-pendencias');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+
+    let apenasPendentesAtivo = false;
+    function toggleFiltroPendentes() {
+        apenasPendentesAtivo = !apenasPendentesAtivo;
+        const btn = document.getElementById('btn-toggle-pendentes');
+        const btnLabel = document.getElementById('btn-toggle-pendentes-label');
+        const rows = document.querySelectorAll('.student-row');
+
+        if (apenasPendentesAtivo) {
+            btn.style.backgroundColor = '#fef3c7';
+            btn.style.color = '#92400e';
+            btn.style.borderColor = '#fde68a';
+            btnLabel.innerText = 'Mostrar Todos';
+
+            rows.forEach(row => {
+                const isPendente = row.getAttribute('data-is-pendente') === 'true';
+                row.style.display = isPendente ? 'flex' : 'none';
+            });
+        } else {
+            btn.style.backgroundColor = 'var(--bg-card)';
+            btn.style.color = 'var(--text-secondary)';
+            btn.style.borderColor = 'var(--border-color)';
+            btnLabel.innerText = 'Apenas Pendentes';
+
+            rows.forEach(row => {
+                row.style.display = 'flex';
+            });
+        }
+    }
 </script>
+
+<!-- ================================================================= -->
+<!-- MODAL: QUADRO DE PENDÊNCIAS DE CHAMADA                            -->
+<!-- ================================================================= -->
+<div id="modal-pendencias" style="display: none; position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.65); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 16px;">
+    <div style="background-color: var(--bg-card); width: 100%; max-width: 740px; max-height: 88vh; border-radius: var(--radius-lg); border: 1px solid var(--border-color); box-shadow: var(--shadow-xl); display: flex; flex-direction: column; overflow: hidden; animation: modalFadeIn 0.2s ease-out;">
+        
+        <!-- Header da Modal -->
+        <div style="padding: 18px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: linear-gradient(to right, rgba(245,158,11,0.1), transparent);">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 10px; background-color: #fef3c7; color: #b45309; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(245,158,11,0.2);">
+                    <i data-lucide="alert-circle" style="width: 22px; height: 22px;"></i>
+                </div>
+                <div>
+                    <h3 style="font-family: var(--font-title); font-size: 17px; font-weight: 700; color: var(--text-primary); margin: 0;">Quadro de Pendências de Chamadas</h3>
+                    <p style="font-size: 12px; color: var(--text-secondary); margin: 2px 0 0 0;">Acompanhamento de turmas, crianças e dias com chamadas pendentes</p>
+                </div>
+            </div>
+            <button type="button" onclick="fecharModalPendencias()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 6px; border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+                <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+            </button>
+        </div>
+
+        <!-- Conteúdo Scrollável da Modal -->
+        <div style="padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px;">
+            
+            <!-- HEADER DA DATA -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+                <div>
+                    <h4 style="font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+                        <span>📅 Situação do Dia: {{ attendance_date_formatted }}</span>
+                    </h4>
+                    <p style="font-size: 12px; color: var(--text-secondary); margin: 4px 0 0 0;">
+                        {{ salas_lancadas_count }} de {{ total_salas_count }} salas lançadas no dia
+                    </p>
+                </div>
+                <span style="font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 999px; {% if total_pendentes_dia == 0 and not salas_pendentes_dia %}background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;{% else %}background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a;{% endif %}">
+                    {% if total_pendentes_dia == 0 and not salas_pendentes_dia %}✅ 100% Lançado{% else %}⚠️ {{ total_pendentes_dia }} pendência(s){% endif %}
+                </span>
+            </div>
+
+            <!-- STATUS DAS SALAS NA DATA -->
+            <div>
+                <div style="font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">
+                    Status por Sala no Dia:
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px;">
+                    {% for sala in salas_status_list %}
+                        <a href="?classroom={{ sala.turma.nome }}&date={{ attendance_date }}&shift={{ shift_filter }}"
+                           style="padding: 12px 14px; border-radius: 10px; border: 1px solid {{ sala.turma_style.border }}; background-color: {{ sala.turma_style.bg }}; text-decoration: none; display: flex; justify-content: space-between; align-items: center; transition: all 0.15s;">
+                            <div>
+                                <div style="font-size: 13.5px; font-weight: 700; color: {{ sala.turma_style.color }}; display: flex; align-items: center; gap: 6px;">
+                                    <span>{{ sala.turma_style.emoji }}</span>
+                                    <span>Sala {{ sala.turma.nome }}</span>
+                                </div>
+                                <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 3px;">
+                                    {{ sala.total_salvos }}/{{ sala.total_alunos }} crianças lançadas
+                                </div>
+                            </div>
+                            <span style="font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; {% if sala.is_saved %}background-color: #10b981; color: #ffffff;{% else %}background-color: #f59e0b; color: #ffffff;{% endif %}">
+                                {% if sala.is_saved %}Lançada{% else %}Pendente{% endif %}
+                            </span>
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- ALUNOS COM PENDÊNCIA NA DATA -->
+            {% if alunos_pendentes_dia %}
+                <div style="background-color: var(--bg-input); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-size: 13px; font-weight: 700; color: var(--text-primary);">
+                            Alunos sem chamada nesta data ({{ alunos_pendentes_dia|length }}):
+                        </span>
+                        <button type="button" onclick="fecharModalPendencias(); toggleFiltroPendentes();" style="background: none; border: none; color: var(--color-primary); font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: underline;">
+                            Filtrar na tabela
+                        </button>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto;">
+                        {% for p_aluno in alunos_pendentes_dia %}
+                            <div style="display: flex; justify-content: space-between; align-items: center; background-color: var(--bg-card); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); font-size: 12px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <strong style="color: var(--text-primary);">{{ p_aluno.nome }}</strong>
+                                    <span style="font-size: 11px; color: var(--text-secondary);">({{ p_aluno.turma_nome }} - {{ p_aluno.turno }})</span>
+                                </div>
+                                <span style="color: #b45309; font-weight: 600; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px;">
+                                    <i data-lucide="clock" style="width: 12px; height: 12px;"></i>
+                                    {{ p_aluno.motivo_pendencia }}
+                                </span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% else %}
+                <div style="padding: 16px; border-radius: 10px; background-color: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 10px;">
+                    <i data-lucide="check-circle-2" style="width: 20px; height: 20px; color: #059669;"></i>
+                    <span>Tudo certo! Todas as crianças e salas matriculadas nesta data possuem lançamento registrado.</span>
+                </div>
+            {% endif %}
+
+        </div>
+
+        <!-- Footer da Modal -->
+        <div style="padding: 14px 24px; border-top: 1px solid var(--border-color); background-color: var(--bg-body); display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" onclick="fecharModalPendencias()" class="secondary-btn" style="padding: 8px 18px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background-color: var(--bg-card); color: var(--text-primary); font-weight: 700; font-size: 12.5px; cursor: pointer;">
+                Fechar
+            </button>
+        </div>
+
+    </div>
+</div>
 {% endblock %}

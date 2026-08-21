@@ -52,11 +52,6 @@
                 <i data-lucide="download-cloud" style="width: 15px; height: 15px; color: var(--color-primary);"></i>
                 Backup Geral (.json)
             </a>
-
-            <a href="/admin/" target="_blank" class="secondary-btn" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background-color: var(--bg-card); color: var(--text-primary); text-decoration: none; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
-                <i data-lucide="shield" style="width: 15px; height: 15px; color: var(--color-primary);"></i>
-                Django Admin
-            </a>
         </div>
     </div>
 
@@ -76,14 +71,6 @@
             </div>
         </div>
         <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-            <form method="POST" style="margin: 0;" onsubmit="return confirm('Deseja sincronizar todas as ocorrências, turmas, alunos e presenças diretamente do Supabase agora?');">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="sync_supabase">
-                <button type="submit" class="secondary-btn" style="padding: 9px 16px; border-radius: var(--radius-sm); border: 1.5px solid #2563eb; color: #2563eb; background: #eff6ff; font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
-                    <i data-lucide="cloud-lightning" style="width: 15px; height: 15px;"></i>
-                    Sincronizar Direto do Supabase
-                </button>
-            </form>
             <a href="?download=full_dump" class="secondary-btn" style="padding: 9px 16px; border-radius: var(--radius-sm); border: 1.5px solid #dc2626; color: #dc2626; background: #ffffff; text-decoration: none; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
                 <i data-lucide="download" style="width: 15px; height: 15px;"></i>
                 Baixar Backup Total (.json)
@@ -95,181 +82,84 @@
         </div>
     </div>
 
-    <!-- Mini Indicadores de Base de Dados -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
-        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px 20px; box-shadow: var(--shadow-sm);">
-            <div style="display: flex; justify-content: space-between; align-items: center; color: var(--text-secondary); font-size: 12.5px; font-weight: 600;">
-                <span>Total de Crianças</span>
-                <i data-lucide="baby" style="width: 16px; height: 16px; color: var(--color-primary);"></i>
-            </div>
-            <div style="font-size: 24px; font-weight: 800; font-family: var(--font-title); color: var(--text-primary); margin-top: 8px;">
-                {{ total_alunos }} <span style="font-size: 12px; font-weight: 500; color: var(--color-success);">({{ total_alunos_ativos }} ativas)</span>
-            </div>
-        </div>
-
-        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px 20px; box-shadow: var(--shadow-sm);">
-            <div style="display: flex; justify-content: space-between; align-items: center; color: var(--text-secondary); font-size: 12.5px; font-weight: 600;">
-                <span>Salas / Turmas</span>
+    <!-- Mini Indicadores de Base de Dados em Ordem Sequencial -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px;">
+        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px 18px; box-shadow: var(--shadow-sm); border-top: 3px solid #8b5cf6;">
+            <div style="display: flex; justify-content: space-between; align-items: center; color: var(--text-secondary); font-size: 12px; font-weight: 700;">
+                <span>1. Turmas / Salas</span>
                 <i data-lucide="school" style="width: 16px; height: 16px; color: #8b5cf6;"></i>
             </div>
-            <div style="font-size: 24px; font-weight: 800; font-family: var(--font-title); color: var(--text-primary); margin-top: 8px;">
+            <div style="font-size: 22px; font-weight: 800; font-family: var(--font-title); color: var(--text-primary); margin-top: 6px;">
                 {{ total_turmas }}
             </div>
         </div>
 
-        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px 20px; box-shadow: var(--shadow-sm);">
-            <div style="display: flex; justify-content: space-between; align-items: center; color: var(--text-secondary); font-size: 12.5px; font-weight: 600;">
-                <span>Lançamentos de Frequência</span>
+        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px 18px; box-shadow: var(--shadow-sm); border-top: 3px solid #2563eb;">
+            <div style="display: flex; justify-content: space-between; align-items: center; color: var(--text-secondary); font-size: 12px; font-weight: 700;">
+                <span>2. Crianças (Alunos)</span>
+                <i data-lucide="baby" style="width: 16px; height: 16px; color: #2563eb;"></i>
+            </div>
+            <div style="font-size: 22px; font-weight: 800; font-family: var(--font-title); color: var(--text-primary); margin-top: 6px;">
+                {{ total_alunos }} <span style="font-size: 11.5px; font-weight: 600; color: var(--color-success);">({{ total_alunos_ativos }} ativas)</span>
+            </div>
+        </div>
+
+        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px 18px; box-shadow: var(--shadow-sm); border-top: 3px solid #10b981;">
+            <div style="display: flex; justify-content: space-between; align-items: center; color: var(--text-secondary); font-size: 12px; font-weight: 700;">
+                <span>3. Chamadas (Presenças)</span>
                 <i data-lucide="clipboard-check" style="width: 16px; height: 16px; color: #10b981;"></i>
             </div>
-            <div style="font-size: 24px; font-weight: 800; font-family: var(--font-title); color: var(--text-primary); margin-top: 8px;">
+            <div style="font-size: 22px; font-weight: 800; font-family: var(--font-title); color: var(--text-primary); margin-top: 6px;">
                 {{ total_presencas }}
             </div>
         </div>
 
-        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px 20px; box-shadow: var(--shadow-sm);">
-            <div style="display: flex; justify-content: space-between; align-items: center; color: var(--text-secondary); font-size: 12.5px; font-weight: 600;">
-                <span>Ocorrências Caderno SEAMI</span>
+        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px 18px; box-shadow: var(--shadow-sm); border-top: 3px solid #f59e0b;">
+            <div style="display: flex; justify-content: space-between; align-items: center; color: var(--text-secondary); font-size: 12px; font-weight: 700;">
+                <span>4. Caderno SEAMI</span>
                 <i data-lucide="book-open" style="width: 16px; height: 16px; color: #f59e0b;"></i>
             </div>
-            <div style="font-size: 24px; font-weight: 800; font-family: var(--font-title); color: var(--text-primary); margin-top: 8px;">
+            <div style="font-size: 22px; font-weight: 800; font-family: var(--font-title); color: var(--text-primary); margin-top: 6px;">
                 {{ total_ocorrencias }}
             </div>
         </div>
 
-        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px 20px; box-shadow: var(--shadow-sm);">
-            <div style="display: flex; justify-content: space-between; align-items: center; color: var(--text-secondary); font-size: 12.5px; font-weight: 600;">
-                <span>Usuários & Professores</span>
-                <i data-lucide="users" style="width: 16px; height: 16px; color: #06b6d4;"></i>
+        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px 18px; box-shadow: var(--shadow-sm); border-top: 3px solid #ec4899;">
+            <div style="display: flex; justify-content: space-between; align-items: center; color: var(--text-secondary); font-size: 12px; font-weight: 700;">
+                <span>5. Amamentação</span>
+                <i data-lucide="heart" style="width: 16px; height: 16px; color: #ec4899;"></i>
             </div>
-            <div style="font-size: 24px; font-weight: 800; font-family: var(--font-title); color: var(--text-primary); margin-top: 8px;">
+            <div style="font-size: 22px; font-weight: 800; font-family: var(--font-title); color: var(--text-primary); margin-top: 6px;">
+                {{ total_amamentacao }}
+            </div>
+        </div>
+
+        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px 18px; box-shadow: var(--shadow-sm); border-top: 3px solid #059669;">
+            <div style="display: flex; justify-content: space-between; align-items: center; color: var(--text-secondary); font-size: 12px; font-weight: 700;">
+                <span>6. Enfermaria</span>
+                <i data-lucide="stethoscope" style="width: 16px; height: 16px; color: #059669;"></i>
+            </div>
+            <div style="font-size: 22px; font-weight: 800; font-family: var(--font-title); color: var(--text-primary); margin-top: 6px;">
+                {{ total_enfermaria }}
+            </div>
+        </div>
+
+        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px 18px; box-shadow: var(--shadow-sm); border-top: 3px solid #0891b2;">
+            <div style="display: flex; justify-content: space-between; align-items: center; color: var(--text-secondary); font-size: 12px; font-weight: 700;">
+                <span>7. Usuários</span>
+                <i data-lucide="users" style="width: 16px; height: 16px; color: #0891b2;"></i>
+            </div>
+            <div style="font-size: 22px; font-weight: 800; font-family: var(--font-title); color: var(--text-primary); margin-top: 6px;">
                 {{ total_usuarios }}
             </div>
         </div>
     </div>
 
-    <!-- Grade de Cartões de Exportação e Importação -->
+    <!-- Grade de Cartões de Exportação e Importação em Sequência Lógica -->
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px;">
 
-        <!-- 1. Alunos e Matrículas -->
-        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 24px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between; gap: 20px;">
-            <div>
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 40px; height: 40px; border-radius: 10px; background-color: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center;">
-                            <i data-lucide="baby" style="width: 22px; height: 22px;"></i>
-                        </div>
-                        <div>
-                            <h3 style="font-family: var(--font-title); font-size: 16px; font-weight: 700; color: var(--text-primary); margin: 0;">
-                                Crianças & Matrículas
-                            </h3>
-                            <span style="font-size: 12px; color: var(--text-secondary);">Base nominal de alunos cadastrados</span>
-                        </div>
-                    </div>
-                </div>
-                <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
-                    Exporta ou restaura a lista nominal com sala, turno, datas de entrada/desligamento, status ativo, acompanhamento especial e contatos dos responsáveis.
-                </p>
-            </div>
-            
-            <div style="display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 16px;">
-                <div style="display: flex; gap: 10px;">
-                    <a href="?download=alunos&format=csv" class="primary-btn" style="flex: 1; padding: 9px 12px; border-radius: var(--radius-sm); background-color: var(--color-primary); color: white; border: none; font-size: 13px; font-weight: 600; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                        <i data-lucide="download" style="width: 15px; height: 15px;"></i>
-                        <span>Planilha CSV</span>
-                    </a>
-                    <a href="?download=alunos&format=json" class="secondary-btn" style="padding: 9px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); color: var(--text-primary); text-decoration: none; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
-                        <i data-lucide="code" style="width: 15px; height: 15px;"></i>
-                        <span>JSON</span>
-                    </a>
-                </div>
-                <button type="button" onclick="openImportModal('alunos')" class="secondary-btn" style="width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: 1px dashed #059669; color: #059669; background-color: #f0fdf4; cursor: pointer; font-size: 12.5px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                    <i data-lucide="upload-cloud" style="width: 15px; height: 15px;"></i>
-                    <span>Restaurar / Importar Arquivo de Alunos</span>
-                </button>
-            </div>
-        </div>
-
-        <!-- 2. Registros de Frequência -->
-        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 24px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between; gap: 20px;">
-            <div>
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 40px; height: 40px; border-radius: 10px; background-color: #ecfdf5; color: #059669; display: flex; align-items: center; justify-content: center;">
-                            <i data-lucide="clipboard-check" style="width: 22px; height: 22px;"></i>
-                        </div>
-                        <div>
-                            <h3 style="font-family: var(--font-title); font-size: 16px; font-weight: 700; color: var(--text-primary); margin: 0;">
-                                Registros de Frequência
-                            </h3>
-                            <span style="font-size: 12px; color: var(--text-secondary);">Histórico diário de chamadas</span>
-                        </div>
-                    </div>
-                </div>
-                <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
-                    Exporta e restaura apontamentos de frequência (Presente, Falta, Falta Justificada, Recesso, Feriado) com datas, educadores e observações.
-                </p>
-            </div>
-
-            <div style="display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 16px;">
-                <div style="display: flex; gap: 10px;">
-                    <a href="?download=presencas&format=csv" class="primary-btn" style="flex: 1; padding: 9px 12px; border-radius: var(--radius-sm); background-color: var(--color-primary); color: white; border: none; font-size: 13px; font-weight: 600; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                        <i data-lucide="download" style="width: 15px; height: 15px;"></i>
-                        <span>Planilha CSV</span>
-                    </a>
-                    <a href="?download=presencas&format=json" class="secondary-btn" style="padding: 9px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); color: var(--text-primary); text-decoration: none; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
-                        <i data-lucide="code" style="width: 15px; height: 15px;"></i>
-                        <span>JSON</span>
-                    </a>
-                </div>
-                <button type="button" onclick="openImportModal('presencas')" class="secondary-btn" style="width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: 1px dashed #059669; color: #059669; background-color: #f0fdf4; cursor: pointer; font-size: 12.5px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                    <i data-lucide="upload-cloud" style="width: 15px; height: 15px;"></i>
-                    <span>Restaurar / Importar Registros de Frequência</span>
-                </button>
-            </div>
-        </div>
-
-        <!-- 3. Caderno SEAMI (Ocorrências) -->
-        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 24px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between; gap: 20px;">
-            <div>
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 40px; height: 40px; border-radius: 10px; background-color: #fffbeb; color: #d97706; display: flex; align-items: center; justify-content: center;">
-                            <i data-lucide="book-open" style="width: 22px; height: 22px;"></i>
-                        </div>
-                        <div>
-                            <h3 style="font-family: var(--font-title); font-size: 16px; font-weight: 700; color: var(--text-primary); margin: 0;">
-                                Caderno SEAMI (Ocorrências)
-                            </h3>
-                            <span style="font-size: 12px; color: var(--text-secondary);">Atestados, faltas, atrasos e saídas</span>
-                        </div>
-                    </div>
-                </div>
-                <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
-                    Relatório consolidado de todas as ocorrências: Atestados médicos (com CID), Faltas detalhadas, Atrasos com horários e Saídas antecipadas.
-                </p>
-            </div>
-
-            <div style="display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 16px;">
-                <div style="display: flex; gap: 10px;">
-                    <a href="?download=ocorrencias&format=csv" class="primary-btn" style="flex: 1; padding: 9px 12px; border-radius: var(--radius-sm); background-color: var(--color-primary); color: white; border: none; font-size: 13px; font-weight: 600; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                        <i data-lucide="download" style="width: 15px; height: 15px;"></i>
-                        <span>Planilha CSV</span>
-                    </a>
-                    <a href="?download=ocorrencias&format=json" class="secondary-btn" style="padding: 9px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); color: var(--text-primary); text-decoration: none; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
-                        <i data-lucide="code" style="width: 15px; height: 15px;"></i>
-                        <span>JSON</span>
-                    </a>
-                </div>
-                <button type="button" onclick="openImportModal('ocorrencias')" class="secondary-btn" style="width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: 1px dashed #059669; color: #059669; background-color: #f0fdf4; cursor: pointer; font-size: 12.5px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                    <i data-lucide="upload-cloud" style="width: 15px; height: 15px;"></i>
-                    <span>Restaurar / Importar Ocorrências</span>
-                </button>
-            </div>
-        </div>
-
-        <!-- 4. Salas e Turmas -->
-        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 24px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between; gap: 20px;">
+        <!-- 1. ORDEM 1: TURMAS & SALAS -->
+        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 24px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between; gap: 20px; border-top: 4px solid #8b5cf6;">
             <div>
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
                     <div style="display: flex; align-items: center; gap: 12px;">
@@ -277,15 +167,15 @@
                             <i data-lucide="school" style="width: 22px; height: 22px;"></i>
                         </div>
                         <div>
-                            <h3 style="font-family: var(--font-title); font-size: 16px; font-weight: 700; color: var(--text-primary); margin: 0;">
-                                Turmas & Salas
+                            <h3 style="font-family: var(--font-title); font-size: 16px; font-weight: 800; color: var(--text-primary); margin: 0;">
+                                1. Turmas & Salas
                             </h3>
-                            <span style="font-size: 12px; color: var(--text-secondary);">Estrutura pedagógica e turmas</span>
+                            <span style="font-size: 11.5px; font-weight: 700; color: #7c3aed; background: #f5f3ff; padding: 2px 8px; border-radius: 6px;">1º PASSO NA IMPORTAÇÃO</span>
                         </div>
                     </div>
                 </div>
                 <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
-                    Grade de turmas da unidade escolar, faixas etárias, ano letivo, contagem de crianças matriculadas e professores responsáveis.
+                    Grade de turmas da unidade escolar, faixas etárias, ano letivo, educadores responsáveis e status ativo. <em>Deve ser importada primeiro para que os alunos possam ser vinculados às salas.</em>
                 </p>
             </div>
 
@@ -307,22 +197,217 @@
             </div>
         </div>
 
-        <!-- 5. Usuários e Equipe -->
-        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 24px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between; gap: 20px;">
+        <!-- 2. ORDEM 2: CRIANÇAS & MATRÍCULAS -->
+        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 24px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between; gap: 20px; border-top: 4px solid #2563eb;">
+            <div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 40px; height: 40px; border-radius: 10px; background-color: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="baby" style="width: 22px; height: 22px;"></i>
+                        </div>
+                        <div>
+                            <h3 style="font-family: var(--font-title); font-size: 16px; font-weight: 800; color: var(--text-primary); margin: 0;">
+                                2. Crianças & Matrículas
+                            </h3>
+                            <span style="font-size: 11.5px; font-weight: 700; color: #2563eb; background: #eff6ff; padding: 2px 8px; border-radius: 6px;">2º PASSO NA IMPORTAÇÃO</span>
+                        </div>
+                    </div>
+                </div>
+                <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+                    Cadastro nominal de alunos: sala vinculada, turno, datas de entrada/desligamento, status ativo, acompanhamento especial, alergias, restrições e contatos dos responsáveis.
+                </p>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+                <div style="display: flex; gap: 10px;">
+                    <a href="?download=alunos&format=csv" class="primary-btn" style="flex: 1; padding: 9px 12px; border-radius: var(--radius-sm); background-color: var(--color-primary); color: white; border: none; font-size: 13px; font-weight: 600; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        <i data-lucide="download" style="width: 15px; height: 15px;"></i>
+                        <span>Planilha CSV</span>
+                    </a>
+                    <a href="?download=alunos&format=json" class="secondary-btn" style="padding: 9px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); color: var(--text-primary); text-decoration: none; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                        <i data-lucide="code" style="width: 15px; height: 15px;"></i>
+                        <span>JSON</span>
+                    </a>
+                </div>
+                <button type="button" onclick="openImportModal('alunos')" class="secondary-btn" style="width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: 1px dashed #059669; color: #059669; background-color: #f0fdf4; cursor: pointer; font-size: 12.5px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <i data-lucide="upload-cloud" style="width: 15px; height: 15px;"></i>
+                    <span>Restaurar / Importar Arquivo de Alunos</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 3. ORDEM 3: REGISTROS DE FREQUÊNCIA (CHAMADAS) -->
+        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 24px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between; gap: 20px; border-top: 4px solid #10b981;">
+            <div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 40px; height: 40px; border-radius: 10px; background-color: #ecfdf5; color: #059669; display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="clipboard-check" style="width: 22px; height: 22px;"></i>
+                        </div>
+                        <div>
+                            <h3 style="font-family: var(--font-title); font-size: 16px; font-weight: 800; color: var(--text-primary); margin: 0;">
+                                3. Chamadas Registradas
+                            </h3>
+                            <span style="font-size: 11.5px; font-weight: 700; color: #059669; background: #ecfdf5; padding: 2px 8px; border-radius: 6px;">3º PASSO NA IMPORTAÇÃO</span>
+                        </div>
+                    </div>
+                </div>
+                <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+                    Histórico diário de chamadas (Presente, Falta, Falta Justificada, Recesso, Feriado) vinculado por data a cada criança e turma, com educador e observações.
+                </p>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+                <div style="display: flex; gap: 10px;">
+                    <a href="?download=presencas&format=csv" class="primary-btn" style="flex: 1; padding: 9px 12px; border-radius: var(--radius-sm); background-color: var(--color-primary); color: white; border: none; font-size: 13px; font-weight: 600; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        <i data-lucide="download" style="width: 15px; height: 15px;"></i>
+                        <span>Planilha CSV</span>
+                    </a>
+                    <a href="?download=presencas&format=json" class="secondary-btn" style="padding: 9px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); color: var(--text-primary); text-decoration: none; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                        <i data-lucide="code" style="width: 15px; height: 15px;"></i>
+                        <span>JSON</span>
+                    </a>
+                </div>
+                <button type="button" onclick="openImportModal('presencas')" class="secondary-btn" style="width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: 1px dashed #059669; color: #059669; background-color: #f0fdf4; cursor: pointer; font-size: 12.5px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <i data-lucide="upload-cloud" style="width: 15px; height: 15px;"></i>
+                    <span>Restaurar / Importar Registros de Chamada</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 4. ORDEM 4: CADERNO SEAMI (OCORRÊNCIAS) -->
+        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 24px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between; gap: 20px; border-top: 4px solid #f59e0b;">
+            <div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 40px; height: 40px; border-radius: 10px; background-color: #fffbeb; color: #d97706; display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="book-open" style="width: 22px; height: 22px;"></i>
+                        </div>
+                        <div>
+                            <h3 style="font-family: var(--font-title); font-size: 16px; font-weight: 800; color: var(--text-primary); margin: 0;">
+                                4. Caderno SEAMI (Ocorrências)
+                            </h3>
+                            <span style="font-size: 11.5px; font-weight: 700; color: #d97706; background: #fffbeb; padding: 2px 8px; border-radius: 6px;">4º PASSO NA IMPORTAÇÃO</span>
+                        </div>
+                    </div>
+                </div>
+                <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+                    Relatório consolidado de ocorrências: Atestados médicos com CID, Faltas detalhadas, Atrasos com horários e Saídas antecipadas registradas.
+                </p>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+                <div style="display: flex; gap: 10px;">
+                    <a href="?download=ocorrencias&format=csv" class="primary-btn" style="flex: 1; padding: 9px 12px; border-radius: var(--radius-sm); background-color: var(--color-primary); color: white; border: none; font-size: 13px; font-weight: 600; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        <i data-lucide="download" style="width: 15px; height: 15px;"></i>
+                        <span>Planilha CSV</span>
+                    </a>
+                    <a href="?download=ocorrencias&format=json" class="secondary-btn" style="padding: 9px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); color: var(--text-primary); text-decoration: none; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                        <i data-lucide="code" style="width: 15px; height: 15px;"></i>
+                        <span>JSON</span>
+                    </a>
+                </div>
+                <button type="button" onclick="openImportModal('ocorrencias')" class="secondary-btn" style="width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: 1px dashed #059669; color: #059669; background-color: #f0fdf4; cursor: pointer; font-size: 12.5px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <i data-lucide="upload-cloud" style="width: 15px; height: 15px;"></i>
+                    <span>Restaurar / Importar Ocorrências</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 5. ORDEM 5: REGISTROS DE AMAMENTAÇÃO -->
+        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 24px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between; gap: 20px; border-top: 4px solid #ec4899;">
+            <div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 40px; height: 40px; border-radius: 10px; background-color: #fdf2f8; color: #db2777; display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="heart" style="width: 22px; height: 22px;"></i>
+                        </div>
+                        <div>
+                            <h3 style="font-family: var(--font-title); font-size: 16px; font-weight: 800; color: var(--text-primary); margin: 0;">
+                                5. Registros de Amamentação
+                            </h3>
+                            <span style="font-size: 11.5px; font-weight: 700; color: #db2777; background: #fdf2f8; padding: 2px 8px; border-radius: 6px;">5º PASSO NA IMPORTAÇÃO</span>
+                        </div>
+                    </div>
+                </div>
+                <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+                    Apontamentos diários de amamentação e desmame gradual do Caderno SEAMI, volumes, quantidades de mamadeiras diárias e horários registrados.
+                </p>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+                <div style="display: flex; gap: 10px;">
+                    <a href="?download=amamentacao&format=csv" class="primary-btn" style="flex: 1; padding: 9px 12px; border-radius: var(--radius-sm); background-color: var(--color-primary); color: white; border: none; font-size: 13px; font-weight: 600; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        <i data-lucide="download" style="width: 15px; height: 15px;"></i>
+                        <span>Planilha CSV</span>
+                    </a>
+                    <a href="?download=amamentacao&format=json" class="secondary-btn" style="padding: 9px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); color: var(--text-primary); text-decoration: none; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                        <i data-lucide="code" style="width: 15px; height: 15px;"></i>
+                        <span>JSON</span>
+                    </a>
+                </div>
+                <button type="button" onclick="openImportModal('amamentacao')" class="secondary-btn" style="width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: 1px dashed #059669; color: #059669; background-color: #f0fdf4; cursor: pointer; font-size: 12.5px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <i data-lucide="upload-cloud" style="width: 15px; height: 15px;"></i>
+                    <span>Restaurar / Importar Amamentação</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 6. ORDEM 6: ENFERMARIA & SAÚDE ESCOLAR -->
+        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 24px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between; gap: 20px; border-top: 4px solid #059669;">
+            <div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 40px; height: 40px; border-radius: 10px; background-color: #ecfdf5; color: #059669; display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="stethoscope" style="width: 22px; height: 22px;"></i>
+                        </div>
+                        <div>
+                            <h3 style="font-family: var(--font-title); font-size: 16px; font-weight: 800; color: var(--text-primary); margin: 0;">
+                                6. Registros da Enfermaria
+                            </h3>
+                            <span style="font-size: 11.5px; font-weight: 700; color: #059669; background: #ecfdf5; padding: 2px 8px; border-radius: 6px;">6º PASSO NA IMPORTAÇÃO</span>
+                        </div>
+                    </div>
+                </div>
+                <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+                    Atendimentos clínicos escolares: queixas, motivos, condutas médicas, CID, saídas de urgência para casa e atestados médicos de afastamento.
+                </p>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+                <div style="display: flex; gap: 10px;">
+                    <a href="?download=enfermaria&format=csv" class="primary-btn" style="flex: 1; padding: 9px 12px; border-radius: var(--radius-sm); background-color: var(--color-primary); color: white; border: none; font-size: 13px; font-weight: 600; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        <i data-lucide="download" style="width: 15px; height: 15px;"></i>
+                        <span>Planilha CSV</span>
+                    </a>
+                    <a href="?download=enfermaria&format=json" class="secondary-btn" style="padding: 9px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); color: var(--text-primary); text-decoration: none; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                        <i data-lucide="code" style="width: 15px; height: 15px;"></i>
+                        <span>JSON</span>
+                    </a>
+                </div>
+                <button type="button" onclick="openImportModal('enfermaria')" class="secondary-btn" style="width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: 1px dashed #059669; color: #059669; background-color: #f0fdf4; cursor: pointer; font-size: 12.5px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <i data-lucide="upload-cloud" style="width: 15px; height: 15px;"></i>
+                    <span>Restaurar / Importar Enfermaria</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 7. USUÁRIOS E EQUIPE -->
+        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 24px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between; gap: 20px; border-top: 4px solid #0891b2;">
             <div>
                 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
                     <div style="width: 40px; height: 40px; border-radius: 10px; background-color: #ecfeff; color: #0891b2; display: flex; align-items: center; justify-content: center;">
                         <i data-lucide="users" style="width: 22px; height: 22px;"></i>
                     </div>
                     <div>
-                        <h3 style="font-family: var(--font-title); font-size: 16px; font-weight: 700; color: var(--text-primary); margin: 0;">
-                            Usuários & Equipe Escolar
+                        <h3 style="font-family: var(--font-title); font-size: 16px; font-weight: 800; color: var(--text-primary); margin: 0;">
+                            7. Usuários & Equipe Escolar
                         </h3>
                         <span style="font-size: 12px; color: var(--text-secondary);">Contas de acesso e permissões</span>
                     </div>
                 </div>
                 <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
-                    Relação de todos os usuários cadastrados, perfis atribuídos (Master Admin, Diretor, Professor), e-mails, telefones e registros de cadastro.
+                    Relação de todos os usuários cadastrados, perfis atribuídos (Master Admin, Diretor, Professor, Enfermeira), e-mails, telefones e registros de cadastro.
                 </p>
             </div>
             <div style="display: flex; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 16px;">
@@ -337,7 +422,7 @@
             </div>
         </div>
 
-        <!-- 6. Card Especial: Acesso ao Django Admin -->
+        <!-- 8. PAINEL TÉCNICO DJANGO ADMIN -->
         <div style="background-color: var(--bg-card); border: 1px dashed var(--color-primary); border-radius: var(--radius-md); padding: 24px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between; gap: 20px;">
             <div>
                 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
@@ -345,7 +430,7 @@
                         <i data-lucide="shield" style="width: 22px; height: 22px;"></i>
                     </div>
                     <div>
-                        <h3 style="font-family: var(--font-title); font-size: 16px; font-weight: 700; color: var(--text-primary); margin: 0;">
+                        <h3 style="font-family: var(--font-title); font-size: 16px; font-weight: 800; color: var(--text-primary); margin: 0;">
                             Painel Técnico (Django Admin)
                         </h3>
                         <span style="font-size: 12px; color: var(--text-secondary);">Acesso avançado com ações de exportação em lote</span>
@@ -408,13 +493,15 @@
 
             <div>
                 <label style="display: block; font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">
-                    Módulo / Tabela para Restauração <span style="color: #dc2626;">*</span>
+                    Módulo / Tabela para Restauração (Ordem de Dependência) <span style="color: #dc2626;">*</span>
                 </label>
                 <select name="entity" id="import-entity-select" required style="width: 100%; padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background-color: var(--bg-card); color: var(--text-primary); font-size: 14px; box-sizing: border-box;">
-                    <option value="alunos">Crianças & Matrículas (Alunos)</option>
-                    <option value="turmas">Turmas & Salas</option>
-                    <option value="presencas">Registros de Frequência</option>
-                    <option value="ocorrencias">Caderno SEAMI (Ocorrências, Atestados, Faltas)</option>
+                    <option value="turmas">1. Turmas & Salas (1º Passo)</option>
+                    <option value="alunos">2. Crianças & Matrículas (2º Passo)</option>
+                    <option value="presencas">3. Chamadas Registradas / Frequência (3º Passo)</option>
+                    <option value="ocorrencias">4. Caderno SEAMI / Ocorrências (4º Passo)</option>
+                    <option value="amamentacao">5. Registros de Amamentação (5º Passo)</option>
+                    <option value="enfermaria">6. Registros da Enfermaria (6º Passo)</option>
                 </select>
             </div>
 

@@ -8,17 +8,26 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
-from django.db.models import Q
+from django.db.models import Q, Sum, Count
 from .models import (
-    Turma, Aluno, RegistroPresenca, StatusPresenca,
+    Turma, Aluno, RegistroPresenca, StatusPresenca, StatusTurnoPresenca,
     TurnoAluno, LancamentoChamada, DiarioDeClasse, TurnoFiltro,
-    TipoOcorrencia, OcorrenciaCaderno
+    TipoOcorrencia, OcorrenciaCaderno, RegistroAmamentacao
 )
 
 MONTH_NAMES_PT = [
     '', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ]
+
+CORES_SALAS = {
+    'alegria': {'bg': '#fef3c7', 'color': '#92400e', 'border': '#fde68a', 'emoji': '💛'},
+    'carinho': {'bg': '#fce7f3', 'color': '#9d174d', 'border': '#fbcfe8', 'emoji': '💖'},
+    'união': {'bg': '#e0e7ff', 'color': '#3730a3', 'border': '#c7d2fe', 'emoji': '💙'},
+    'uniao': {'bg': '#e0e7ff', 'color': '#3730a3', 'border': '#c7d2fe', 'emoji': '💙'},
+    'amizade': {'bg': '#dcfce7', 'color': '#166534', 'border': '#bbf7d0', 'emoji': '💚'},
+    'felicidade': {'bg': '#f3e8ff', 'color': '#6b21a8', 'border': '#e9d5ff', 'emoji': '💜'},
+}
 
 @login_required
 def lancar_chamada_view(request):
@@ -110,27 +119,21 @@ def lancar_chamada_view(request):
         'alegria': {'bg': '#eff6ff', 'color': '#2563eb', 'border': '#bfdbfe', 'emoji': '👶'},
     }
 
-    alunos_qs = Aluno.objects.filter(ativo=True).select_related('turma')
-
-    # Filtra pela data da chamada: exclui alunos que ainda não ingressaram
-    # e alunos já desligados na data selecionada
-    alunos_qs = alunos_qs.filter(
+    # Alunos matriculados exatamente na data selecionada (respeitando data de entrada e desligamento)
+    alunos_no_dia_qs = Aluno.objects.filter(
         Q(data_entrada__isnull=True) | Q(data_entrada__lte=current_date)
     ).filter(
         Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=current_date)
-    )
+    ).select_related('turma')
 
+    alunos_qs = alunos_no_dia_qs
     if selected_turma:
         alunos_qs = alunos_qs.filter(turma=selected_turma)
 
     if shift_filter != 'all':
         alunos_qs = alunos_qs.filter(turno__iexact=shift_filter)
             
-    if is_all_classrooms:
-        alunos_qs = alunos_qs.order_by('nome')
-    else:
-        alunos_qs = alunos_qs.order_by('turma__nome', 'nome')
-
+    alunos_qs = alunos_qs.order_by('nome')
 
     # Busca Ocorrências do Caderno SEAMI ativas na data (Ausências Programadas: Atestados e Faltas Agendadas)
     ocorrencias_data_qs = OcorrenciaCaderno.objects.filter(
@@ -190,7 +193,6 @@ def lancar_chamada_view(request):
             current_status = reg.status
             obs = reg.observacao
         elif oc_aluno:
-            # Sugere status padrão vindo da ocorrência programada
             if oc_aluno.tipo == TipoOcorrencia.ATESTADO or oc_aluno.justificado:
                 current_status = StatusPresenca.JUSTIFICADO
             else:
@@ -207,8 +209,14 @@ def lancar_chamada_view(request):
         elif current_status == StatusPresenca.JUSTIFICADO:
             total_justificadas += 1
 
-        nome_sala = aluno.turma.nome.lower().strip()
-        turma_style = cores_salas.get(nome_sala, {'bg': '#f1f5f9', 'color': '#475569', 'border': '#cbd5e1', 'emoji': '🏫'})
+        status_m = reg.status_matutino if reg else StatusTurnoPresenca.PENDENTE
+        status_v = reg.status_vespertino if reg else StatusTurnoPresenca.PENDENTE
+
+        turma_style = CORES_SALAS.get(aluno.turma.nome.lower().strip(), {'bg': '#f1f5f9', 'color': '#475569', 'border': '#cbd5e1', 'emoji': '🏫'})
+
+        # Identificação de pendência da criança no dia selecionado
+        is_pendente = (reg is None)
+        motivo_pendencia = 'Chamada não realizada' if is_pendente else ''
 
         students_list.append({
             'id': aluno.id,
@@ -222,30 +230,28 @@ def lancar_chamada_view(request):
             'acompanhamento_obs': aluno.acompanhamento_obs,
             'ausencia_programada': ausencia_info,
             'status': current_status,
-            'obs': obs
+            'status_matutino': status_m,
+            'status_vespertino': status_v,
+            'obs': obs,
+            'is_pendente': is_pendente,
+            'motivo_pendencia': motivo_pendencia
         })
 
-    # Ordena por nome em ordem alfabética (ignora sala quando "Todas as salas")
-    if is_all_classrooms:
-        students_list.sort(key=lambda s: s['nome'])
-    else:
-        students_list.sort(key=lambda s: s['nome'])
-
     # =========================================================================
-    # STATUS DE LANÇAMENTO: POR TURNO E POR SALA / TODAS AS SALAS
+    # STATUS DE LANÇAMENTO: POR TURNO E POR SALA NA DATA SELECIONADA
     # =========================================================================
-    all_alunos_scope = Aluno.objects.filter(ativo=True)
+    all_alunos_scope = alunos_no_dia_qs
     if selected_turma:
         all_alunos_scope = all_alunos_scope.filter(turma=selected_turma)
-
-    matutino_ids = set(all_alunos_scope.filter(turno__iexact='matutino').values_list('id', flat=True))
-    vespertino_ids = set(all_alunos_scope.filter(turno__iexact='vespertino').values_list('id', flat=True))
-    integral_ids = set(all_alunos_scope.filter(turno__iexact='integral').values_list('id', flat=True))
 
     saved_student_ids = set(RegistroPresenca.objects.filter(
         data=current_date, 
         aluno_id__in=all_alunos_scope.values_list('id', flat=True)
     ).values_list('aluno_id', flat=True))
+
+    matutino_ids = set(all_alunos_scope.filter(turno__iexact='matutino').values_list('id', flat=True))
+    vespertino_ids = set(all_alunos_scope.filter(turno__iexact='vespertino').values_list('id', flat=True))
+    integral_ids = set(all_alunos_scope.filter(turno__iexact='integral').values_list('id', flat=True))
 
     shifts_saved_status = {
         'matutino': {
@@ -268,28 +274,42 @@ def lancar_chamada_view(request):
         },
     }
 
-    # Status geral de chamada da sala ou de todas as salas
+    # Status geral de chamada por sala na data selecionada
+    all_saved_in_date_ids = set(RegistroPresenca.objects.filter(
+        data=current_date,
+        aluno_id__in=alunos_no_dia_qs.values_list('id', flat=True)
+    ).values_list('aluno_id', flat=True))
+
     total_salas_count = turmas.count()
-    salas_lancadas_ids = set(RegistroPresenca.objects.filter(data=current_date).values_list('turma_id', flat=True).distinct())
-    salas_lancadas_count = len(salas_lancadas_ids)
+    salas_status_list = []
+    for t in turmas:
+        t_alunos_ids = set(alunos_no_dia_qs.filter(turma=t).values_list('id', flat=True))
+        t_salvos = len(t_alunos_ids.intersection(all_saved_in_date_ids))
+        t_is_saved = (len(t_alunos_ids) > 0 and t_salvos == len(t_alunos_ids))
+        salas_status_list.append({
+            'turma': t,
+            'is_saved': t_is_saved,
+            'total_alunos': len(t_alunos_ids),
+            'total_salvos': t_salvos,
+            'turma_style': CORES_SALAS.get(t.nome.lower().strip(), {'bg': '#f1f5f9', 'color': '#475569', 'border': '#cbd5e1', 'emoji': '🏫'})
+        })
+
+    salas_lancadas_count = sum(1 for s in salas_status_list if s['is_saved'])
 
     if selected_turma:
-        is_attendance_saved = selected_turma.id in salas_lancadas_ids
+        is_attendance_saved = next((s['is_saved'] for s in salas_status_list if s['turma'].id == selected_turma.id), False)
     else:
         is_attendance_saved = (salas_lancadas_count == total_salas_count and total_salas_count > 0)
 
-    salas_status_list = [
-        {
-            'turma': t,
-            'is_saved': t.id in salas_lancadas_ids,
-            'total_alunos': Aluno.objects.filter(turma=t, ativo=True).count(),
-            'turma_style': cores_salas.get(t.nome.lower().strip(), {'bg': '#f1f5f9', 'color': '#475569', 'border': '#cbd5e1', 'emoji': '🏫'})
-        }
-        for t in turmas
-    ]
-
     total_alunos = len(students_list)
     taxa_presenca = round((total_presentes / total_alunos) * 100) if total_alunos > 0 else 100
+
+    # =========================================================================
+    # PENDÊNCIAS EXCLUSIVAS DO DIA DA CHAMADA
+    # =========================================================================
+    alunos_pendentes_dia = [s for s in students_list if s['is_pendente']]
+    total_pendentes_dia = len(alunos_pendentes_dia)
+    salas_pendentes_dia = [s for s in salas_status_list if not s['is_saved']]
 
     context = {
         'turmas': turmas,
@@ -297,6 +317,7 @@ def lancar_chamada_view(request):
         'is_all_classrooms': is_all_classrooms,
         'current_classroom_param': 'all' if is_all_classrooms else selected_turma.nome,
         'attendance_date': current_date.isoformat(),
+        'attendance_date_formatted': current_date.strftime('%d/%m/%Y'),
         'month_label': month_label,
         'prev_date_str': prev_date_str,
         'next_date_str': next_date_str,
@@ -313,6 +334,9 @@ def lancar_chamada_view(request):
         'salas_lancadas_count': salas_lancadas_count,
         'total_salas_count': total_salas_count,
         'salas_status_list': salas_status_list,
+        'alunos_pendentes_dia': alunos_pendentes_dia,
+        'total_pendentes_dia': total_pendentes_dia,
+        'salas_pendentes_dia': salas_pendentes_dia,
         'active_tab': 'attendance',
         'active_module': 'lancamento',
     }
@@ -364,17 +388,48 @@ def salvar_chamada_lote_view(request):
                     }
                 )
 
-                RegistroPresenca.objects.update_or_create(
+                reg, _ = RegistroPresenca.objects.get_or_create(
                     aluno=aluno,
                     data=data_chamada,
                     defaults={
                         'diario_classe': diario,
                         'turma': aluno_turma,
-                        'status': status,
-                        'observacao': obs,
                         'registrado_por': request.user
                     }
                 )
+
+                reg.diario_classe = diario
+                reg.turma = aluno_turma
+                reg.registrado_por = request.user
+
+                turno_aluno = (aluno.turno or 'integral').lower()
+
+                # Atualiza os status conforme o turno em que a chamada foi realizada
+                if shift == 'matutino':
+                    reg.status_matutino = status
+                    if turno_aluno == 'matutino':
+                        reg.status_vespertino = StatusTurnoPresenca.NA
+                    elif not reg.status_vespertino:
+                        reg.status_vespertino = StatusTurnoPresenca.PENDENTE
+                elif shift == 'vespertino':
+                    reg.status_vespertino = status
+                    if turno_aluno == 'vespertino':
+                        reg.status_matutino = StatusTurnoPresenca.NA
+                    elif not reg.status_matutino:
+                        reg.status_matutino = StatusTurnoPresenca.PENDENTE
+                else:  # all / integral
+                    if turno_aluno == 'matutino':
+                        reg.status_matutino = status
+                        reg.status_vespertino = StatusTurnoPresenca.NA
+                    elif turno_aluno == 'vespertino':
+                        reg.status_matutino = StatusTurnoPresenca.NA
+                        reg.status_vespertino = status
+                    else:  # integral
+                        reg.status_matutino = status
+                        reg.status_vespertino = status
+
+                reg.calcular_status_e_observacao(custom_obs=obs)
+                reg.save()
                 salvos += 1
 
         return JsonResponse({
@@ -598,6 +653,28 @@ def lista_alunos_view(request):
             # Dias da semana: checkboxes múltiplos (seg, ter, qua, qui, sex)
             acompanhamento_dias_list = request.POST.getlist('acompanhamento_dias')
             acompanhamento_dias = ','.join(acompanhamento_dias_list)
+
+            # Alergias (Múltipla seleção + Outros)
+            alergias_list = [x.strip() for x in request.POST.getlist('alergias') if x.strip() and x != 'Outros']
+            alergias_outro = request.POST.get('alergias_outro', '').strip()
+            if alergias_outro:
+                alergias_list.extend([x.strip() for x in alergias_outro.split(',') if x.strip()])
+            alergias = ', '.join(dict.fromkeys(alergias_list))
+
+            # Restrições Alimentares (Múltipla seleção + Outros)
+            restricoes_list = [x.strip() for x in request.POST.getlist('restricoes_alimentares') if x.strip() and x != 'Outros']
+            restricoes_outro = request.POST.get('restricoes_outro', '').strip()
+            if restricoes_outro:
+                restricoes_list.extend([x.strip() for x in restricoes_outro.split(',') if x.strip()])
+            restricoes_alimentares = ', '.join(dict.fromkeys(restricoes_list))
+
+            # Comorbidades / Condições de Saúde (Múltipla seleção + Outros)
+            comorbidades_list = [x.strip() for x in request.POST.getlist('comorbidades') if x.strip() and x != 'Outros']
+            comorbidades_outro = request.POST.get('comorbidades_outro', '').strip()
+            if comorbidades_outro:
+                comorbidades_list.extend([x.strip() for x in comorbidades_outro.split(',') if x.strip()])
+            comorbidades = ', '.join(dict.fromkeys(comorbidades_list))
+
             nome_responsavel = request.POST.get('nome_responsavel', '').strip()
             telefone_responsavel = request.POST.get('telefone_responsavel', '').strip()
             ativo = request.POST.get('ativo') == 'on'
@@ -616,6 +693,9 @@ def lista_alunos_view(request):
                     has_acompanhamento=has_acompanhamento,
                     acompanhamento_obs=acompanhamento_obs,
                     acompanhamento_dias=acompanhamento_dias,
+                    alergias=alergias,
+                    restricoes_alimentares=restricoes_alimentares,
+                    comorbidades=comorbidades,
                     nome_responsavel=nome_responsavel,
                     telefone_responsavel=telefone_responsavel,
                     ativo=ativo
@@ -630,6 +710,9 @@ def lista_alunos_view(request):
                 aluno.has_acompanhamento = has_acompanhamento
                 aluno.acompanhamento_obs = acompanhamento_obs
                 aluno.acompanhamento_dias = acompanhamento_dias
+                aluno.alergias = alergias
+                aluno.restricoes_alimentares = restricoes_alimentares
+                aluno.comorbidades = comorbidades
                 aluno.nome_responsavel = nome_responsavel
                 aluno.telefone_responsavel = telefone_responsavel
                 aluno.ativo = ativo
@@ -712,14 +795,44 @@ def lista_alunos_view(request):
             'has_acompanhamento': aluno.has_acompanhamento,
             'acompanhamento_obs': aluno.acompanhamento_obs,
             'acompanhamento_dias': aluno.acompanhamento_dias or '',
-            'nome_responsavel': aluno.nome_responsavel,
-            'telefone_responsavel': aluno.telefone_responsavel,
+            'alergias': aluno.alergias or '',
+            'restricoes_alimentares': aluno.restricoes_alimentares or '',
+            'comorbidades': aluno.comorbidades or '',
+            'nome_responsavel': aluno.nome_responsavel or '',
+            'telefone_responsavel': aluno.telefone_responsavel or '',
             'ativo': aluno.ativo,
         })
+
+    # Dicionário JSON completo para os modais de edição e visualização de ficha
+    alunos_map = {}
+    for a in alunos_list:
+        alunos_map[str(a['id'])] = {
+            'id': a['id'],
+            'nome': a['nome'],
+            'turma_id': a['turma'].id if a['turma'] else None,
+            'turma_nome': a['turma'].nome if a['turma'] else 'Sem Sala',
+            'turno': a['turno'],
+            'turno_raw': a['turno_raw'],
+            'data_entrada': a['data_entrada'].strftime('%Y-%m-%d') if a['data_entrada'] else '',
+            'data_entrada_br': a['data_entrada'].strftime('%d/%m/%Y') if a['data_entrada'] else 'Não informada',
+            'data_desligamento': a['data_desligamento'].strftime('%Y-%m-%d') if a['data_desligamento'] else '',
+            'data_desligamento_br': a['data_desligamento'].strftime('%d/%m/%Y') if a['data_desligamento'] else '',
+            'is_desligamento_futuro': a['is_desligamento_futuro'],
+            'has_acompanhamento': a['has_acompanhamento'],
+            'acompanhamento_obs': a['acompanhamento_obs'] or '',
+            'acompanhamento_dias': a['acompanhamento_dias'] or '',
+            'alergias': a['alergias'] or '',
+            'restricoes_alimentares': a['restricoes_alimentares'] or '',
+            'comorbidades': a['comorbidades'] or '',
+            'nome_responsavel': a['nome_responsavel'] or '',
+            'telefone_responsavel': a['telefone_responsavel'] or '',
+            'ativo': a['ativo'],
+        }
 
     context = {
         'today': today.isoformat(),
         'alunos': alunos_list,
+        'alunos_json': json.dumps(alunos_map),
         'total_count': len(alunos_list),
         'turmas': turmas_qs,
         'search': search,
@@ -759,14 +872,8 @@ def lista_turmas_view(request):
         if action in ['create', 'update']:
             nome = request.POST.get('nome', '').strip()
             faixa_etaria = request.POST.get('faixa_etaria', '').strip()
-            ano_letivo_str = request.POST.get('ano_letivo', '2026')
             ativo = request.POST.get('ativo') == 'on'
             professores_ids = request.POST.getlist('professores')
-
-            try:
-                ano_letivo = int(ano_letivo_str)
-            except ValueError:
-                ano_letivo = timezone.localdate().year
 
             if not nome:
                 messages.error(request, "O nome da turma é obrigatório.")
@@ -780,7 +887,6 @@ def lista_turmas_view(request):
                 turma = Turma.objects.create(
                     nome=nome,
                     faixa_etaria=faixa_etaria,
-                    ano_letivo=ano_letivo,
                     ativo=ativo
                 )
                 if professores_ids:
@@ -795,7 +901,6 @@ def lista_turmas_view(request):
 
                 turma.nome = nome
                 turma.faixa_etaria = faixa_etaria
-                turma.ano_letivo = ano_letivo
                 turma.ativo = ativo
                 turma.save()
                 turma.professores.set(professores_ids)
@@ -851,13 +956,17 @@ def caderno_seami_view(request, aba='faltas'):
         ocorrencia_id = request.POST.get('ocorrencia_id')
 
         if action == 'delete' and ocorrencia_id:
-            ocorrencia = get_object_or_404(OcorrenciaCaderno, id=ocorrencia_id)
+            if aba == 'amamentacao':
+                ocorrencia = get_object_or_404(RegistroAmamentacao, id=ocorrencia_id)
+            else:
+                ocorrencia = get_object_or_404(OcorrenciaCaderno, id=ocorrencia_id)
             ocorrencia.delete()
             return redirect(request.get_full_path())
 
         elif action in ['create_historico_amamentacao', 'update_historico_amamentacao']:
             mes_ano = request.POST.get('mes-ano')
-            quantidade = request.POST.get('quantidade', '').strip()
+            quantidade_str = request.POST.get('quantidade', '0').strip()
+            quantidade = int(quantidade_str) if quantidade_str.isdigit() else 0
             observacao = request.POST.get('observacao', '').strip()
 
             if mes_ano:
@@ -872,26 +981,65 @@ def caderno_seami_view(request, aba='faltas'):
                 observacao = f"Quantitativo Total de Amamentações do Mês {data.strftime('%m/%Y')} (Histórico)"
 
             if action == 'create_historico_amamentacao':
-                OcorrenciaCaderno.objects.create(
-                    tipo=TipoOcorrencia.AMAMENTACAO,
+                RegistroAmamentacao.objects.create(
                     data=data,
-                    motivo='historico_mensal',
                     quantidade=quantidade,
+                    ano=data.year,
+                    mes=data.month,
                     observacao=observacao,
                     registrado_por=request.user
                 )
             elif action == 'update_historico_amamentacao' and ocorrencia_id:
-                oc = get_object_or_404(OcorrenciaCaderno, id=ocorrencia_id)
-                oc.data = data
-                oc.motivo = 'historico_mensal'
-                oc.quantidade = quantidade
-                oc.observacao = observacao
-                oc.save()
+                reg = get_object_or_404(RegistroAmamentacao, id=ocorrencia_id)
+                reg.data = data
+                reg.ano = data.year
+                reg.mes = data.month
+                reg.quantidade = quantidade
+                reg.observacao = observacao
+                reg.save()
 
             return redirect(request.get_full_path())
 
         elif action in ['create', 'update']:
             tipo_form = request.POST.get('tipo', tipo_atual)
+
+            # Se for registro da Sala de Amamentação, salva na model RegistroAmamentacao
+            if aba == 'amamentacao' or tipo_form == 'amamentacao':
+                data_str = request.POST.get('data')
+                data = datetime.strptime(data_str, '%Y-%m-%d').date() if data_str else today
+                quantidade_str = request.POST.get('quantidade', '1').strip()
+                quantidade = int(quantidade_str) if quantidade_str.isdigit() else 1
+                observacao = request.POST.get('observacao', '').strip()
+                documento = request.FILES.get('documento')
+
+                if action == 'create':
+                    RegistroAmamentacao.objects.create(
+                        data=data,
+                        quantidade=quantidade,
+                        ano=data.year,
+                        mes=data.month,
+                        observacao=observacao,
+                        anexo=documento,
+                        attachment_name=documento.name if documento else '',
+                        attachment_type=documento.content_type if documento and hasattr(documento, 'content_type') else '',
+                        registrado_por=request.user
+                    )
+                elif action == 'update' and ocorrencia_id:
+                    reg = get_object_or_404(RegistroAmamentacao, id=ocorrencia_id)
+                    reg.data = data
+                    reg.ano = data.year
+                    reg.mes = data.month
+                    reg.quantidade = quantidade
+                    reg.observacao = observacao
+                    if documento:
+                        reg.anexo = documento
+                        reg.attachment_name = documento.name
+                        reg.attachment_type = documento.content_type if hasattr(documento, 'content_type') else ''
+                    reg.save()
+
+                return redirect(request.get_full_path())
+
+            # Demais ocorrências do Caderno (Faltas, Atestados, Atrasos, Saídas) em OcorrenciaCaderno
             if tipo_form not in [c[0] for c in TipoOcorrencia.choices]:
                 tipo_form = tipo_atual
 
@@ -998,21 +1146,6 @@ def caderno_seami_view(request, aba='faltas'):
     search = request.GET.get('q', '').strip()
     classroom_filter = request.GET.get('classroom', '').strip()
 
-    ocorrencias_qs = OcorrenciaCaderno.objects.filter(tipo=tipo_atual).select_related('aluno', 'turma', 'registrado_por')
-
-    if classroom_filter:
-        ocorrencias_qs = ocorrencias_qs.filter(
-            Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
-        )
-
-    if search:
-        ocorrencias_qs = ocorrencias_qs.filter(
-            Q(aluno__nome__icontains=search) |
-            Q(motivo__icontains=search) |
-            Q(cid__icontains=search) |
-            Q(observacao__icontains=search)
-        )
-
     turmas_qs = Turma.objects.filter(ativo=True).order_by('nome')
     alunos_qs = Aluno.objects.filter(ativo=True).select_related('turma').order_by('nome')
 
@@ -1026,37 +1159,6 @@ def caderno_seami_view(request, aba='faltas'):
         'alegria': {'bg': '#eff6ff', 'color': '#2563eb', 'border': '#bfdbfe', 'emoji': '👶'},
     }
 
-    import json
-    from collections import defaultdict
-
-    # Prepara lista com estilização
-    ocorrencias_list = []
-    for item in ocorrencias_qs:
-        nome_sala = item.turma.nome.lower().strip() if item.turma else ''
-        turma_style = cores_salas.get(nome_sala, {'bg': '#f1f5f9', 'color': '#475569', 'border': '#cbd5e1', 'emoji': '🏫'})
-        ocorrencias_list.append({
-            'obj': item,
-            'id': item.id,
-            'aluno': item.aluno,
-            'turma': item.turma,
-            'turma_style': turma_style,
-            'data': item.data,
-            'data_fim': item.data_fim,
-            'periodo': item.periodo_formatado,
-            'horario': item.horario.strftime('%H:%M') if item.horario else '',
-            'horario_retorno': item.horario_retorno.strftime('%H:%M') if item.horario_retorno else '',
-            'retorna': item.retorna,
-            'justificado': item.justificado,
-            'avisado_pais': item.avisado_pais,
-            'cid': item.cid,
-            'motivo': item.motivo,
-            'quantidade': item.quantidade,
-            'observacao': item.observacao,
-            'documento': item.documento,
-            'registrado_por': item.registrado_por,
-            'criado_em': item.criado_em,
-        })
-
     # Títulos e Metadados da Aba
     tab_info = {
         'faltas': {'title': 'Faltas Declaradas', 'subtitle': 'Registro de faltas pontuais ou prolongadas, justificativas e atestados.', 'icon': 'calendar-x', 'color': 'var(--color-faltas)'},
@@ -1066,75 +1168,71 @@ def caderno_seami_view(request, aba='faltas'):
         'amamentacao': {'title': 'Sala de Amamentação', 'subtitle': 'Registro de sessões, atendimento a lactantes e observações.', 'icon': 'heart', 'color': 'var(--color-amamentacao)'},
     }
 
-    # Separação Histórico vs Diário e Consolidação Mensal (para Amamentação)
+    ocorrencias_list = []
     historico_amamentacao = []
     chart_labels = []
     chart_data = []
     meses_consolidado_json = []
 
+    # Se a aba for AMAMENTAÇÃO: busca diretamente da model RegistroAmamentacao
     if aba == 'amamentacao':
-        diarios = []
-        mensais_map = {}
-
-        for item in ocorrencias_list:
-            is_hist = (
-                item['motivo'] == 'historico_mensal' or
-                '(Histórico)' in (item['observacao'] or '') or
-                '(histórico)' in (item['observacao'] or '').lower() or
-                (not item['aluno'] and item['data'].day == 1 and ('mês' in (item['observacao'] or '').lower() or 'total' in (item['observacao'] or '').lower()))
+        amamentacao_qs = RegistroAmamentacao.objects.all().select_related('registrado_por')
+        if search:
+            amamentacao_qs = amamentacao_qs.filter(
+                Q(observacao__icontains=search) |
+                Q(attachment_name__icontains=search)
             )
-            
-            try:
-                qty = int(str(item['quantidade']).strip()) if item['quantidade'] else 1
-            except ValueError:
-                qty = 1
+        amamentacao_qs = amamentacao_qs.order_by('-data')
 
-            m_key = item['data'].strftime('%Y-%m')
+        for item in amamentacao_qs:
+            ocorrencias_list.append({
+                'obj': item,
+                'id': item.id,
+                'aluno': None,
+                'turma': None,
+                'turma_style': {'bg': '#fdf2f8', 'color': '#db2777', 'border': '#fbcfe8', 'emoji': '🤱'},
+                'data': item.data,
+                'data_fim': None,
+                'periodo': item.data.strftime('%d/%m/%Y'),
+                'horario': '',
+                'horario_retorno': '',
+                'retorna': False,
+                'justificado': False,
+                'avisado_pais': False,
+                'cid': '',
+                'motivo': '',
+                'quantidade': item.quantidade,
+                'observacao': item.observacao,
+                'documento': item.anexo,
+                'attachment_name': item.attachment_name,
+                'registrado_por': item.registrado_por,
+                'criado_em': item.criado_em,
+            })
 
-            if is_hist:
-                if m_key not in mensais_map:
-                    mensais_map[m_key] = {
-                        'month_key': m_key,
-                        'data_raw': item['data'],
-                        'month_label': item['data'].strftime('%m/%Y'),
-                        'total_quantity': qty,
-                        'is_daily_sum': False,
-                        'observacao': item['observacao'] or 'Registro histórico mensal',
-                        'id': item['id'],
-                        'entries_count': 1,
-                    }
-                else:
-                    mensais_map[m_key]['total_quantity'] = qty
-                    mensais_map[m_key]['id'] = item['id']
-                    mensais_map[m_key]['is_daily_sum'] = False
-                    mensais_map[m_key]['observacao'] = item['observacao'] or 'Registro histórico mensal'
-            else:
-                diarios.append(item)
-                if m_key not in mensais_map:
-                    mensais_map[m_key] = {
-                        'month_key': m_key,
-                        'data_raw': item['data'],
-                        'month_label': item['data'].strftime('%m/%Y'),
-                        'total_quantity': qty,
-                        'is_daily_sum': True,
-                        'observacao': f"Somatório dos registros diários até hoje ({today.strftime('%d/%m')})",
-                        'id': None,
-                        'entries_count': 1,
-                    }
-                else:
-                    if mensais_map[m_key]['is_daily_sum']:
-                        mensais_map[m_key]['total_quantity'] += qty
-                        mensais_map[m_key]['entries_count'] += 1
-                        mensais_map[m_key]['observacao'] = f"Somatório de {mensais_map[m_key]['entries_count']} registros diários até hoje ({today.strftime('%d/%m')})"
+        # Agrupamento Mensal para Série Histórica
+        mensais_qs = (
+            RegistroAmamentacao.objects.values('ano', 'mes')
+            .annotate(
+                total_quantity=Sum('quantidade'),
+                dias_count=Count('id')
+            )
+            .order_by('-ano', '-mes')
+        )
 
-        # Lista de ocorrências diárias na tabela 1
-        ocorrencias_list = diarios
+        historico_amamentacao = [
+            {
+                'month_key': f"{m['ano']:04d}-{m['mes']:02d}",
+                'month_label': f"{m['mes']:02d}/{m['ano']}",
+                'total_quantity': m['total_quantity'] or 0,
+                'entries_count': m['dias_count'],
+                'is_daily_sum': True,
+                'observacao': f"Somatório de {m['dias_count']} registro(s) no mês",
+                'id': None
+            }
+            for m in mensais_qs
+        ]
 
-        # Tabela 2: meses consolidados em ordem decrescente (mais recente primeiro)
-        historico_amamentacao = sorted(mensais_map.values(), key=lambda x: x['month_key'], reverse=True)
-
-        # JSON para o PDF export (ordenado cronologicamente crescente para o gráfico do PDF)
-        meses_pdf_data = sorted(mensais_map.values(), key=lambda x: x['month_key'])
+        meses_pdf_data = sorted(historico_amamentacao, key=lambda x: x['month_key'])
         meses_consolidado_json = [
             {
                 'month_key': m['month_key'],
@@ -1145,10 +1243,52 @@ def caderno_seami_view(request, aba='faltas'):
             }
             for m in meses_pdf_data
         ]
-
-        # Gráfico Mês a Mês: ordenado cronologicamente crescente com dados consolidados
         chart_labels = [m['month_label'] for m in meses_pdf_data]
         chart_data = [m['total_quantity'] for m in meses_pdf_data]
+
+    else:
+        # Faltas, Atestados, Atrasos e Saídas buscam da model OcorrenciaCaderno
+        ocorrencias_qs = OcorrenciaCaderno.objects.filter(tipo=tipo_atual).select_related('aluno', 'turma', 'registrado_por')
+
+        if classroom_filter:
+            ocorrencias_qs = ocorrencias_qs.filter(
+                Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
+            )
+
+        if search:
+            ocorrencias_qs = ocorrencias_qs.filter(
+                Q(aluno__nome__icontains=search) |
+                Q(motivo__icontains=search) |
+                Q(cid__icontains=search) |
+                Q(observacao__icontains=search)
+            )
+
+        for item in ocorrencias_qs.order_by('-data'):
+            nome_sala = item.turma.nome.lower().strip() if item.turma else ''
+            turma_style = cores_salas.get(nome_sala, {'bg': '#f1f5f9', 'color': '#475569', 'border': '#cbd5e1', 'emoji': '🏫'})
+            ocorrencias_list.append({
+                'obj': item,
+                'id': item.id,
+                'aluno': item.aluno,
+                'turma': item.turma,
+                'turma_style': turma_style,
+                'data': item.data,
+                'data_fim': item.data_fim,
+                'periodo': item.periodo_formatado,
+                'horario': item.horario.strftime('%H:%M') if item.horario else '',
+                'horario_retorno': item.horario_retorno.strftime('%H:%M') if item.horario_retorno else '',
+                'retorna': item.retorna,
+                'justificado': item.justificado,
+                'avisado_pais': item.avisado_pais,
+                'cid': item.cid,
+                'motivo': item.motivo,
+                'quantidade': item.quantidade,
+                'observacao': item.observacao,
+                'documento': item.documento,
+                'attachment_name': item.attachment_name,
+                'registrado_por': item.registrado_por,
+                'criado_em': item.criado_em,
+            })
 
     context = {
         'today': today.isoformat(),

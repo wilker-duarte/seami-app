@@ -1,0 +1,967 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Módulo III: Enfermaria &bull; EducaGestão{% endblock %}
+
+{% block content %}
+<div class="dashboard-page" style="display: flex; flex-direction: column; gap: 24px;">
+
+    <!-- ========================================================================= -->
+    <!-- HEADER DA ENFERMARIA COM TÍTULO E BOTÕES DE AÇÃO / EXPORTAÇÃO             -->
+    <!-- ========================================================================= -->
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 28px;">🩺</span>
+                <h1 style="font-size: 24px; font-weight: 800; color: var(--text-primary); margin: 0;">Módulo III: Enfermaria & Saúde Escolar</h1>
+            </div>
+            <p style="margin: 4px 0 0 0; color: var(--text-secondary); font-size: 13.5px;">
+                Prontuário de saúde dos alunos, registros de atendimentos clínicos, saídas de urgência e afastamentos médicos.
+            </p>
+        </div>
+
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <button type="button" onclick="exportEnfermariaExcel()" class="secondary-btn" style="padding: 10px 16px; border-radius: 10px; border: 1.5px solid #bbf7d0; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; background-color: #f0fdf4; color: #15803d; transition: all 0.2s;">
+                <i data-lucide="file-spreadsheet" style="width: 16px; height: 16px;"></i>
+                <span>Exportar Excel (.xlsx)</span>
+            </button>
+            <button type="button" onclick="exportEnfermariaPDF()" class="secondary-btn" style="padding: 10px 16px; border-radius: 10px; border: 1.5px solid #fed7aa; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; background-color: #fff7ed; color: #c2410c; transition: all 0.2s;">
+                <i data-lucide="file-text" style="width: 16px; height: 16px;"></i>
+                <span>Exportar PDF (.pdf)</span>
+            </button>
+            <button type="button" onclick="openNovoAtendimentoModal()" class="primary-btn" style="padding: 10px 18px; border-radius: 10px; font-weight: 700; font-size: 13.5px; display: inline-flex; align-items: center; gap: 8px; box-shadow: var(--shadow-md); background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; border: none; cursor: pointer;">
+                <i data-lucide="plus-circle" style="width: 18px; height: 18px;"></i>
+                <span>Novo Registro de Atendimento</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- 3 CARDS DE MÉTRICAS CLÍNICAS (PERÍODO FILTRADO)                           -->
+    <!-- ========================================================================= -->
+    <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+        <div class="metric-card" style="border-left: 4px solid #10b981;">
+            <div class="metric-header">
+                <span class="metric-title">Atendimentos Realizados</span>
+                <div class="metric-icon-box" style="background: #ecfdf5; color: #10b981;"><i data-lucide="stethoscope"></i></div>
+            </div>
+            <div class="metric-value" style="color: #047857;">{{ cards.total_atendimentos }}</div>
+            <div class="metric-footer" style="color: #047857;"><span>Total no período filtrado</span></div>
+        </div>
+
+        <div class="metric-card" style="border-left: 4px solid #f59e0b;">
+            <div class="metric-header">
+                <span class="metric-title">Saídas Imediatas</span>
+                <div class="metric-icon-box" style="background: #fffbeb; color: #f59e0b;"><i data-lucide="log-out"></i></div>
+            </div>
+            <div class="metric-value" style="color: #b45309;">{{ cards.saidas_imediatas }}</div>
+            <div class="metric-footer" style="color: #b45309;"><span>Saídas antecipadas no período</span></div>
+        </div>
+
+        <div class="metric-card" style="border-left: 4px solid #ef4444;">
+            <div class="metric-header">
+                <span class="metric-title">Afastamentos</span>
+                <div class="metric-icon-box" style="background: #fef2f2; color: #ef4444;"><i data-lucide="heart-pulse"></i></div>
+            </div>
+            <div class="metric-value" style="color: #b91c1c;">{{ cards.afastamentos }}</div>
+            <div class="metric-footer" style="color: #b91c1c;"><span>Com falta justificada no período</span></div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- BARRA DE FILTROS E PESQUISA RÁPIDA                                        -->
+    <!-- ========================================================================= -->
+    <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow-sm);">
+        <form method="get" id="enfermaria-filter-form" style="display: flex; flex-direction: column; gap: 14px;">
+            <div class="filter-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+                <div class="filter-group">
+                    <label>Data Inicial</label>
+                    <input type="date" id="input_date_start" name="date_start" value="{{ date_start }}" onchange="this.form.submit()">
+                </div>
+                <div class="filter-group">
+                    <label>Data Final</label>
+                    <input type="date" id="input_date_end" name="date_end" value="{{ date_end }}" onchange="this.form.submit()">
+                </div>
+                <div class="filter-group">
+                    <label>Sala / Turma</label>
+                    <select name="classroom" onchange="this.form.submit()">
+                        <option value="">Todas as salas</option>
+                        {% for t in turmas %}
+                            <option value="{{ t.nome }}" {% if classroom_filter == t.nome %}selected{% endif %}>{{ t.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Buscar (Aluno, Motivo ou CID)</label>
+                    <div style="position: relative;">
+                        <input type="text" name="q" value="{{ search_q }}" placeholder="Digite para pesquisar..." style="width: 100%; padding-left: 32px;">
+                        <i data-lucide="search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: var(--text-light);"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Períodos Rápidos de Filtragem -->
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-top: 10px; border-top: 1px dashed var(--border-color);">
+                <span style="font-size: 12px; font-weight: 700; color: var(--text-secondary);">Períodos Rápidos:</span>
+                <button type="button" onclick="setEnfermariaPreset('today')" class="secondary-btn" style="padding: 4px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; border: 1px solid var(--border-color); background: var(--bg-body); cursor: pointer;">Hoje</button>
+                <button type="button" onclick="setEnfermariaPreset('month')" class="secondary-btn" style="padding: 4px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; border: 1px solid var(--border-color); background: var(--bg-body); cursor: pointer;">Este Mês</button>
+                <button type="button" onclick="setEnfermariaPreset(7)" class="secondary-btn" style="padding: 4px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; border: 1px solid var(--border-color); background: var(--bg-body); cursor: pointer;">Últimos 7 dias</button>
+                <button type="button" onclick="setEnfermariaPreset(30)" class="secondary-btn" style="padding: 4px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; border: 1px solid var(--border-color); background: var(--bg-body); cursor: pointer;">Últimos 30 dias</button>
+                <button type="button" onclick="setEnfermariaPreset('quarter')" class="secondary-btn" style="padding: 4px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; border: 1px solid var(--border-color); background: var(--bg-body); cursor: pointer;">Último Trimestre</button>
+                <button type="button" onclick="setEnfermariaPreset('year')" class="secondary-btn" style="padding: 4px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; border: 1px solid var(--border-color); background: var(--bg-body); cursor: pointer;">Este Ano</button>
+                <a href="{% url 'core:enfermaria' %}" class="secondary-btn" style="padding: 4px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; border: 1px solid var(--border-color); color: var(--text-secondary); text-decoration: none; background: var(--bg-body);">Limpar Filtros</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TABELA DE ATENDIMENTOS CLÍNICOS REGISTRADOS                               -->
+    <!-- ========================================================================= -->
+    <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden;">
+        <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); background-color: var(--bg-body); display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="clipboard-list" style="width: 18px; height: 18px; color: #10b981;"></i>
+                <span>Histórico de Atendimentos da Enfermaria</span>
+                <span style="font-size: 11px; background: #e0f2fe; color: #0284c7; padding: 2px 8px; border-radius: 12px; font-weight: 700;">{{ total_filtrado }} no filtro</span>
+            </div>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                <thead>
+                    <tr style="border-bottom: 1.5px solid var(--border-color); background-color: var(--bg-body); color: var(--text-secondary); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <th style="padding: 12px 16px;">Data & Horário</th>
+                        <th style="padding: 12px 16px;">Aluno / Criança</th>
+                        <th style="padding: 12px 16px;">Sala / Turma</th>
+                        <th style="padding: 12px 16px;">Motivo do Atendimento</th>
+                        <th style="padding: 12px 16px; text-align: center;">CID</th>
+                        <th style="padding: 12px 16px; text-align: center;">Conduta / Saída</th>
+                        <th style="padding: 12px 16px; text-align: center;">Anexo</th>
+                        <th style="padding: 12px 16px;">Registrado por</th>
+                        <th style="padding: 12px 16px; text-align: right;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for at in atendimentos %}
+                    <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.15s;" onmouseenter="this.style.backgroundColor='var(--bg-input)'" onmouseleave="this.style.backgroundColor='transparent'">
+                        <td style="padding: 12px 16px; font-weight: 700; white-space: nowrap;">
+                            <div>{{ at.data_atendimento|date:"d/m/Y" }}</div>
+                            <div style="font-size: 11.5px; color: var(--text-secondary); font-weight: 500;">{{ at.horario|time:"H:i" }}</div>
+                        </td>
+                        <td style="padding: 12px 16px;">
+                            <div style="font-weight: 700; color: var(--text-primary);">{{ at.aluno.nome }}</div>
+                            <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px;">
+                                {% if at.aluno.alergias %}
+                                    <span style="font-size: 10px; background: #fee2e2; color: #991b1b; padding: 1px 5px; border-radius: 4px; font-weight: 700;" title="Alergias: {{ at.aluno.alergias }}">⚠️ Alergia</span>
+                                {% endif %}
+                                {% if at.aluno.restricoes_alimentares %}
+                                    <span style="font-size: 10px; background: #ffedd5; color: #9a3412; padding: 1px 5px; border-radius: 4px; font-weight: 700;" title="Restrições: {{ at.aluno.restricoes_alimentares }}">🍽️ Restrição</span>
+                                {% endif %}
+                                {% if at.aluno.comorbidades %}
+                                    <span style="font-size: 10px; background: #f3e8ff; color: #6b21a8; padding: 1px 5px; border-radius: 4px; font-weight: 700;" title="Comorbidades: {{ at.aluno.comorbidades }}">🩺 Comorbidade</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td style="padding: 12px 16px;">
+                            <span style="background: var(--bg-body); border: 1px solid var(--border-color); padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11.5px;">
+                                Sala {{ at.aluno.turma.nome }}
+                            </span>
+                        </td>
+                        <td style="padding: 12px 16px;">
+                            <div style="font-weight: 700; color: var(--text-primary);">{{ at.motivo }}</div>
+                            {% if at.motivo_detalhado %}
+                                <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 2px;">{{ at.motivo_detalhado }}</div>
+                            {% endif %}
+                            {% if at.observacoes_medicas %}
+                                <div style="font-size: 11px; color: var(--text-light); font-style: italic; margin-top: 2px;">"{{ at.observacoes_medicas|truncatechars:60 }}"</div>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 12px 16px; text-align: center;">
+                            {% if at.cid %}
+                                <span style="font-size: 11px; font-weight: 800; background: #e0e7ff; color: #4338ca; padding: 2px 7px; border-radius: 5px; letter-spacing: 0.5px;">{{ at.cid }}</span>
+                            {% else %}
+                                <span style="color: var(--text-light); font-size: 11px;">-</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 12px 16px; text-align: center;">
+                            {% if at.saida_imediata %}
+                                <div style="display: inline-flex; flex-direction: column; align-items: center; gap: 2px;">
+                                    <span style="font-size: 10.5px; font-weight: 700; background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; padding: 2px 7px; border-radius: 6px;">
+                                        🚨 Saída Imediata
+                                    </span>
+                                    {% if not at.retornara_dia_seguinte and at.data_retorno_prevista %}
+                                        <span style="font-size: 10px; font-weight: 600; color: #c2410c;" title="Faltas justificadas até {{ at.data_retorno_prevista|date:'d/m/Y' }}">
+                                            Retorno: {{ at.data_retorno_prevista|date:"d/m/Y" }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            {% else %}
+                                <span style="font-size: 11px; font-weight: 600; background: #ecfdf5; color: #047857; padding: 2px 7px; border-radius: 6px;">
+                                    Permaneceu na sala
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 12px 16px; text-align: center;">
+                            {% if at.documento_anexo %}
+                                <a href="{{ at.documento_anexo.url }}" target="_blank" title="Visualizar Documento Anexo" style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; background: #e0f2fe; color: #0369a1; text-decoration: none;">
+                                    <i data-lucide="paperclip" style="width: 15px; height: 15px;"></i>
+                                </a>
+                            {% else %}
+                                <span style="color: var(--text-light); font-size: 11px;">-</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 12px 16px; font-size: 12px; color: var(--text-secondary);">
+                            {% if at.registrado_por %}{{ at.registrado_por.get_full_name|default:at.registrado_por.username }}{% else %}Sistema{% endif %}
+                        </td>
+                        <td style="padding: 12px 16px; text-align: right;">
+                            <div style="display: flex; justify-content: flex-end; gap: 6px;">
+                                <button type="button" onclick="verDetalhesAtendimento('{{ at.id }}')" title="Ver Ficha Completa" style="padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-body); font-size: 11px; cursor: pointer; color: var(--brand-primary); font-weight: 600;">
+                                    Ver Ficha
+                                </button>
+                                
+                                <form method="post" action="{% url 'core:enfermaria_deletar' at.id %}" onsubmit="return confirm('Tem certeza que deseja remover este registro de atendimento da listagem?');" style="display: inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" title="Excluir Registro (Soft Delete)" style="padding: 5px 8px; border-radius: 6px; border: 1px solid #fecaca; background: #fff1f2; color: #e11d48; font-size: 11px; cursor: pointer; font-weight: 600;">
+                                        Excluir
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" style="text-align: center; padding: 36px; color: var(--text-secondary);">
+                            <div style="font-size: 28px; margin-bottom: 8px;">🩺</div>
+                            <div style="font-weight: 700; font-size: 14px;">Nenhum atendimento clínico registrado no período filtrado.</div>
+                            <div style="font-size: 12.5px; margin-top: 4px;">Clique em <strong>"Novo Registro de Atendimento"</strong> para lançar um prontuário.</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: NOVO REGISTRO DE ATENDIMENTO DE ENFERMARIA                         -->
+<!-- ========================================================================= -->
+<div id="modal-novo-atendimento" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(4px); padding: 20px; overflow-y: auto;">
+    <div class="modal-content" style="background: var(--bg-card); width: 100%; max-width: 680px; border-radius: var(--radius-lg); box-shadow: 0 20px 40px rgba(0,0,0,0.25); overflow: hidden; margin: auto;" onclick="event.stopPropagation()">
+        <div class="modal-header" style="padding: 18px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-body);">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 22px;">🩺</span>
+                <h3 style="margin: 0; font-size: 17px; font-weight: 800; color: var(--text-primary);">Lançar Registro de Atendimento Clínico</h3>
+            </div>
+            <button type="button" onclick="closeModalById('modal-novo-atendimento')" style="background: none; border: none; cursor: pointer; color: var(--text-secondary); font-size: 18px;"><i data-lucide="x"></i></button>
+        </div>
+
+        <form method="post" action="{% url 'core:enfermaria_novo' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="modal-body" style="padding: 24px; display: flex; flex-direction: column; gap: 18px; max-height: calc(85vh - 130px); overflow-y: auto;">
+                
+                <!-- PASSO 1: SELEÇÃO DO ALUNO COM BUSCA DIGITADA (ESTILO CADERNO SEAMI) -->
+                <div>
+                    <label style="display: block; font-weight: 700; font-size: 13px; margin-bottom: 6px; color: var(--text-primary);">
+                        1. Selecione a Criança / Aluno <span style="color: #ef4444;">*</span>
+                    </label>
+
+                    <input type="hidden" name="aluno_id" id="modal_aluno_id" required>
+
+                    <!-- Card Aluno Selecionado -->
+                    <div id="enfermaria-selected-student-card" style="display: none; align-items: center; justify-content: space-between; padding: 10px 14px; background-color: var(--bg-body); border-radius: 10px; border: 2px solid #0284c7; box-shadow: 0 2px 4px rgba(2, 132, 199, 0.08); margin-bottom: 10px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div id="enfermaria-selected-student-avatar" style="width: 34px; height: 34px; border-radius: 50%; background-color: #0284c7; color: white; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;">
+                                A
+                            </div>
+                            <div>
+                                <strong id="enfermaria-selected-student-name" style="color: var(--text-primary); font-size: 14px; display: block;">Nome do Aluno</strong>
+                                <span id="enfermaria-selected-student-classroom" style="font-size: 11px; color: #0284c7; font-weight: 700; text-transform: uppercase;">Sala Alegria</span>
+                            </div>
+                        </div>
+                        <button type="button" onclick="deselectModalStudentEnfermaria()" title="Trocar Aluno" style="border: none; background: var(--bg-input); width: 28px; height: 28px; border-radius: 50%; cursor: pointer; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; font-size: 13px;">
+                            ✕
+                        </button>
+                    </div>
+
+                    <!-- Busca e Lista de Alunos -->
+                    <div id="enfermaria-student-search-container">
+                        <div style="position: relative; margin-bottom: 8px;">
+                            <i data-lucide="search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #0284c7; width: 16px; height: 16px;"></i>
+                            <input type="text" id="enfermaria-modal-student-search" oninput="filterEnfermariaModalStudents(this.value)" placeholder="Digite o nome do aluno ou sala para buscar..."
+                                   style="width: 100%; padding: 9px 12px 9px 36px; border-radius: 8px; border: 1.5px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                        </div>
+
+                        <div id="enfermaria-modal-student-list" style="border: 1px solid var(--border-color); border-radius: 8px; background-color: var(--bg-card); max-height: 150px; overflow-y: auto; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                            {% for st in alunos %}
+                                <div class="enfermaria-student-item" data-id="{{ st.id }}" data-name="{{ st.nome }}" data-turma="{{ st.turma.nome|default:'' }}" onclick="selectModalStudentEnfermaria('{{ st.id }}', '{{ st.nome|escapejs }}', '{{ st.turma.nome|default:''|escapejs }}')"
+                                     style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; transition: background-color 0.15s ease;"
+                                     onmouseenter="this.style.backgroundColor='var(--bg-body)'" onmouseleave="this.style.backgroundColor='transparent'">
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <div style="width: 26px; height: 26px; border-radius: 50%; background-color: #e0f2fe; color: #0369a1; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;">
+                                            {{ st.nome|slice:":1" }}
+                                        </div>
+                                        <span style="font-weight: 600; color: var(--text-primary); font-size: 13px;">{{ st.nome }}</span>
+                                    </div>
+                                    <span style="font-size: 10.5px; padding: 2px 8px; border-radius: 10px; background-color: var(--bg-body); border: 1px solid var(--border-color); color: var(--text-secondary); font-weight: 700;">
+                                        Sala {{ st.turma.nome|default:"-" }}
+                                    </span>
+                                </div>
+                            {% empty %}
+                                <div style="padding: 12px; font-size: 13px; color: var(--text-secondary); text-align: center;">
+                                    Nenhum aluno ativo encontrado.
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PRONTUÁRIO RÁPIDO DO ALUNO (HIDRATADO EM TEMPO REAL) -->
+                <div id="aluno-prontuario-card" style="display: none; background: var(--bg-body); border: 1.5px solid var(--border-color); border-radius: 10px; padding: 14px 18px; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                        <div style="font-weight: 800; font-size: 14px; color: var(--brand-primary); display: flex; align-items: center; gap: 6px;">
+                            <i data-lucide="shield-alert" style="width: 16px; height: 16px;"></i>
+                            <span>Prontuário de Saúde & Alertas</span>
+                        </div>
+                        <span id="prontuario-turma-badge" style="font-size: 11.5px; font-weight: 700; background: #e0f2fe; color: #0284c7; padding: 2px 8px; border-radius: 6px;">Sala</span>
+                    </div>
+
+                    <!-- Tags de Alergia, Restrição, Comorbidade e Acompanhamento -->
+                    <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12.5px;">
+                        <div id="prontuario-alergias-box" style="display: flex; align-items: flex-start; gap: 8px;">
+                            <strong style="color: #991b1b; min-width: 120px; display: inline-flex; align-items: center; gap: 4px;">⚠️ Alergias:</strong>
+                            <span id="prontuario-alergias-content" style="color: var(--text-primary);">Nenhuma registrada</span>
+                        </div>
+                        
+                        <div id="prontuario-restricoes-box" style="display: flex; align-items: flex-start; gap: 8px;">
+                            <strong style="color: #9a3412; min-width: 120px; display: inline-flex; align-items: center; gap: 4px;">🍽️ Restrições:</strong>
+                            <span id="prontuario-restricoes-content" style="color: var(--text-primary);">Nenhuma registrada</span>
+                        </div>
+
+                        <div id="prontuario-comorbidades-box" style="display: flex; align-items: flex-start; gap: 8px;">
+                            <strong style="color: #6b21a8; min-width: 120px; display: inline-flex; align-items: center; gap: 4px;">🩺 Comorbidades:</strong>
+                            <span id="prontuario-comorbidades-content" style="color: var(--text-primary);">Nenhuma registrada</span>
+                        </div>
+
+                        <div id="prontuario-acompanhamento-box" style="display: flex; align-items: flex-start; gap: 8px;">
+                            <strong style="color: #0369a1; min-width: 120px; display: inline-flex; align-items: center; gap: 4px;">🤝 Acompanhamento:</strong>
+                            <span id="prontuario-acompanhamento-content" style="color: var(--text-primary);">Não possui</span>
+                        </div>
+
+                        <div id="prontuario-contato-box" style="display: flex; align-items: flex-start; gap: 8px; font-size: 11.5px; color: var(--text-secondary); border-top: 1px dashed var(--border-color); padding-top: 6px; margin-top: 2px;">
+                            <span>Responsável: <strong id="prontuario-responsavel-nome">-</strong> &bull; Telefone: <strong id="prontuario-responsavel-tel">-</strong></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PASSO 2: DATA E HORÁRIO -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <label style="display: block; font-weight: 700; font-size: 12.5px; margin-bottom: 5px; color: var(--text-primary);">Data do Atendimento</label>
+                        <input type="date" name="data_atendimento" value="{{ today }}" required style="width: 100%; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-input); color: var(--text-primary);">
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: 700; font-size: 12.5px; margin-bottom: 5px; color: var(--text-primary);">Horário</label>
+                        <input type="time" name="horario" id="input-horario-now" style="width: 100%; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-input); color: var(--text-primary);">
+                    </div>
+                </div>
+
+                <!-- PASSO 3: MOTIVO DO ATENDIMENTO -->
+                <div>
+                    <label style="display: block; font-weight: 700; font-size: 12.5px; margin-bottom: 5px; color: var(--text-primary);">
+                        Motivo Principal do Atendimento <span style="color: #ef4444;">*</span>
+                    </label>
+                    <select id="select-motivo-atendimento" name="motivo" required onchange="toggleMotivoOutro(this.value)" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-input); color: var(--text-primary); font-size: 13px;">
+                        <option value="">-- Selecione o motivo do atendimento --</option>
+                        {% for m in motivos_comuns %}
+                            <option value="{{ m }}">{{ m }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- CAMPO OUTRO MOTIVO (CONDICIONAL) -->
+                <div id="box-motivo-outro" style="display: none;">
+                    <label style="display: block; font-weight: 700; font-size: 12.5px; margin-bottom: 5px; color: var(--text-primary);">Descreva o Motivo</label>
+                    <input type="text" name="motivo_outro" placeholder="Informe o motivo clínico do atendimento..." style="width: 100%; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-input); color: var(--text-primary);">
+                </div>
+
+                <!-- PASSO 4: SAÍDA IMEDIATA & AFASTAMENTO CONDICIONAL -->
+                <div style="background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="check-saida-imediata" name="saida_imediata" onchange="toggleSaidaImediata(this.checked)" style="width: 18px; height: 18px; cursor: pointer;">
+                        <label for="check-saida-imediata" style="font-weight: 700; font-size: 13.5px; color: #b91c1c; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                            🚨 Saída Imediata (Registrar Saída Antecipada no Caderno SEAMI)
+                        </label>
+                    </div>
+
+                    <!-- Bloco Condicional de Retorno (Exibido apenas se saída imediata marcada) -->
+                    <div id="box-retorno-condicional" style="display: none; padding-left: 28px; border-left: 2px solid #fca5a5; margin-top: 4px; display: flex; flex-direction: column; gap: 10px;">
+                        <div>
+                            <label style="font-weight: 700; font-size: 12.5px; color: var(--text-primary); display: block; margin-bottom: 6px;">
+                                A criança retornará no dia seguinte?
+                            </label>
+                            <div style="display: flex; gap: 16px;">
+                                <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px;">
+                                    <input type="radio" name="retornara_dia_seguinte" value="sim" checked onchange="toggleDataRetorno(false)">
+                                    <span>Sim (Apenas saída antecipada de hoje)</span>
+                                </label>
+                                <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px;">
+                                    <input type="radio" name="retornara_dia_seguinte" value="nao" onchange="toggleDataRetorno(true)">
+                                    <span style="font-weight: 700; color: #c2410c;">Não (Afastamento Médico / Atestado)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Data Prevista de Retorno (Lança faltas justificadas automáticas) -->
+                        <div id="box-data-retorno" style="display: none; margin-top: 4px;">
+                            <label style="display: block; font-weight: 700; font-size: 12.5px; margin-bottom: 5px; color: #c2410c;">
+                                📅 Data Prevista para Retorno à Creche <span style="color: #ef4444;">*</span>
+                            </label>
+                            <input type="date" id="input_data_retorno_prevista" name="data_retorno_prevista" style="width: 100%; max-width: 240px; padding: 8px 12px; border: 1.5px solid #fed7aa; border-radius: 6px; background: #fff7ed; color: #9a3412; font-weight: 700;">
+                            <div style="font-size: 11.5px; color: #9a3412; margin-top: 4px;">
+                                ℹ️ O sistema registrará a saída antecipada para hoje e agendará <strong>falta justificada</strong> nos dias úteis até a véspera da data de retorno.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PASSO 5: OBSERVAÇÕES MÉDICAS, CID E ANEXO -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <label style="display: block; font-weight: 700; font-size: 12.5px; margin-bottom: 5px; color: var(--text-primary);">CID (Opcional)</label>
+                        <input type="text" name="cid" placeholder="Ex: J00, A09, R50" style="width: 100%; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-input); color: var(--text-primary); text-transform: uppercase;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: 700; font-size: 12.5px; margin-bottom: 5px; color: var(--text-primary);">Documento Anexo / Atestado (PDF/Imagem)</label>
+                        <input type="file" name="documento_anexo" accept=".pdf,.png,.jpg,.jpeg" style="width: 100%; padding: 7px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-input); color: var(--text-primary); font-size: 12px;">
+                    </div>
+                </div>
+
+                <div>
+                    <label style="display: block; font-weight: 700; font-size: 12.5px; margin-bottom: 5px; color: var(--text-primary);">
+                        Observações Médicas / Conduta / Medicamentos Ministrados
+                    </label>
+                    <textarea name="observacoes_medicas" rows="3" placeholder="Descreva os sintomas apresentados, temperatura aferida, medicação administrada com autorização ou orientações passadas aos responsáveis..." style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-input); color: var(--text-primary); font-size: 13px; resize: vertical;"></textarea>
+                </div>
+
+            </div>
+
+            <div class="modal-footer" style="padding: 16px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px; background: var(--bg-body);">
+                <button type="button" onclick="closeModalById('modal-novo-atendimento')" style="padding: 9px 18px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); border-radius: 8px; font-weight: 600; cursor: pointer;">Cancelar</button>
+                <button type="submit" style="padding: 9px 20px; border: none; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; border-radius: 8px; font-weight: 700; cursor: pointer; box-shadow: var(--shadow-sm);">Salvar Atendimento</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: FICHA COMPLETA DO ATENDIMENTO                                      -->
+<!-- ========================================================================= -->
+<div id="modal-ficha-atendimento" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(4px); padding: 20px;">
+    <div class="modal-content" style="background: var(--bg-card); width: 100%; max-width: 540px; border-radius: var(--radius-lg); box-shadow: 0 20px 40px rgba(0,0,0,0.25); overflow: hidden; margin: auto;" onclick="event.stopPropagation()">
+        <div class="modal-header" style="padding: 18px 22px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-body);">
+            <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="file-heart" style="color: #10b981;"></i>
+                <span>Detalhes do Atendimento Clínico</span>
+            </h3>
+            <button type="button" onclick="closeModalById('modal-ficha-atendimento')" style="background: none; border: none; cursor: pointer; color: var(--text-secondary);"><i data-lucide="x"></i></button>
+        </div>
+        <div id="ficha-modal-body" style="padding: 20px; display: flex; flex-direction: column; gap: 14px; font-size: 13.5px;">
+            <!-- Preenchido via JS -->
+        </div>
+        <div class="modal-footer" style="padding: 14px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; background: var(--bg-body);">
+            <button type="button" onclick="closeModalById('modal-ficha-atendimento')" style="padding: 8px 16px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); border-radius: 6px; font-weight: 600; cursor: pointer;">Fechar</button>
+        </div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- BIBLIOTECAS CLIENT-SIDE PARA EXPORTAÇÃO EXCEL E PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+<script>
+    // Mapa JSON de Prontuários dos Alunos
+    const ALUNOS_PRONTUARIO = JSON.parse('{{ alunos_json|escapejs }}' || '{}');
+    // Mapa JSON de Atendimentos da Enfermaria (para Ficha e Exportação)
+    const ATENDIMENTOS_DATA = JSON.parse('{{ atendimentos_json|escapejs }}' || '{}');
+
+    // Inicialização do Horário Atual no Modal
+    document.addEventListener("DOMContentLoaded", function() {
+        const inputHorario = document.getElementById('input-horario-now');
+        if (inputHorario && !inputHorario.value) {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            inputHorario.value = `${hh}:${mm}`;
+        }
+    });
+
+    function openModalById(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    function closeModalById(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+    }
+
+    function openNovoAtendimentoModal() {
+        deselectModalStudentEnfermaria();
+        openModalById('modal-novo-atendimento');
+        lucide.createIcons();
+    }
+
+    function filterEnfermariaModalStudents(query) {
+        const q = (query || '').toLowerCase().trim();
+        const items = document.querySelectorAll('.enfermaria-student-item');
+        items.forEach(el => {
+            const name = (el.getAttribute('data-name') || '').toLowerCase();
+            const turma = (el.getAttribute('data-turma') || '').toLowerCase();
+            if (name.includes(q) || turma.includes(q)) {
+                el.style.display = 'flex';
+            } else {
+                el.style.display = 'none';
+            }
+        });
+    }
+
+    function selectModalStudentEnfermaria(id, name, turma) {
+        document.getElementById('modal_aluno_id').value = id;
+        document.getElementById('enfermaria-selected-student-name').textContent = name;
+        document.getElementById('enfermaria-selected-student-classroom').textContent = `SALA / TURMA: Sala ${turma || '-'}`;
+        document.getElementById('enfermaria-selected-student-avatar').textContent = (name || 'A').charAt(0).toUpperCase();
+
+        document.getElementById('enfermaria-selected-student-card').style.display = 'flex';
+        document.getElementById('enfermaria-student-search-container').style.display = 'none';
+
+        // Hidrata instantaneamente o prontuário do aluno
+        onSelectAlunoEnfermaria(id);
+        lucide.createIcons();
+    }
+
+    function deselectModalStudentEnfermaria() {
+        document.getElementById('modal_aluno_id').value = '';
+        document.getElementById('enfermaria-selected-student-card').style.display = 'none';
+        document.getElementById('enfermaria-student-search-container').style.display = 'block';
+        const searchInput = document.getElementById('enfermaria-modal-student-search');
+        if (searchInput) searchInput.value = '';
+        filterEnfermariaModalStudents('');
+        onSelectAlunoEnfermaria('');
+    }
+
+    // Ao selecionar um aluno, hidrata instantaneamente o prontuário na tela
+    function onSelectAlunoEnfermaria(alunoId) {
+        const card = document.getElementById('aluno-prontuario-card');
+        if (!alunoId || !ALUNOS_PRONTUARIO[alunoId]) {
+            card.style.display = 'none';
+            return;
+        }
+
+        const data = ALUNOS_PRONTUARIO[alunoId];
+        card.style.display = 'flex';
+
+        document.getElementById('prontuario-turma-badge').textContent = `Sala ${data.turma_nome} • ${data.turno}`;
+
+        // Alergias
+        const alergiasBox = document.getElementById('prontuario-alergias-content');
+        if (data.alergias && data.alergias.length > 0) {
+            alergiasBox.innerHTML = data.alergias.map(a => `<span style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 11.5px; margin-right: 4px;">${a}</span>`).join('');
+        } else {
+            alergiasBox.innerHTML = `<span style="color: var(--text-light); font-style: italic;">Nenhuma alergia conhecida</span>`;
+        }
+
+        // Restrições
+        const restricoesBox = document.getElementById('prontuario-restricoes-content');
+        if (data.restricoes_alimentares && data.restricoes_alimentares.length > 0) {
+            restricoesBox.innerHTML = data.restricoes_alimentares.map(r => `<span style="background: #ffedd5; color: #9a3412; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 11.5px; margin-right: 4px;">${r}</span>`).join('');
+        } else {
+            restricoesBox.innerHTML = `<span style="color: var(--text-light); font-style: italic;">Nenhuma restrição alimentar</span>`;
+        }
+
+        // Comorbidades
+        const comorbidadesBox = document.getElementById('prontuario-comorbidades-content');
+        if (data.comorbidades && data.comorbidades.length > 0) {
+            comorbidadesBox.innerHTML = data.comorbidades.map(c => `<span style="background: #f3e8ff; color: #6b21a8; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 11.5px; margin-right: 4px;">${c}</span>`).join('');
+        } else {
+            comorbidadesBox.innerHTML = `<span style="color: var(--text-light); font-style: italic;">Nenhuma condição prévia</span>`;
+        }
+
+        // Acompanhamento
+        const acompBox = document.getElementById('prontuario-acompanhamento-content');
+        if (data.has_acompanhamento) {
+            let acompText = `<span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 11.5px;">Sim</span>`;
+            if (data.acompanhamento_dias) acompText += ` (${data.acompanhamento_dias})`;
+            if (data.acompanhamento_obs) acompText += ` - <em>${data.acompanhamento_obs}</em>`;
+            acompBox.innerHTML = acompText;
+        } else {
+            acompBox.innerHTML = `<span style="color: var(--text-light);">Não possui</span>`;
+        }
+
+        // Contato
+        document.getElementById('prontuario-responsavel-nome').textContent = data.responsavel_nome || 'Não informado';
+        document.getElementById('prontuario-responsavel-tel').textContent = data.responsavel_tel || 'Não informado';
+    }
+
+    function toggleMotivoOutro(val) {
+        const box = document.getElementById('box-motivo-outro');
+        box.style.display = (val === 'Outros') ? 'block' : 'none';
+    }
+
+    function toggleSaidaImediata(checked) {
+        const box = document.getElementById('box-retorno-condicional');
+        box.style.display = checked ? 'flex' : 'none';
+    }
+
+    function toggleDataRetorno(show) {
+        const box = document.getElementById('box-data-retorno');
+        const input = document.getElementById('input_data_retorno_prevista');
+        box.style.display = show ? 'block' : 'none';
+        input.required = show;
+    }
+
+    // Períodos Rápidos de Filtragem
+    function setEnfermariaPreset(preset) {
+        const today = new Date();
+        const inputStart = document.getElementById('input_date_start');
+        const inputEnd = document.getElementById('input_date_end');
+        const form = document.getElementById('enfermaria-filter-form');
+
+        const formatDate = (d) => {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        };
+
+        if (preset === 'today') {
+            inputStart.value = formatDate(today);
+            inputEnd.value = formatDate(today);
+        } else if (preset === 'month' || preset === 'thisMonth') {
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            inputStart.value = formatDate(firstDay);
+            inputEnd.value = formatDate(lastDay);
+        } else if (preset === 'quarter') {
+            const pastDate = new Date();
+            pastDate.setDate(today.getDate() - 90);
+            inputStart.value = formatDate(pastDate);
+            inputEnd.value = formatDate(today);
+        } else if (preset === 'year' || preset === 'thisYear') {
+            inputStart.value = `${today.getFullYear()}-01-01`;
+            inputEnd.value = `${today.getFullYear()}-12-31`;
+        } else if (typeof preset === 'number') {
+            inputEnd.value = formatDate(today);
+            const pastDate = new Date();
+            pastDate.setDate(today.getDate() - preset);
+            inputStart.value = formatDate(pastDate);
+        }
+
+        if (form) form.submit();
+    }
+
+    // Mapa JSON de Atendimentos para a Ficha
+    const ATENDIMENTOS_MAP = JSON.parse('{{ atendimentos_json|escapejs }}' || '{}');
+
+    function verDetalhesAtendimento(id) {
+        const at = ATENDIMENTOS_MAP[String(id)];
+        if (!at) {
+            alert('Não foi possível carregar os detalhes deste atendimento.');
+            return;
+        }
+
+        const body = document.getElementById('ficha-modal-body');
+        
+        let alergiasHtml = at.alergias && at.alergias.length > 0 
+            ? at.alergias.map(a => `<span style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 11px; margin-right: 4px;">${a}</span>`).join('')
+            : `<span style="color: var(--text-light); font-style: italic;">Nenhuma registrada</span>`;
+
+        let restricoesHtml = at.restricoes && at.restricoes.length > 0 
+            ? at.restricoes.map(r => `<span style="background: #ffedd5; color: #9a3412; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 11px; margin-right: 4px;">${r}</span>`).join('')
+            : `<span style="color: var(--text-light); font-style: italic;">Nenhuma registrada</span>`;
+
+        let comorbidadesHtml = at.comorbidades && at.comorbidades.length > 0 
+            ? at.comorbidades.map(c => `<span style="background: #f3e8ff; color: #6b21a8; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 11px; margin-right: 4px;">${c}</span>`).join('')
+            : `<span style="color: var(--text-light); font-style: italic;">Nenhuma registrada</span>`;
+
+        let acompHtml = at.has_acompanhamento
+            ? `<span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 11px;">Sim ${at.acompanhamento_dias ? '(' + at.acompanhamento_dias + ')' : ''} ${at.acompanhamento_obs ? ' - ' + at.acompanhamento_obs : ''}</span>`
+            : `<span style="color: var(--text-light);">Não possui</span>`;
+
+        let saidaHtml = at.saida_imediata
+            ? `<span style="background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 12px;">🚨 Saída Antecipada Imediata Registrada</span>`
+            : `<span style="background: #ecfdf5; color: #047857; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 12px;">✅ Permaneceu na sala</span>`;
+
+        let retornoHtml = '';
+        if (at.saida_imediata && !at.retornara_dia_seguinte && at.data_retorno_prevista) {
+            retornoHtml = `
+                <div style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 10px 14px; margin-top: 6px; font-size: 12.5px; color: #9a3412;">
+                    <strong>📅 Afastamento Médico / Atestado:</strong> Retorno previsto para <strong>${at.data_retorno_prevista}</strong>.<br>
+                    <span style="font-size: 11.5px; color: #c2410c;">Faltas justificadas foram geradas automaticamente no Caderno SEAMI.</span>
+                </div>
+            `;
+        }
+
+        let anexoHtml = at.documento_url
+            ? `<a href="${at.documento_url}" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px; background: #e0f2fe; color: #0369a1; font-weight: 700; font-size: 12.5px; text-decoration: none; border: 1px solid #bae6fd;">
+                <i data-lucide="paperclip" style="width: 14px; height: 14px;"></i> Visualizar Documento / Atestado Anexo
+               </a>`
+            : `<span style="color: var(--text-light); font-style: italic;">Nenhum anexo anexado</span>`;
+
+        body.innerHTML = `
+            <!-- Cabeçalho do Aluno -->
+            <div style="background: var(--bg-body); border: 1.5px solid var(--border-color); border-radius: 10px; padding: 14px 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div>
+                        <h4 style="margin: 0; font-size: 16px; font-weight: 800; color: var(--text-primary);">${at.aluno_nome}</h4>
+                        <div style="font-size: 12.5px; color: var(--text-secondary); margin-top: 2px;">
+                            Sala ${at.turma_nome} &bull; Turno ${at.turno}
+                        </div>
+                    </div>
+                    <span style="background: #e0f2fe; color: #0284c7; font-weight: 700; font-size: 11.5px; padding: 3px 8px; border-radius: 6px;">Atendimento #${at.id}</span>
+                </div>
+                
+                <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border-color); font-size: 12px; color: var(--text-secondary);">
+                    <span>Responsável: <strong>${at.responsavel_nome}</strong> &bull; Tel: <strong>${at.responsavel_tel}</strong></span>
+                </div>
+            </div>
+
+            <!-- Prontuário de Alergias e Condições -->
+            <div style="background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; font-size: 12px;">
+                <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 2px; display: flex; align-items: center; gap: 4px;">
+                    <i data-lucide="shield-alert" style="width: 14px; height: 14px; color: #10b981;"></i> Alertas de Saúde do Aluno:
+                </div>
+                <div><strong style="color: #991b1b;">⚠️ Alergias:</strong> ${alergiasHtml}</div>
+                <div><strong style="color: #9a3412;">🍽️ Restrições:</strong> ${restricoesHtml}</div>
+                <div><strong style="color: #6b21a8;">🩺 Comorbidades:</strong> ${comorbidadesHtml}</div>
+                <div><strong style="color: #0369a1;">🤝 Acompanhamento:</strong> ${acompHtml}</div>
+            </div>
+
+            <!-- Detalhes do Atendimento Clínico -->
+            <div style="border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px;">
+                    <div><strong>Data & Horário:</strong> ${at.data_atendimento} às ${at.horario}</div>
+                    ${at.cid ? `<span style="font-weight: 800; font-size: 11px; background: #e0e7ff; color: #4338ca; padding: 2px 7px; border-radius: 5px;">CID: ${at.cid}</span>` : ''}
+                </div>
+
+                <div>
+                    <strong style="color: var(--text-primary); display: block; font-size: 13px;">Motivo do Atendimento:</strong>
+                    <div style="font-size: 14px; font-weight: 700; color: var(--brand-primary); margin-top: 2px;">${at.motivo}</div>
+                    ${at.motivo_detalhado ? `<div style="font-size: 12.5px; color: var(--text-secondary); margin-top: 2px;">${at.motivo_detalhado}</div>` : ''}
+                </div>
+
+                <div>
+                    <strong style="color: var(--text-primary); display: block; font-size: 12.5px; margin-bottom: 4px;">Conduta / Encaminhamento:</strong>
+                    ${saidaHtml}
+                    ${retornoHtml}
+                </div>
+
+                <div>
+                    <strong style="color: var(--text-primary); display: block; font-size: 12.5px; margin-bottom: 4px;">Observações Médicas / Conduta Realizada:</strong>
+                    <div style="background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px 12px; font-size: 13px; color: var(--text-primary); white-space: pre-wrap;">${at.observacoes_medicas || 'Nenhuma anotação adicional registrada.'}</div>
+                </div>
+
+                <div style="margin-top: 4px;">
+                    <strong style="color: var(--text-primary); display: block; font-size: 12.5px; margin-bottom: 4px;">Documento Anexo / Atestado:</strong>
+                    ${anexoHtml}
+                </div>
+            </div>
+
+            <!-- Rodapé com registro -->
+            <div style="font-size: 11.5px; color: var(--text-light); display: flex; justify-content: space-between; border-top: 1px dashed var(--border-color); padding-top: 8px;">
+                <span>Registrado por: <strong>${at.registrado_por}</strong></span>
+                <span>Data do Registro: ${at.criado_em}</span>
+            </div>
+        `;
+
+        openModalById('modal-ficha-atendimento');
+        lucide.createIcons();
+    }
+
+    // =========================================================================
+    // EXPORTAÇÃO EXCEL (.XLSX) PARA ENFERMARIA
+    // =========================================================================
+    function exportEnfermariaExcel() {
+        try {
+            const records = (typeof ATENDIMENTOS_DATA !== 'undefined' && ATENDIMENTOS_DATA) 
+                ? Object.values(ATENDIMENTOS_DATA) 
+                : [];
+
+            if (!records || records.length === 0) {
+                alert('Não há registros de atendimento para exportar no período filtrado.');
+                return;
+            }
+
+            if (typeof XLSX === 'undefined') {
+                alert('Biblioteca SheetJS (XLSX) não carregada.');
+                return;
+            }
+
+            const dataRows = records.map(r => ({
+                "Data": r.data_atendimento,
+                "Horário": r.horario || '-',
+                "Nome da Criança": r.aluno_nome,
+                "Turma / Sala": `Sala ${r.turma_nome}`,
+                "Motivo Principal": r.motivo,
+                "Motivo Detalhado": r.motivo_detalhado || '-',
+                "CID": r.cid || '-',
+                "Observações Médicas / Conduta": r.observacoes_medicas || '-',
+                "Saída Imediata": r.saida_imediata ? 'Sim' : 'Não',
+                "Encaminhamento / Retorno": r.retornara_dia_seguinte ? 'Retorna dia seguinte' : (r.data_retorno_prevista ? `Afastamento até ${r.data_retorno_prevista}` : 'Afastamento'),
+                "Registrado Por": r.registrado_por,
+                "Data do Registro": r.criado_em
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(dataRows);
+
+            // Largura das colunas no Excel
+            ws['!cols'] = [
+                { wch: 14 }, // Data
+                { wch: 10 }, // Horário
+                { wch: 32 }, // Nome
+                { wch: 18 }, // Sala
+                { wch: 30 }, // Motivo
+                { wch: 28 }, // Motivo Detalhado
+                { wch: 14 }, // CID
+                { wch: 65 }, // Observações Médicas (Coluna Ampla)
+                { wch: 16 }, // Saída Imediata
+                { wch: 28 }, // Retorno
+                { wch: 22 }, // Registrado por
+                { wch: 22 }  // Data do registro
+            ];
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Atendimentos Enfermaria");
+
+            const todayStr = new Date().toISOString().split('T')[0];
+            XLSX.writeFile(wb, `Enfermaria_Atendimentos_${todayStr}.xlsx`);
+        } catch (err) {
+            console.error('Erro ao exportar Excel da Enfermaria:', err);
+            alert('Ocorreu um erro ao gerar a planilha Excel: ' + (err.message || err));
+        }
+    }
+
+    // =========================================================================
+    // EXPORTAÇÃO PDF (.PDF) PARA ENFERMARIA (SEM TRUNCAR OBSERVAÇÕES)
+    // =========================================================================
+    function exportEnfermariaPDF() {
+        try {
+            const records = (typeof ATENDIMENTOS_DATA !== 'undefined' && ATENDIMENTOS_DATA) 
+                ? Object.values(ATENDIMENTOS_DATA) 
+                : [];
+
+            if (!records || records.length === 0) {
+                alert('Não há registros de atendimento para exportar no período filtrado.');
+                return;
+            }
+
+            if (typeof window.jspdf === 'undefined') {
+                alert('Biblioteca jsPDF não carregada.');
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            // Formato Paisagem (Landscape) para exibir confortavelmente todas as informações e textos médicos
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+            const dateStart = '{{ date_start }}';
+            const dateEnd = '{{ date_end }}';
+            const dataEmissao = new Date().toLocaleDateString('pt-BR') + ' às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+            // 1. Cabeçalho Institucional
+            doc.setFillColor(5, 150, 105); // Verde esmeralda institucional da Enfermaria
+            doc.roundedRect(14, 12, 269, 22, 3, 3, 'F');
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(13);
+            doc.setTextColor(255, 255, 255);
+            doc.text("EDUCA GESTAO  |  SEAMI - ENFERMARIA & SAUDE ESCOLAR", 20, 21);
+
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(8.5);
+            doc.setTextColor(209, 250, 229);
+            doc.text(`Relatorio de Atendimentos Clinicos • Periodo: ${dateStart} a ${dateEnd} • Total: ${records.length} atendimento(s)`, 20, 28);
+
+            doc.setFontSize(8);
+            doc.text(`Emissao: ${dataEmissao}`, 220, 21);
+
+            // 2. Tabela de Registros com autoTable (quebra automática de linhas, sem truncar texto)
+            const tableBody = records.map(r => {
+                const dataHora = r.horario ? `${r.data_atendimento}\n${r.horario}` : r.data_atendimento;
+                const motivoCompleto = r.motivo_detalhado ? `${r.motivo}\n(${r.motivo_detalhado})` : r.motivo;
+                const conduta = r.saida_imediata
+                    ? (r.retornara_dia_seguinte ? 'Saída Imediata\n(Retorna amanhã)' : `Saída Imediata\n(Afastamento até ${r.data_retorno_prevista || '-'})`)
+                    : (r.retornara_dia_seguinte ? 'Permaneceu na escola' : `Afastamento até ${r.data_retorno_prevista || '-'}`);
+
+                return [
+                    dataHora,
+                    r.aluno_nome,
+                    `Sala ${r.turma_nome}`,
+                    motivoCompleto,
+                    r.cid || '-',
+                    r.observacoes_medicas || '-',
+                    conduta,
+                    r.registrado_por
+                ];
+            });
+
+            doc.autoTable({
+                startY: 38,
+                head: [['Data / Hora', 'Nome da Criança', 'Turma / Sala', 'Motivo do Atendimento', 'CID', 'Observações Médicas / Conduta Realizada', 'Encaminhamento', 'Registrado Por']],
+                body: tableBody,
+                theme: 'grid',
+                headStyles: {
+                    fillColor: [5, 150, 105],
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold',
+                    fontSize: 8,
+                    halign: 'left'
+                },
+                bodyStyles: {
+                    fontSize: 7.5,
+                    textColor: [30, 41, 59],
+                    cellPadding: 2.5,
+                    overflow: 'linebreak' // Quebra de linha garantida para expandir a altura da linha conforme o tamanho do texto
+                },
+                alternateRowStyles: {
+                    fillColor: [248, 250, 252]
+                },
+                columnStyles: {
+                    0: { cellWidth: 20 },
+                    1: { cellWidth: 42, fontStyle: 'bold' },
+                    2: { cellWidth: 22 },
+                    3: { cellWidth: 40 },
+                    4: { cellWidth: 16, halign: 'center' },
+                    5: { cellWidth: 75 }, // Coluna dedicada com espaço generoso para observações médicas completas
+                    6: { cellWidth: 30 },
+                    7: { cellWidth: 24 }
+                },
+                margin: { left: 14, right: 14 }
+            });
+
+            // 3. Rodapé em todas as páginas
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(7.5);
+                doc.setTextColor(148, 163, 184);
+                doc.text(`SEAMI - Modulo de Enfermaria • Pagina ${i} de ${pageCount}`, 14, 202);
+                doc.text(`Documento confidencial para fins de saude escolar • Gerado em ${dataEmissao}`, 160, 202);
+            }
+
+            const todayStr = new Date().toISOString().split('T')[0];
+            doc.save(`Enfermaria_Atendimentos_${todayStr}.pdf`);
+        } catch (err) {
+            console.error('Erro ao exportar PDF da Enfermaria:', err);
+            alert('Ocorreu um erro ao gerar o relatório PDF: ' + (err.message || err));
+        }
+    }
+</script>
+{% endblock %}

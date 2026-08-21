@@ -142,6 +142,7 @@
             <!-- Períodos Rápidos (SEAMI UI-UX) -->
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-top: 10px; border-top: 1px dashed var(--border-color);">
                 <span style="font-size: 12px; font-weight: 700; color: var(--text-secondary);">Períodos Rápidos:</span>
+                <button type="button" onclick="setReportPreset('month')" class="secondary-btn" style="padding: 4px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; border: 1px solid var(--border-color); background: var(--bg-body); cursor: pointer;">Este Mês</button>
                 <button type="button" onclick="setReportPreset(7)" class="secondary-btn" style="padding: 4px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; border: 1px solid var(--border-color); background: var(--bg-body); cursor: pointer;">Últimos 7 dias</button>
                 <button type="button" onclick="setReportPreset(30)" class="secondary-btn" style="padding: 4px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; border: 1px solid var(--border-color); background: var(--bg-body); cursor: pointer;">Últimos 30 dias</button>
                 <button type="button" onclick="setReportPreset(90)" class="secondary-btn" style="padding: 4px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; border: 1px solid var(--border-color); background: var(--bg-body); cursor: pointer;">Último Trimestre</button>
@@ -998,12 +999,16 @@
             return `${y}-${m}-${day}`;
         };
 
-        inputEnd.value = formatDate(today);
-
-        if (preset === 'year') {
+        if (preset === 'month' || preset === 'thisMonth') {
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            inputStart.value = formatDate(firstDay);
+            inputEnd.value = formatDate(lastDay);
+        } else if (preset === 'year') {
             inputStart.value = `${today.getFullYear()}-01-01`;
             inputEnd.value = `${today.getFullYear()}-12-31`;
         } else if (typeof preset === 'number') {
+            inputEnd.value = formatDate(today);
             const pastDate = new Date();
             pastDate.setDate(today.getDate() - preset);
             inputStart.value = formatDate(pastDate);
@@ -1074,22 +1079,138 @@
 
 <script id="json-report-matriculas" type="application/json">
 [
-    {% for row in mat_detalhes_tabela %}
+    {% for row in mat_tabela %}
     {
         "mes_ano": "{{ row.mes_ano }}",
-        "classroom": "{{ row.turma }}",
+        "classroom": "Sala {{ row.turma.nome|escapejs }}",
         "entradas": {{ row.novas_matriculas }},
-        "saidas_real": {{ row.desligamentos_realizados }},
-        "saidas_prev": {{ row.desligamentos_previstos }},
-        "ativos": {{ row.total_matriculados_ativos }}
+        "saidas_real": {{ row.deslig_realizados }},
+        "saidas_prev": {{ row.deslig_previstos }},
+        "ativos": {{ row.matriculados_ativos }}
     }{% if not forloop.last %},{% endif %}
     {% endfor %}
 ]
 </script>
 
+<script id="json-report-historical" type="application/json">
+[
+    {% for row in historical_data %}
+    {
+        "month_formatted": "{{ row.month_formatted }}",
+        "month_raw": "{{ row.month }}",
+        "year": {{ row.year }},
+        "enrolled": {{ row.enrolled }},
+        "present": {{ row.present }},
+        "absences": {{ row.absences }},
+        "percentage": "{{ row.percentage }}%"
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+]
+</script>
+
+<script id="json-report-date-start" type="application/json">"{{ date_start }}"</script>
+<script id="json-report-date-end" type="application/json">"{{ date_end }}"</script>
+<script id="json-report-classroom" type="application/json">"{{ classroom_filter }}"</script>
+
 <script>
     // =========================================================================
-    // EXPORTAÇÃO EXCEL (.XLSX) PARA TODAS AS 4 ABAS
+    // PLUGIN: MOSTRA VALORES NUMÉRICOS NOS GRÁFICOS (EMPILHADOS OU LADO A LADO)
+    // =========================================================================
+    const valueLabelsPlugin = {
+        id: 'valueLabels',
+        afterDatasetsDraw(chart) {
+            const { ctx } = chart;
+            ctx.save();
+            const isStacked = !!(chart.options?.scales?.x?.stacked);
+
+            chart.data.datasets.forEach((dataset, datasetIndex) => {
+                const meta = chart.getDatasetMeta(datasetIndex);
+                if (meta.hidden) return;
+
+                const isRed = (dataset.borderColor === '#ef4444' || dataset.borderColor === '#dc2626' || (dataset.label && dataset.label.includes('Ausentes')));
+                const isGreen = (dataset.borderColor === '#10b981' || dataset.borderColor === '#059669' || (dataset.label && (dataset.label.includes('Presentes') || dataset.label.includes('Matrículas'))));
+
+                meta.data.forEach((element, index) => {
+                    const val = dataset.data[index];
+                    if (val !== undefined && val !== null && val !== 0 && !isNaN(val)) {
+                        ctx.textAlign = 'center';
+                        ctx.font = 'bold 10.5px Inter, Helvetica, Arial, sans-serif';
+
+                        const x = element.x || element.tooltipPosition().x;
+                        const topY = element.y || element.tooltipPosition().y;
+
+                        if (isStacked) {
+                            if (isRed) {
+                                // Vermelho empilhado: posicionado ACIMA da linha de topo
+                                ctx.fillStyle = '#b91c1c';
+                                ctx.textBaseline = 'bottom';
+                                ctx.fillText(String(val), x, topY - 3);
+                            } else if (isGreen) {
+                                // Verde empilhado: posicionado ABAIXO da linha referente (dentro do bloco verde)
+                                ctx.fillStyle = '#064e3b';
+                                ctx.textBaseline = 'top';
+                                ctx.fillText(String(val), x, topY + 4);
+                            } else {
+                                // Outros empilhados
+                                ctx.fillStyle = '#92400e';
+                                ctx.textBaseline = 'bottom';
+                                ctx.fillText(String(val), x, topY - 3);
+                            }
+                        } else {
+                            // Barras LADO A LADO: todos os valores ficam ACIMA da sua respectiva barra
+                            if (isGreen) {
+                                ctx.fillStyle = '#047857';
+                            } else if (isRed) {
+                                ctx.fillStyle = '#b91c1c';
+                            } else {
+                                ctx.fillStyle = '#b45309';
+                            }
+                            ctx.textBaseline = 'bottom';
+                            ctx.fillText(String(val), x, topY - 3);
+                        }
+                    }
+                });
+            });
+            ctx.restore();
+        }
+    };
+
+    // =========================================================================
+    // HELPER: RENDERIZA GRÁFICO OFFSCREEN VIA CHART.JS PARA INCLUSÃO NO PDF
+    // =========================================================================
+    function createChartImageForPDF(config, width = 920, height = 290) {
+        if (typeof Chart === 'undefined') return null;
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            canvas.style.display = 'none';
+            document.body.appendChild(canvas);
+            const ctx = canvas.getContext('2d');
+
+            config.options = config.options || {};
+            config.options.responsive = false;
+            config.options.animation = false;
+            config.plugins = config.plugins || [];
+            if (!config.plugins.includes(valueLabelsPlugin)) {
+                config.plugins.push(valueLabelsPlugin);
+            }
+
+            const chartInstance = new Chart(ctx, config);
+            const imgData = canvas.toDataURL('image/png');
+            chartInstance.destroy();
+            if (document.body.contains(canvas)) {
+                document.body.removeChild(canvas);
+            }
+            return imgData;
+        } catch (e) {
+            console.error("Erro ao gerar imagem de gráfico para PDF:", e);
+            return null;
+        }
+    }
+
+    // =========================================================================
+    // EXPORTAÇÃO EXCEL (.XLSX) PARA TODAS AS 4 ABAS (RESPEITANDO O PERÍODO)
     // =========================================================================
     function exportReportExcel() {
         if (typeof XLSX === 'undefined') {
@@ -1098,6 +1219,10 @@
         }
 
         const activeTab = JSON.parse(document.getElementById('json-report-active-tab').textContent || '"faltas"');
+        const filterStart = JSON.parse(document.getElementById('json-report-date-start').textContent || '""');
+        const filterEnd = JSON.parse(document.getElementById('json-report-date-end').textContent || '""');
+        const startMonthKey = filterStart ? filterStart.substring(0, 7) : '2019-01';
+        const endMonthKey = filterEnd ? filterEnd.substring(0, 7) : '2026-12';
         const todayStr = new Date().toISOString().split('T')[0];
         const wb = XLSX.utils.book_new();
 
@@ -1112,7 +1237,7 @@
                 "Tipo de Falta": r.tipo_falta,
                 "Justificativa / Motivo": r.motivo,
                 "Responsável": r.responsavel,
-                "Faltas Não Just. no Ano (Jan-Dez)": r.faltas_ano
+                "Faltas no Ano": r.faltas_ano
             }));
 
             const ws = XLSX.utils.json_to_sheet(rows);
@@ -1142,21 +1267,60 @@
 
         } else if (activeTab === 'frequencia') {
             const data = JSON.parse(document.getElementById('json-report-freq').textContent || '[]');
-            if (data.length === 0) { alert('Não há registros de frequência para exportar.'); return; }
+            const matData = JSON.parse(document.getElementById('json-report-matriculas').textContent || '[]');
+            const histDataRaw = JSON.parse(document.getElementById('json-report-historical').textContent || '[]');
+            const histData = histDataRaw.filter(h => h.month_raw >= startMonthKey && h.month_raw <= endMonthKey);
 
-            const rows = data.map(r => ({
-                "Data": r.date_br,
-                "Turma / Sala": r.classroom,
-                "Quantidade de Matriculados": r.matriculados,
-                "Quantidade de Presentes": r.presentes,
-                "Faltas / Ausentes": r.faltas,
-                "Taxa de Frequência (%)": r.taxa
-            }));
+            if (data.length === 0 && histData.length === 0) {
+                alert('Não há registros de frequência no período selecionado para exportar.');
+                return;
+            }
 
-            const ws = XLSX.utils.json_to_sheet(rows);
-            ws['!cols'] = [{wch: 14}, {wch: 20}, {wch: 25}, {wch: 22}, {wch: 20}, {wch: 22}];
-            XLSX.utils.book_append_sheet(wb, ws, "Frequência Diária");
-            XLSX.writeFile(wb, `Relatorio_Frequencia_SEAMI_${todayStr}.xlsx`);
+            // Aba 1: Frequência Diária
+            if (data.length > 0) {
+                const rows = data.map(r => ({
+                    "Data": r.date_br,
+                    "Turma / Sala": r.classroom,
+                    "Quantidade de Matriculados": r.matriculados,
+                    "Quantidade de Presentes": r.presentes,
+                    "Quantidade de Faltas / Ausentes": r.faltas,
+                    "Taxa de Frequência (%)": r.taxa
+                }));
+                const ws = XLSX.utils.json_to_sheet(rows);
+                ws['!cols'] = [{wch: 14}, {wch: 20}, {wch: 26}, {wch: 24}, {wch: 28}, {wch: 22}];
+                XLSX.utils.book_append_sheet(wb, ws, "Frequência Diária");
+            }
+
+            // Aba 2: Matrículas e Desligamentos (Filtrada)
+            if (matData.length > 0) {
+                const matRows = matData.map(r => ({
+                    "Mês / Ano": r.mes_ano,
+                    "Turma": r.classroom,
+                    "Novas Matrículas (+)": r.entradas,
+                    "Desligamentos Realizados (-)": r.saidas_real,
+                    "Desligamentos Previstos (⏳)": r.saidas_prev,
+                    "Total de Matriculados Ativos": r.ativos
+                }));
+                const wsMat = XLSX.utils.json_to_sheet(matRows);
+                wsMat['!cols'] = [{wch: 18}, {wch: 20}, {wch: 22}, {wch: 26}, {wch: 26}, {wch: 26}];
+                XLSX.utils.book_append_sheet(wb, wsMat, "Matrículas e Desligamentos");
+            }
+
+            // Aba 3: Série Histórica (Filtrada no período)
+            if (histData.length > 0) {
+                const histRows = histData.map(r => ({
+                    "Mês / Ano": r.month_formatted,
+                    "Alunos Matriculados": r.enrolled,
+                    "Média de Presentes / Dia": r.present,
+                    "Ausentes / Faltas Médias": r.absences,
+                    "Taxa de Frequência (%)": r.percentage
+                }));
+                const wsHist = XLSX.utils.json_to_sheet(histRows);
+                wsHist['!cols'] = [{wch: 20}, {wch: 24}, {wch: 26}, {wch: 24}, {wch: 22}];
+                XLSX.utils.book_append_sheet(wb, wsHist, "Série Histórica");
+            }
+
+            XLSX.writeFile(wb, `Relatorio_Frequencia_SEAMI_${filterStart}_a_${filterEnd}.xlsx`);
 
         } else if (activeTab === 'matriculas') {
             const data = JSON.parse(document.getElementById('json-report-matriculas').textContent || '[]');
@@ -1172,14 +1336,14 @@
             }));
 
             const ws = XLSX.utils.json_to_sheet(rows);
-            ws['!cols'] = [{wch: 14}, {wch: 20}, {wch: 22}, {wch: 25}, {wch: 25}, {wch: 20}];
+            ws['!cols'] = [{wch: 18}, {wch: 20}, {wch: 22}, {wch: 26}, {wch: 26}, {wch: 22}];
             XLSX.utils.book_append_sheet(wb, ws, "Matrículas e Desligamentos");
-            XLSX.writeFile(wb, `Relatorio_Matriculas_SEAMI_${todayStr}.xlsx`);
+            XLSX.writeFile(wb, `Relatorio_Matriculas_SEAMI_${filterStart}_a_${filterEnd}.xlsx`);
         }
     }
 
     // =========================================================================
-    // EXPORTAÇÃO PDF (.PDF) COM CABEÇALHO INSTITUCIONAL E TABELAS ESTILIZADAS
+    // EXPORTAÇÃO PDF (.PDF) COM CABEÇALHO, GRÁFICOS DE PILHA COM VALORES E TABELA
     // =========================================================================
     function exportReportPDF() {
         if (typeof window.jspdf === 'undefined') {
@@ -1190,20 +1354,365 @@
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
         const activeTab = JSON.parse(document.getElementById('json-report-active-tab').textContent || '"faltas"');
-        const todayStr = new Date().toISOString().split('T')[0];
+        const filterStart = JSON.parse(document.getElementById('json-report-date-start').textContent || '""');
+        const filterEnd = JSON.parse(document.getElementById('json-report-date-end').textContent || '""');
+        const classroomFilter = JSON.parse(document.getElementById('json-report-classroom').textContent || '""');
         const dataEmissao = new Date().toLocaleDateString('pt-BR');
+        const startLabel = filterStart ? filterStart.split('-').reverse().join('/') : 'Início';
+        const endLabel = filterEnd ? filterEnd.split('-').reverse().join('/') : 'Fim';
+        const roomLabel = classroomFilter ? `Turma ${classroomFilter}` : 'Todas as Salas';
 
-        let reportTitle = "Relatório Oficial SEAMI";
-        let headCols = [];
-        let bodyRows = [];
+        const startMonthKey = filterStart ? filterStart.substring(0, 7) : '2019-01';
+        const endMonthKey = filterEnd ? filterEnd.substring(0, 7) : '2026-12';
+        const startYear = filterStart ? parseInt(filterStart.split('-')[0]) : 2019;
+        const endYear = filterEnd ? parseInt(filterEnd.split('-')[0]) : 2026;
+        const startMonth = filterStart ? parseInt(filterStart.split('-')[1]) : 1;
+        const endMonth = filterEnd ? parseInt(filterEnd.split('-')[1]) : 12;
 
-        if (activeTab === 'faltas') {
-            reportTitle = "Relatório Oficial de Gestão de Faltas (Justificadas e Não Justificadas)";
+        const MONTH_LABELS_ALL = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        const MONTH_NAMES_EXT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+        function drawInstitutionalHeader(title, yearSub = '', headerColor = [79, 70, 229]) {
+            doc.setFillColor(headerColor[0], headerColor[1], headerColor[2]);
+            doc.roundedRect(14, 10, 269, 22, 3, 3, 'F');
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(13);
+            doc.setTextColor(255, 255, 255);
+            doc.text("EDUCA GESTÃO  |  SEAMI", 20, 18);
+
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(9);
+            doc.setTextColor(241, 245, 249);
+            const fullTitle = yearSub ? `${title} — Ano de Referência: ${yearSub}` : title;
+            doc.text(fullTitle, 20, 26);
+
+            doc.setFontSize(8);
+            doc.text(`Filtros: ${roomLabel} | Período: ${startLabel} a ${endLabel}`, 155, 26);
+            doc.text(`Emissão: ${dataEmissao}`, 235, 18);
+        }
+
+        if (activeTab === 'frequencia') {
+            const freqData = JSON.parse(document.getElementById('json-report-freq').textContent || '[]');
+            const histDataRaw = JSON.parse(document.getElementById('json-report-historical').textContent || '[]');
+            const histData = histDataRaw.filter(h => h.month_raw >= startMonthKey && h.month_raw <= endMonthKey);
+
+            if (freqData.length === 0 && histData.length === 0) {
+                alert('Não há dados de frequência para o período selecionado.');
+                return;
+            }
+
+            // Descobre anos estritamente dentro do período filtrado
+            const yearsSet = new Set();
+            for (let y = startYear; y <= endYear; y++) {
+                const hasHist = histData.some(h => h.year === y);
+                const hasFreq = freqData.some(f => f.date_br && f.date_br.endsWith(`/${y}`));
+                if (hasHist || hasFreq || y === startYear || y === endYear) {
+                    yearsSet.add(y);
+                }
+            }
+            if (yearsSet.size === 0) yearsSet.add(endYear);
+
+            const sortedYears = Array.from(yearsSet).sort((a, b) => b - a);
+
+            sortedYears.forEach((year, yIdx) => {
+                if (yIdx > 0) doc.addPage();
+
+                drawInstitutionalHeader("Relatório de Frequência Diária vs Alunos Matriculados", `${year}`, [99, 102, 241]);
+
+                // Determina intervalo de meses válidos para este ano
+                const minM = (year === startYear) ? startMonth : 1;
+                const maxM = (year === endYear) ? endMonth : 12;
+                const yearLabels = MONTH_LABELS_ALL.slice(minM - 1, maxM);
+
+                const yearHist = histData.filter(h => h.year === year);
+                const avgPresentData = [];
+                const avgAbsentData = [];
+                const tableRows = [];
+
+                for (let m = minM; m <= maxM; m++) {
+                    const mStr = `${year}-${String(m).padStart(2, '0')}`;
+                    const rowHist = yearHist.find(h => h.month_raw === mStr);
+                    if (rowHist) {
+                        avgPresentData.push(rowHist.present || 0);
+                        avgAbsentData.push(rowHist.absences || 0);
+                        tableRows.push([
+                            rowHist.month_formatted,
+                            "Consolidado Geral",
+                            String(rowHist.enrolled),
+                            String(rowHist.present),
+                            String(rowHist.absences),
+                            rowHist.percentage
+                        ]);
+                    } else {
+                        // Se não tem histórico mas tem dados diários de chamada no mês
+                        const curMonthDaily = freqData.filter(f => f.date_br && f.date_br.endsWith(`/${year}`) && parseInt(f.date_br.split('/')[1]) === m);
+                        if (curMonthDaily.length > 0) {
+                            const totMat = curMonthDaily.reduce((acc, c) => acc + (c.matriculados || 0), 0);
+                            const totPres = curMonthDaily.reduce((acc, c) => acc + (c.presentes || 0), 0);
+                            const totFalt = curMonthDaily.reduce((acc, c) => acc + (c.faltas || 0), 0);
+                            const countD = curMonthDaily.length;
+                            const avgP = Math.round(totPres / countD);
+                            const avgF = Math.round(totFalt / countD);
+                            const avgM = Math.round(totMat / countD);
+                            avgPresentData.push(avgP);
+                            avgAbsentData.push(avgF);
+                            const pct = avgM > 0 ? Math.round((avgP / avgM) * 100) : 0;
+                            tableRows.push([
+                                `${MONTH_NAMES_EXT[m - 1]} / ${year}`,
+                                "Consolidado Geral",
+                                String(avgM),
+                                String(avgP),
+                                String(avgF),
+                                `${pct}%`
+                            ]);
+                        } else {
+                            avgPresentData.push(0);
+                            avgAbsentData.push(0);
+                        }
+                    }
+                }
+
+                // Gráfico de Barras Empilhadas (Stacked) com Valores nas Pilhas
+                const chartConfig = {
+                    type: 'bar',
+                    data: {
+                        labels: yearLabels,
+                        datasets: [
+                            {
+                                label: 'Alunos Presentes (Média)',
+                                data: avgPresentData,
+                                backgroundColor: 'rgba(16, 185, 129, 0.88)',
+                                borderColor: '#10b981',
+                                borderWidth: 1,
+                                stack: 'frequenciaStack'
+                            },
+                            {
+                                label: 'Alunos Ausentes / Faltas (Média)',
+                                data: avgAbsentData,
+                                backgroundColor: 'rgba(239, 68, 68, 0.88)',
+                                borderColor: '#ef4444',
+                                borderWidth: 1,
+                                stack: 'frequenciaStack'
+                            }
+                        ]
+                    },
+                    options: {
+                        plugins: {
+                            legend: { position: 'top', labels: { font: { weight: 'bold', size: 11 } } },
+                            title: {
+                                display: true,
+                                text: `Gráfico de Frequência vs Ausências (Pilha de Alunos) — Ano ${year}`,
+                                font: { weight: 'bold', size: 12 },
+                                color: '#1e293b'
+                            }
+                        },
+                        scales: {
+                            x: { stacked: true, grid: { display: false }, ticks: { font: { weight: 'bold' } } },
+                            y: { stacked: true, beginAtZero: true, grace: '14%', grid: { color: '#f1f5f9' }, title: { display: true, text: 'Total Alunos / Dia (Presentes + Ausentes)', font: { size: 10 } } }
+                        }
+                    }
+                };
+
+                const chartImg = createChartImageForPDF(chartConfig, 920, 270);
+                let currentY = 36;
+                if (chartImg) {
+                    doc.addImage(chartImg, 'PNG', 14, currentY, 269, 54);
+                    currentY += 58;
+                }
+
+                // Tabela do Ano
+                doc.autoTable({
+                    startY: currentY,
+                    head: [['Mês / Ano', 'Turma / Descrição', 'Alunos Matriculados', 'Média Presentes / Dia', 'Ausentes / Faltas Médias', 'Frequência (%)']],
+                    body: tableRows.length > 0 ? tableRows : [[`Ano ${year}`, 'Sem registros no período filtrado', '-', '-', '-', '-']],
+                    theme: 'grid',
+                    headStyles: { fillColor: [99, 102, 241], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
+                    bodyStyles: { fontSize: 8, textColor: [30, 41, 59] },
+                    alternateRowStyles: { fillColor: [248, 250, 252] },
+                    margin: { left: 14, right: 14 }
+                });
+            });
+
+        } else if (activeTab === 'matriculas') {
+            const matData = JSON.parse(document.getElementById('json-report-matriculas').textContent || '[]');
+            if (matData.length === 0) { alert('Não há dados de matrículas para exportar.'); return; }
+
+            const MONTH_NAMES_MAP = {
+                'janeiro': 1, 'fevereiro': 2, 'março': 3, 'marco': 3, 'abril': 4, 'maio': 5, 'junho': 6,
+                'julho': 7, 'agosto': 8, 'setembro': 9, 'outubro': 10, 'novembro': 11, 'dezembro': 12,
+                'jan': 1, 'fev': 2, 'mar': 3, 'abr': 4, 'mai': 5, 'jun': 6,
+                'jul': 7, 'ago': 8, 'set': 9, 'out': 10, 'nov': 11, 'dez': 12
+            };
+
+            const yearsSet = new Set();
+            matData.forEach(m => {
+                const parts = (m.mes_ano || '').split('/');
+                if (parts.length === 2) {
+                    const y = parseInt(parts[1].trim());
+                    if (!isNaN(y) && y >= startYear && y <= endYear) yearsSet.add(y);
+                }
+            });
+            if (yearsSet.size === 0) yearsSet.add(endYear);
+
+            const sortedYears = Array.from(yearsSet).sort((a, b) => b - a);
+
+            sortedYears.forEach((year, yIdx) => {
+                if (yIdx > 0) doc.addPage();
+
+                drawInstitutionalHeader("Relatório Consolidado de Novas Matrículas e Desligamentos", `${year}`, [16, 185, 129]);
+
+                const minM = (year === startYear) ? startMonth : 1;
+                const maxM = (year === endYear) ? endMonth : 12;
+                const yearLabels = MONTH_LABELS_ALL.slice(minM - 1, maxM);
+
+                const yearMatRows = matData.filter(m => {
+                    const parts = (m.mes_ano || '').split('/');
+                    return parts.length === 2 && parseInt(parts[1].trim()) === year;
+                });
+
+                const enrollData = Array(maxM - minM + 1).fill(0);
+                const realizedDeactData = Array(maxM - minM + 1).fill(0);
+                const plannedDeactData = Array(maxM - minM + 1).fill(0);
+                const filteredTableRows = [];
+
+                yearMatRows.forEach(r => {
+                    const parts = (r.mes_ano || '').split('/');
+                    const mName = parts.length >= 1 ? parts[0].trim().toLowerCase() : '';
+                    const mNum = MONTH_NAMES_MAP[mName] || 0;
+                    if (mNum >= minM && mNum <= maxM) {
+                        const idx = mNum - minM;
+                        enrollData[idx] += (Number(r.entradas) || 0);
+                        realizedDeactData[idx] += (Number(r.saidas_real) || 0);
+                        plannedDeactData[idx] += (Number(r.saidas_prev) || 0);
+
+                        filteredTableRows.push([
+                            r.mes_ano,
+                            r.classroom,
+                            `+${r.entradas || 0}`,
+                            `-${r.saidas_real || 0}`,
+                            (r.saidas_prev && r.saidas_prev > 0) ? `⏳ ${r.saidas_prev}` : '0',
+                            String(r.ativos || 0)
+                        ]);
+                    }
+                });
+
+                // Gráfico Agrupado (Lado a Lado) de Movimentação de Alunos com Valores
+                const chartConfig = {
+                    type: 'bar',
+                    data: {
+                        labels: yearLabels,
+                        datasets: [
+                            {
+                                label: 'Novas Matrículas (+)',
+                                data: enrollData,
+                                backgroundColor: 'rgba(16, 185, 129, 0.88)',
+                                borderColor: '#10b981',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Desligamentos Realizados (-)',
+                                data: realizedDeactData,
+                                backgroundColor: 'rgba(239, 68, 68, 0.88)',
+                                borderColor: '#ef4444',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Desligamentos Previstos (⏳)',
+                                data: plannedDeactData,
+                                backgroundColor: 'rgba(245, 158, 11, 0.88)',
+                                borderColor: '#f59e0b',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        plugins: {
+                            legend: { position: 'top', labels: { font: { weight: 'bold', size: 11 } } },
+                            title: {
+                                display: true,
+                                text: `Movimentação de Matrículas e Desligamentos (Entradas, Saídas e Previsões) — Ano ${year}`,
+                                font: { weight: 'bold', size: 12 },
+                                color: '#1e293b'
+                            }
+                        },
+                        scales: {
+                            x: { stacked: false, grid: { display: false }, ticks: { font: { weight: 'bold' } } },
+                            y: { stacked: false, beginAtZero: true, grace: '16%', grid: { color: '#f1f5f9' }, ticks: { precision: 0 } }
+                        }
+                    }
+                };
+
+                const chartImg = createChartImageForPDF(chartConfig, 920, 270);
+                let currentY = 36;
+                if (chartImg) {
+                    doc.addImage(chartImg, 'PNG', 14, currentY, 269, 54);
+                    currentY += 58;
+                }
+
+                // Tabela
+                doc.autoTable({
+                    startY: currentY,
+                    head: [['Mês / Ano', 'Turma', 'Novas Matrículas (+)', 'Deslig. Realizados (-)', 'Deslig. Previstos (⏳)', 'Total Ativos']],
+                    body: filteredTableRows.length > 0 ? filteredTableRows : [[`Ano ${year}`, 'Sem registros no período filtrado', '-', '-', '-', '-']],
+                    theme: 'grid',
+                    headStyles: { fillColor: [16, 185, 129], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
+                    bodyStyles: { fontSize: 8, textColor: [30, 41, 59] },
+                    alternateRowStyles: { fillColor: [248, 250, 252] },
+                    margin: { left: 14, right: 14 },
+                    didParseCell: function(d) {
+                        if (d.section === 'body') {
+                            const txt = String(d.cell.raw || '');
+                            if (txt.startsWith('+')) d.cell.styles.textColor = [4, 120, 87];
+                            else if (txt.startsWith('-')) d.cell.styles.textColor = [185, 28, 28];
+                        }
+                    }
+                });
+            });
+
+        } else if (activeTab === 'faltas') {
             const data = JSON.parse(document.getElementById('json-report-faltas').textContent || '[]');
             if (data.length === 0) { alert('Não há dados de faltas para exportar.'); return; }
 
-            headCols = [['Data', 'Criança', 'Sala', 'Tipo de Falta', 'Justificativa / Motivo', 'Responsável', 'Faltas Não Just. no Ano']];
-            bodyRows = data.map(r => [
+            drawInstitutionalHeader("Relatório Oficial de Gestão de Faltas (Justificadas e Não Justificadas)", "", [220, 38, 38]);
+
+            const monthFaltas = Array(12).fill(0);
+            data.forEach(r => {
+                if (r.date_raw) {
+                    const m = parseInt(r.date_raw.split('-')[1]);
+                    if (m >= 1 && m <= 12) monthFaltas[m - 1]++;
+                }
+            });
+
+            const chartConfig = {
+                type: 'bar',
+                data: {
+                    labels: MONTH_LABELS_ALL,
+                    datasets: [{
+                        label: 'Total de Faltas Registradas no Mês',
+                        data: monthFaltas,
+                        backgroundColor: 'rgba(220, 38, 38, 0.88)',
+                        borderColor: '#dc2626',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    plugins: {
+                        legend: { position: 'top', labels: { font: { weight: 'bold', size: 11 } } },
+                        title: { display: true, text: 'Distribuição Mensal de Faltas', font: { weight: 'bold', size: 12 }, color: '#1e293b' }
+                    },
+                    scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { precision: 0 } } }
+                }
+            };
+
+            const chartImg = createChartImageForPDF(chartConfig, 920, 240);
+            let currentY = 36;
+            if (chartImg) {
+                doc.addImage(chartImg, 'PNG', 14, currentY, 269, 48);
+                currentY += 52;
+            }
+
+            const bodyRows = data.map(r => [
                 r.date_br,
                 r.student_name,
                 r.classroom,
@@ -1213,13 +1722,31 @@
                 String(r.faltas_ano)
             ]);
 
+            doc.autoTable({
+                startY: currentY,
+                head: [['Data', 'Criança', 'Sala', 'Tipo de Falta', 'Justificativa / Motivo', 'Responsável', 'Faltas no Ano']],
+                body: bodyRows,
+                theme: 'grid',
+                headStyles: { fillColor: [220, 38, 38], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
+                bodyStyles: { fontSize: 8, textColor: [30, 41, 59] },
+                alternateRowStyles: { fillColor: [248, 250, 252] },
+                margin: { left: 14, right: 14 },
+                didParseCell: function(d) {
+                    if (d.section === 'body') {
+                        const txt = String(d.cell.raw || '');
+                        if (txt.includes('Justificada') || txt.includes('Justificado')) d.cell.styles.textColor = [4, 120, 87];
+                        else if (txt.includes('Não Justificada') || txt.includes('Não Justificado')) d.cell.styles.textColor = [185, 28, 28];
+                    }
+                }
+            });
+
         } else if (activeTab === 'atrasos') {
-            reportTitle = "Relatório Oficial de Gestão de Atrasos (Justificados e Não Justificados)";
             const data = JSON.parse(document.getElementById('json-report-atrasos').textContent || '[]');
             if (data.length === 0) { alert('Não há dados de atrasos para exportar.'); return; }
 
-            headCols = [['Data', 'Horário', 'Criança', 'Sala', 'Tipo de Atraso', 'Justificativa / Motivo', 'Responsável', 'Atrasos no Ano']];
-            bodyRows = data.map(r => [
+            drawInstitutionalHeader("Relatório Oficial de Gestão de Atrasos (Justificados e Não Justificados)", "", [217, 119, 6]);
+
+            const bodyRows = data.map(r => [
                 r.date_br,
                 r.horario,
                 r.student_name,
@@ -1230,98 +1757,29 @@
                 String(r.atrasos_ano)
             ]);
 
-        } else if (activeTab === 'frequencia') {
-            reportTitle = "Relatório Oficial de Frequência Diária vs Alunos Matriculados";
-            const data = JSON.parse(document.getElementById('json-report-freq').textContent || '[]');
-            if (data.length === 0) { alert('Não há dados de frequência para exportar.'); return; }
-
-            headCols = [['Data', 'Turma / Sala', 'Matriculados', 'Presentes', 'Faltas / Ausentes', 'Taxa Frequência (%)']];
-            bodyRows = data.map(r => [
-                r.date_br,
-                r.classroom,
-                String(r.matriculados),
-                String(r.presentes),
-                String(r.faltas),
-                r.taxa
-            ]);
-
-        } else if (activeTab === 'matriculas') {
-            reportTitle = "Relatório Oficial de Movimentação de Matrículas e Desligamentos";
-            const data = JSON.parse(document.getElementById('json-report-matriculas').textContent || '[]');
-            if (data.length === 0) { alert('Não há dados de matrículas para exportar.'); return; }
-
-            headCols = [['Mês / Ano', 'Turma', 'Novas Matrículas (+)', 'Deslig. Realizados (-)', 'Deslig. Previstos (⏳)', 'Total Ativos']];
-            bodyRows = data.map(r => [
-                r.mes_ano,
-                r.classroom,
-                `+${r.entradas}`,
-                `-${r.saidas_real}`,
-                r.saidas_prev > 0 ? `⏳ ${r.saidas_prev}` : '0',
-                String(r.ativos)
-            ]);
+            doc.autoTable({
+                startY: 36,
+                head: [['Data', 'Horário', 'Criança', 'Sala', 'Tipo de Atraso', 'Justificativa / Motivo', 'Responsável', 'Atrasos no Ano']],
+                body: bodyRows,
+                theme: 'grid',
+                headStyles: { fillColor: [217, 119, 6], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
+                bodyStyles: { fontSize: 8, textColor: [30, 41, 59] },
+                alternateRowStyles: { fillColor: [248, 250, 252] },
+                margin: { left: 14, right: 14 }
+            });
         }
 
-        // 1. Cabeçalho Institucional
-        doc.setFillColor(79, 70, 229);
-        doc.roundedRect(14, 12, 269, 24, 3, 3, 'F');
-
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(14);
-        doc.setTextColor(255, 255, 255);
-        doc.text("EDUCA GESTÃO  |  CADERNO SEAMI", 20, 21);
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(9.5);
-        doc.setTextColor(224, 231, 255);
-        doc.text(reportTitle, 20, 28);
-
-        doc.setFontSize(8.5);
-        doc.text(`Emissão: ${dataEmissao}`, 240, 21);
-
-        // 2. Tabela de Dados Formatada via autoTable
-        doc.autoTable({
-            startY: 42,
-            head: headCols,
-            body: bodyRows,
-            theme: 'grid',
-            headStyles: {
-                fillColor: [79, 70, 229],
-                textColor: [255, 255, 255],
-                fontStyle: 'bold',
-                fontSize: 8.5,
-                halign: 'left'
-            },
-            bodyStyles: {
-                fontSize: 8,
-                textColor: [30, 41, 59]
-            },
-            alternateRowStyles: {
-                fillColor: [248, 250, 252]
-            },
-            margin: { left: 14, right: 14 },
-            didParseCell: function(d) {
-                if (d.section === 'body') {
-                    const txt = String(d.cell.raw || '');
-                    if (txt.includes('Justificada') || txt.includes('Justificado') || txt.startsWith('+')) {
-                        d.cell.styles.textColor = [4, 120, 87];
-                    } else if (txt.includes('Não Justificada') || txt.includes('Não Justificado') || txt.startsWith('-')) {
-                        d.cell.styles.textColor = [185, 28, 28];
-                    }
-                }
-            }
-        });
-
-        // 3. Rodapé em todas as páginas
+        // Rodapé de paginação em todas as páginas do PDF
         const pageCount = doc.internal.getNumberOfPages();
         for (let i = 1; i <= pageCount; i++) {
             doc.setPage(i);
             doc.setFontSize(8);
             doc.setTextColor(148, 163, 184);
             doc.text(`SEAMI - Página ${i} de ${pageCount}`, 14, 200);
-            doc.text(`Documento gerado eletronicamente em ${dataEmissao}`, 220, 200);
+            doc.text(`Documento gerado eletronicamente em ${dataEmissao}`, 215, 200);
         }
 
-        doc.save(`Relatorio_${activeTab.toUpperCase()}_SEAMI_${todayStr}.pdf`);
+        doc.save(`Relatorio_${activeTab.toUpperCase()}_SEAMI_${filterStart}_a_${filterEnd}.pdf`);
     }
 </script>
 {% endblock %}

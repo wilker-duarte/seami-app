@@ -91,19 +91,12 @@ def import_turmas(rows, user=None):
                 nome_limpo = nome.strip()
 
             faixa = r.get('Faixa Etária') or r.get('faixa_etaria') or ''
-            ano_str = str(r.get('Ano Letivo') or r.get('ano_letivo') or 2026).strip()
-            try:
-                ano = int(ano_str)
-            except ValueError:
-                ano = 2026
-            
             ativo = parse_bool(r.get('Status Ativo', r.get('ativo', True)))
 
             turma, was_created = Turma.objects.get_or_create(
                 nome=nome_limpo,
                 defaults={
                     'faixa_etaria': faixa,
-                    'ano_letivo': ano,
                     'ativo': ativo
                 }
             )
@@ -111,7 +104,6 @@ def import_turmas(rows, user=None):
                 created += 1
             else:
                 turma.faixa_etaria = faixa or turma.faixa_etaria
-                turma.ano_letivo = ano
                 turma.ativo = ativo
                 turma.save()
                 updated += 1
@@ -135,7 +127,7 @@ def import_alunos(rows, user=None):
                 turma_name = r.get('Turma / Sala') or r.get('turma') or r.get('Turma') or 'Geral'
                 if ' (' in turma_name and turma_name.endswith(')'):
                     turma_name = turma_name.split(' (')[0].strip()
-                turma, _ = Turma.objects.get_or_create(nome=turma_name.strip(), defaults={'ano_letivo': 2026})
+                turma, _ = Turma.objects.get_or_create(nome=turma_name.strip())
 
             turno_str = (r.get('Turno') or r.get('turno') or 'integral').lower()
             turno = TurnoAluno.INTEGRAL
@@ -400,9 +392,189 @@ def import_ocorrencias(rows, user=None):
     return created, updated
 
 
+def import_amamentacao(rows, user=None):
+    """Importa registros de amamentação do Caderno SEAMI."""
+    created, updated = 0, 0
+    with transaction.atomic():
+        for r in rows:
+            data_val = parse_date_flexible(r.get('data') or r.get('Data'))
+            if not data_val:
+                continue
+
+            aluno_nome = r.get('aluno') or r.get('Aluno') or r.get('Nome da Criança')
+            aluno_id = r.get('aluno_id') or r.get('Aluno ID')
+            aluno = None
+            if aluno_id and str(aluno_id).isdigit():
+                aluno = Aluno.objects.filter(id=int(aluno_id)).first()
+            if not aluno and aluno_nome:
+                aluno = Aluno.objects.filter(nome__iexact=str(aluno_nome).strip()).first()
+
+            turma = None
+            turma_id = r.get('turma_id') or r.get('Turma ID')
+            if turma_id and str(turma_id).isdigit():
+                turma = Turma.objects.filter(id=int(turma_id)).first()
+            if not turma and aluno:
+                turma = aluno.turma
+            if not turma:
+                turma_nome = r.get('turma') or r.get('Turma')
+                if turma_nome:
+                    turma = Turma.objects.filter(nome__iexact=str(turma_nome).strip()).first()
+
+            qtd_val = r.get('quantidade') or r.get('Quantidade') or r.get('Qtd Mamadeiras') or 1
+            try:
+                qtd_int = int(qtd_val)
+            except Exception:
+                qtd_int = 1
+
+            horario_val = r.get('horario') or r.get('Horário') or r.get('Horario') or ''
+            h_obj = None
+            if horario_val and ':' in str(horario_val):
+                try:
+                    parts = str(horario_val).strip().split(':')
+                    h_obj = datetime.strptime(f"{int(parts[0]):02d}:{int(parts[1]):02d}", "%H:%M").time()
+                except Exception:
+                    h_obj = None
+
+            motivo = r.get('motivo') or r.get('Motivo') or 'Mamadeira / Leite Materno'
+            obs = r.get('observacao') or r.get('Observação') or r.get('Observacao') or ''
+
+            existing = None
+            row_id = r.get('id') or r.get('ID')
+            if row_id and str(row_id).isdigit():
+                existing = OcorrenciaCaderno.objects.filter(id=int(row_id), tipo=TipoOcorrencia.AMAMENTACAO).first()
+
+            if not existing:
+                lookup = OcorrenciaCaderno.objects.filter(
+                    tipo=TipoOcorrencia.AMAMENTACAO,
+                    aluno=aluno,
+                    data=data_val,
+                )
+                if h_obj:
+                    lookup = lookup.filter(horario=h_obj)
+                existing = lookup.first()
+
+            if not existing:
+                OcorrenciaCaderno.objects.create(
+                    tipo=TipoOcorrencia.AMAMENTACAO,
+                    aluno=aluno,
+                    turma=turma,
+                    data=data_val,
+                    quantidade=qtd_int,
+                    motivo=motivo,
+                    observacao=obs,
+                    horario=h_obj,
+                    registrado_por=user,
+                )
+                created += 1
+            else:
+                existing.turma = turma or existing.turma
+                existing.quantidade = qtd_int
+                existing.motivo = motivo
+                existing.observacao = obs
+                if h_obj: existing.horario = h_obj
+                existing.save()
+                updated += 1
+
+    return created, updated
+
+
+def import_enfermaria(rows, user=None):
+    """Importa atendimentos clínicos e prontuários da Enfermaria."""
+    from presencas.models import AtendimentoEnfermaria
+    created, updated = 0, 0
+    with transaction.atomic():
+        for r in rows:
+            data_val = parse_date_flexible(r.get('data_atendimento') or r.get('Data') or r.get('data'))
+            if not data_val:
+                continue
+
+            aluno_nome = r.get('aluno_nome') or r.get('Nome da Criança') or r.get('Aluno') or r.get('aluno')
+            aluno_id = r.get('aluno_id') or r.get('Aluno ID')
+            aluno = None
+            if aluno_id and str(aluno_id).isdigit():
+                aluno = Aluno.objects.filter(id=int(aluno_id)).first()
+            if not aluno and aluno_nome:
+                aluno = Aluno.objects.filter(nome__iexact=str(aluno_nome).strip()).first()
+
+            if not aluno:
+                continue
+
+            horario_val = r.get('horario') or r.get('Horário') or r.get('Horario') or ''
+            h_obj = None
+            if horario_val and ':' in str(horario_val):
+                try:
+                    parts = str(horario_val).strip().split(':')
+                    h_obj = datetime.strptime(f"{int(parts[0]):02d}:{int(parts[1]):02d}", "%H:%M").time()
+                except Exception:
+                    h_obj = timezone.now().time()
+            else:
+                h_obj = timezone.now().time()
+
+            motivo = r.get('motivo') or r.get('Motivo Principal') or r.get('Motivo') or 'Atendimento Clínico'
+            motivo_detalhado = r.get('motivo_detalhado') or r.get('Motivo Detalhado') or ''
+            cid = r.get('cid') or r.get('CID') or ''
+            obs_med = r.get('observacoes_medicas') or r.get('Observações Médicas / Conduta') or r.get('Observações Médicas') or r.get('Observacao') or ''
+            saida_imed = parse_bool(r.get('saida_imediata', r.get('Saída Imediata', False)))
+            retornara = parse_bool(r.get('retornara_dia_seguinte', r.get('Retornará no Dia Seguinte', True)))
+            data_retorno = parse_date_flexible(r.get('data_retorno_prevista') or r.get('Data Retorno') or r.get('Data Prevista de Retorno'))
+
+            existing = None
+            row_id = r.get('id') or r.get('ID')
+            if row_id and str(row_id).isdigit():
+                existing = AtendimentoEnfermaria.objects.filter(id=int(row_id)).first()
+
+            if not existing:
+                lookup = AtendimentoEnfermaria.objects.filter(
+                    aluno=aluno,
+                    data_atendimento=data_val,
+                    motivo=motivo
+                )
+                if h_obj:
+                    lookup = lookup.filter(horario=h_obj)
+                existing = lookup.first()
+
+            if not existing:
+                AtendimentoEnfermaria.objects.create(
+                    aluno=aluno,
+                    data_atendimento=data_val,
+                    horario=h_obj,
+                    motivo=motivo,
+                    motivo_detalhado=motivo_detalhado,
+                    cid=cid,
+                    observacoes_medicas=obs_med,
+                    saida_imediata=saida_imed,
+                    retornara_dia_seguinte=retornara,
+                    data_retorno_prevista=data_retorno,
+                    registrado_por=user,
+                    ativo=True
+                )
+                created += 1
+            else:
+                existing.motivo = motivo
+                existing.motivo_detalhado = motivo_detalhado
+                existing.cid = cid
+                existing.observacoes_medicas = obs_med
+                existing.saida_imediata = saided_imed if 'saided_imed' in locals() else saida_imed
+                existing.retornara_dia_seguinte = retornara
+                existing.data_retorno_prevista = data_retorno
+                if h_obj: existing.horario = h_obj
+                existing.ativo = True
+                existing.save()
+                updated += 1
+
+    return created, updated
+
+
 def process_backup_import(uploaded_file, entity, user=None):
     """
     Controlador central de importação para restauração de backup parcial.
+    Ordem sequencial:
+    1. turmas
+    2. alunos
+    3. presencas
+    4. ocorrencias
+    5. amamentacao
+    6. enfermaria
     """
     is_json, rows = load_file_content(uploaded_file)
     if not rows:
@@ -416,5 +588,9 @@ def process_backup_import(uploaded_file, entity, user=None):
         return import_presencas(rows, user)
     elif entity == 'ocorrencias':
         return import_ocorrencias(rows, user)
+    elif entity == 'amamentacao':
+        return import_amamentacao(rows, user)
+    elif entity == 'enfermaria':
+        return import_enfermaria(rows, user)
     else:
         raise ValueError(f"Tipo de entidade desconhecido para importação: '{entity}'.")

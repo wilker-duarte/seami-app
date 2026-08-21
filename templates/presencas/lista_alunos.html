@@ -202,11 +202,15 @@
                         <!-- Coluna 5: Ações -->
                         <td style="padding: 16px 20px; text-align: right;">
                             <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                                <button type="button" onclick="viewStudentModal('{{ item.id }}')" title="Ver Ficha Cadastral do Aluno" style="padding: 7px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-body); color: #0284c7; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;">
+                                    <i data-lucide="eye" style="width: 15px; height: 15px;"></i>
+                                </button>
+
                                 <a href="{% url 'presencas:consulta_chamada' %}?q={{ item.nome|urlencode }}" title="Consultar Histórico de Presenças" style="padding: 7px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-body); color: var(--text-secondary); display: inline-flex; align-items: center; justify-content: center; text-decoration: none;">
                                     <i data-lucide="history" style="width: 15px; height: 15px;"></i>
                                 </a>
 
-                                <button type="button" onclick="editStudent({{ item.id }}, '{{ item.nome|escapejs }}', {{ item.turma.id }}, '{{ item.turno_raw }}', '{{ item.data_entrada|date:'Y-m-d' }}', '{{ item.data_desligamento|date:'Y-m-d'|default:'' }}', {{ item.has_acompanhamento|yesno:'true,false' }}, '{{ item.acompanhamento_obs|escapejs }}', '{{ item.acompanhamento_dias|escapejs }}', '{{ item.nome_responsavel|escapejs }}', '{{ item.telefone_responsavel|escapejs }}', {{ item.ativo|yesno:'true,false' }})" title="Editar Cadastro" style="padding: 7px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-body); color: var(--color-primary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center;">
+                                <button type="button" onclick="editStudent('{{ item.id }}')" title="Editar Cadastro" style="padding: 7px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-body); color: var(--color-primary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center;">
                                     <i data-lucide="edit-2" style="width: 15px; height: 15px;"></i>
                                 </button>
 
@@ -335,6 +339,146 @@
                 </div>
             </div>
 
+            <!-- SEÇÃO DE SAÚDE, ALERGIAS E RESTRIÇÕES (MÓDULO III: ENFERMARIA) -->
+            <div style="border-top: 1px solid var(--border-color); padding-top: 14px; display: flex; flex-direction: column; gap: 14px;">
+                <div style="font-weight: 800; font-size: 13.5px; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                    <span>🩺</span>
+                    <span>Saúde, Alergias & Restrições (Enfermaria)</span>
+                </div>
+
+                <!-- 1. Alergias Condicional -->
+                <div style="background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="field-has-alergias" onchange="toggleHealthBox('alergias', this.checked)" style="width: 16px; height: 16px; cursor: pointer; accent-color: #ef4444;">
+                        <label for="field-has-alergias" style="font-size: 13px; font-weight: 700; color: #991b1b; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                            <span>⚠️</span> Possui Alergias Conhecidas
+                        </label>
+                    </div>
+
+                    <div id="box-alergias-container" style="display: none; flex-direction: column; gap: 8px; padding-top: 8px; border-top: 1px dashed var(--border-color);">
+                        <label style="display: block; font-size: 11.5px; font-weight: 700; color: #991b1b;">
+                            Selecione as alergias da criança:
+                        </label>
+                        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                            <label style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #fecaca; background: #fff1f2; cursor: pointer; font-size: 11.5px; font-weight: 600; color: #991b1b;">
+                                <input type="checkbox" name="alergias" value="Leite / Lactose" class="alergia-check" style="accent-color: #ef4444;"> Leite / Lactose
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #fecaca; background: #fff1f2; cursor: pointer; font-size: 11.5px; font-weight: 600; color: #991b1b;">
+                                <input type="checkbox" name="alergias" value="Ovo" class="alergia-check" style="accent-color: #ef4444;"> Ovo
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #fecaca; background: #fff1f2; cursor: pointer; font-size: 11.5px; font-weight: 600; color: #991b1b;">
+                                <input type="checkbox" name="alergias" value="Amendoim / Castanhas" class="alergia-check" style="accent-color: #ef4444;"> Amendoim / Castanhas
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #fecaca; background: #fff1f2; cursor: pointer; font-size: 11.5px; font-weight: 600; color: #991b1b;">
+                                <input type="checkbox" name="alergias" value="Glúten / Trigo" class="alergia-check" style="accent-color: #ef4444;"> Glúten / Trigo
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #fecaca; background: #fff1f2; cursor: pointer; font-size: 11.5px; font-weight: 600; color: #991b1b;">
+                                <input type="checkbox" name="alergias" value="Soja" class="alergia-check" style="accent-color: #ef4444;"> Soja
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #fecaca; background: #fff1f2; cursor: pointer; font-size: 11.5px; font-weight: 600; color: #991b1b;">
+                                <input type="checkbox" name="alergias" value="Medicamentos" class="alergia-check" style="accent-color: #ef4444;"> Medicamentos
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #fecaca; background: #fff1f2; cursor: pointer; font-size: 11.5px; font-weight: 600; color: #991b1b;">
+                                <input type="checkbox" name="alergias" value="Picada de Insetos" class="alergia-check" style="accent-color: #ef4444;"> Picada de Insetos
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #fecaca; background: #fff1f2; cursor: pointer; font-size: 11.5px; font-weight: 600; color: #991b1b;">
+                                <input type="checkbox" name="alergias" value="Poeira / Ácaros" class="alergia-check" style="accent-color: #ef4444;"> Poeira / Ácaros
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #fecaca; background: #fff1f2; cursor: pointer; font-size: 11.5px; font-weight: 600; color: #991b1b;">
+                                <input type="checkbox" name="alergias" value="Outros" id="check-alergias-outro" onchange="toggleOutroInput('alergias', this.checked)" style="accent-color: #ef4444;"> Outros
+                            </label>
+                        </div>
+                        <div id="box-alergias-outro" style="display: none;">
+                            <input type="text" name="alergias_outro" id="field-alergias-outro" placeholder="Descreva outras alergias..." style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 12.5px; color: var(--text-primary);">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Restrições Alimentares Condicional -->
+                <div style="background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="field-has-restricoes" onchange="toggleHealthBox('restricoes', this.checked)" style="width: 16px; height: 16px; cursor: pointer; accent-color: #f97316;">
+                        <label for="field-has-restricoes" style="font-size: 13px; font-weight: 700; color: #9a3412; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                            <span>🍽️</span> Possui Restrições Alimentares
+                        </label>
+                    </div>
+
+                    <div id="box-restricoes-container" style="display: none; flex-direction: column; gap: 8px; padding-top: 8px; border-top: 1px dashed var(--border-color);">
+                        <label style="display: block; font-size: 11.5px; font-weight: 700; color: #9a3412;">
+                            Selecione as restrições alimentares:
+                        </label>
+                        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                            <label style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #fed7aa; background: #fff7ed; cursor: pointer; font-size: 11.5px; font-weight: 600; color: #9a3412;">
+                                <input type="checkbox" name="restricoes_alimentares" value="Intolerância à Lactose" class="restricao-check" style="accent-color: #f97316;"> Intolerância à Lactose
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #fed7aa; background: #fff7ed; cursor: pointer; font-size: 11.5px; font-weight: 600; color: #9a3412;">
+                                <input type="checkbox" name="restricoes_alimentares" value="Doença Celíaca (Glúten)" class="restricao-check" style="accent-color: #f97316;"> Doença Celíaca (Glúten)
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #fed7aa; background: #fff7ed; cursor: pointer; font-size: 11.5px; font-weight: 600; color: #9a3412;">
+                                <input type="checkbox" name="restricoes_alimentares" value="Sem Açúcar" class="restricao-check" style="accent-color: #f97316;"> Sem Açúcar
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #fed7aa; background: #fff7ed; cursor: pointer; font-size: 11.5px; font-weight: 600; color: #9a3412;">
+                                <input type="checkbox" name="restricoes_alimentares" value="Vegetariano / Vegano" class="restricao-check" style="accent-color: #f97316;"> Vegetariano / Vegano
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #fed7aa; background: #fff7ed; cursor: pointer; font-size: 11.5px; font-weight: 600; color: #9a3412;">
+                                <input type="checkbox" name="restricoes_alimentares" value="Sem Corantes Artificiais" class="restricao-check" style="accent-color: #f97316;"> Sem Corantes Artificiais
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #fed7aa; background: #fff7ed; cursor: pointer; font-size: 11.5px; font-weight: 600; color: #9a3412;">
+                                <input type="checkbox" name="restricoes_alimentares" value="Outros" id="check-restricoes-outro" onchange="toggleOutroInput('restricoes', this.checked)" style="accent-color: #f97316;"> Outros
+                            </label>
+                        </div>
+                        <div id="box-restricoes-outro" style="display: none;">
+                            <input type="text" name="restricoes_outro" id="field-restricoes-outro" placeholder="Descreva outras restrições alimentares..." style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 12.5px; color: var(--text-primary);">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Condições de Saúde / Comorbidades Condicional -->
+                <div style="background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="field-has-comorbidades" onchange="toggleHealthBox('comorbidades', this.checked)" style="width: 16px; height: 16px; cursor: pointer; accent-color: #8b5cf6;">
+                        <label for="field-has-comorbidades" style="font-size: 13px; font-weight: 700; color: #6b21a8; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                            <span>🩺</span> Possui Condições de Saúde / Comorbidades
+                        </label>
+                    </div>
+
+                    <div id="box-comorbidades-container" style="display: none; flex-direction: column; gap: 8px; padding-top: 8px; border-top: 1px dashed var(--border-color);">
+                        <label style="display: block; font-size: 11.5px; font-weight: 700; color: #6b21a8;">
+                            Selecione as condições de saúde ou comorbidades:
+                        </label>
+                        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                            <label style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #e9d5ff; background: #faf5ff; cursor: pointer; font-size: 11.5px; font-weight: 600; color: #6b21a8;">
+                                <input type="checkbox" name="comorbidades" value="Asma / Bronquite" class="comorbidade-check" style="accent-color: #8b5cf6;"> Asma / Bronquite
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #e9d5ff; background: #faf5ff; cursor: pointer; font-size: 11.5px; font-weight: 600; color: #6b21a8;">
+                                <input type="checkbox" name="comorbidades" value="Epilepsia / Convulsão" class="comorbidade-check" style="accent-color: #8b5cf6;"> Epilepsia / Convulsão
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #e9d5ff; background: #faf5ff; cursor: pointer; font-size: 11.5px; font-weight: 600; color: #6b21a8;">
+                                <input type="checkbox" name="comorbidades" value="Diabetes Infantil" class="comorbidade-check" style="accent-color: #8b5cf6;"> Diabetes Infantil
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #e9d5ff; background: #faf5ff; cursor: pointer; font-size: 11.5px; font-weight: 600; color: #6b21a8;">
+                                <input type="checkbox" name="comorbidades" value="Cardiopatia" class="comorbidade-check" style="accent-color: #8b5cf6;"> Cardiopatia
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #e9d5ff; background: #faf5ff; cursor: pointer; font-size: 11.5px; font-weight: 600; color: #6b21a8;">
+                                <input type="checkbox" name="comorbidades" value="Refluxo Esofágico" class="comorbidade-check" style="accent-color: #8b5cf6;"> Refluxo Esofágico
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #e9d5ff; background: #faf5ff; cursor: pointer; font-size: 11.5px; font-weight: 600; color: #6b21a8;">
+                                <input type="checkbox" name="comorbidades" value="TEA (Espectro Autista)" class="comorbidade-check" style="accent-color: #8b5cf6;"> TEA (Espectro Autista)
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #e9d5ff; background: #faf5ff; cursor: pointer; font-size: 11.5px; font-weight: 600; color: #6b21a8;">
+                                <input type="checkbox" name="comorbidades" value="TDAH" class="comorbidade-check" style="accent-color: #8b5cf6;"> TDAH
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #e9d5ff; background: #faf5ff; cursor: pointer; font-size: 11.5px; font-weight: 600; color: #6b21a8;">
+                                <input type="checkbox" name="comorbidades" value="Outros" id="check-comorbidades-outro" onchange="toggleOutroInput('comorbidades', this.checked)" style="accent-color: #8b5cf6;"> Outros
+                            </label>
+                        </div>
+                        <div id="box-comorbidades-outro" style="display: none;">
+                            <input type="text" name="comorbidades_outro" id="field-comorbidades-outro" placeholder="Descreva outras condições de saúde..." style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 12.5px; color: var(--text-primary);">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                 <div>
                     <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
@@ -408,7 +552,84 @@
     </div>
 </div>
 
+<!-- ========================================================================= -->
+<!-- MODAL DE VISUALIZAÇÃO DE FICHA CADASTRAL DO ALUNO                         -->
+<!-- ========================================================================= -->
+<div id="modal-view-student" class="modal-overlay" style="display: none;">
+    <div class="modal-card" style="max-width: 580px;" onclick="event.stopPropagation()">
+        <div class="modal-header" style="border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 20px 24px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 38px; height: 38px; border-radius: 10px; background-color: #e0f2fe; color: #0284c7; display: flex; align-items: center; justify-content: center;">
+                    <i data-lucide="user" style="width: 20px; height: 20px;"></i>
+                </div>
+                <div>
+                    <h3 id="view-student-title" style="margin: 0; font-size: 17.5px; font-weight: 800; color: var(--text-primary);">
+                        Ficha Cadastral do Aluno
+                    </h3>
+                    <div id="view-student-subtitle" style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                        Dados de matrícula, acompanhamento e saúde escolar
+                    </div>
+                </div>
+            </div>
+            <button type="button" onclick="closeViewStudentModal()" style="border: none; background: none; cursor: pointer; color: var(--text-light); font-size: 18px;">✕</button>
+        </div>
+
+        <div id="view-student-body" style="padding: 24px; display: flex; flex-direction: column; gap: 16px; max-height: 75vh; overflow-y: auto;">
+            <!-- Preenchido via JavaScript -->
+        </div>
+
+        <div style="border-top: 1px solid var(--border-color); padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; background: var(--bg-body); border-radius: 0 0 16px 16px;">
+            <button type="button" id="view-student-edit-btn" class="primary-btn" style="padding: 9px 18px; border-radius: 8px; background-color: var(--color-primary); color: white; border: none; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="edit-2" style="width: 14px; height: 14px;"></i> Editar Aluno
+            </button>
+            <button type="button" onclick="closeViewStudentModal()" class="secondary-btn" style="padding: 9px 18px; border-radius: 8px; font-size: 13px;">
+                Fechar
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
+    const STUDENTS_MAP = JSON.parse('{{ alunos_json|escapejs }}' || '{}');
+
+    function normStr(str) {
+        if (!str) return '';
+        return str.toString()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[\s\/\-_]+/g, '')
+            .trim();
+    }
+
+    function toggleOutroInput(tipo, isChecked) {
+        const box = document.getElementById(`box-${tipo}-outro`);
+        if (box) box.style.display = isChecked ? 'block' : 'none';
+    }
+
+    function toggleHealthBox(tipo, isChecked) {
+        const container = document.getElementById(`box-${tipo}-container`);
+        if (container) {
+            container.style.display = isChecked ? 'flex' : 'none';
+        }
+        if (!isChecked) {
+            // Desmarcar todos os checkboxes deste tipo e limpar outros
+            if (tipo === 'alergias') {
+                document.querySelectorAll('.alergia-check').forEach(cb => cb.checked = false);
+                document.getElementById('field-alergias-outro').value = '';
+                toggleOutroInput('alergias', false);
+            } else if (tipo === 'restricoes') {
+                document.querySelectorAll('.restricao-check').forEach(cb => cb.checked = false);
+                document.getElementById('field-restricoes-outro').value = '';
+                toggleOutroInput('restricoes', false);
+            } else if (tipo === 'comorbidades') {
+                document.querySelectorAll('.comorbidade-check').forEach(cb => cb.checked = false);
+                document.getElementById('field-comorbidades-outro').value = '';
+                toggleOutroInput('comorbidades', false);
+            }
+        }
+    }
+
     function openStudentModal() {
         document.getElementById('modal-student-title').innerText = 'Novo Aluno';
         document.getElementById('form-action').value = 'create';
@@ -420,6 +641,17 @@
         document.getElementById('field-has-acompanhamento').checked = false;
         document.getElementById('field-acomp-obs').value = '';
         document.querySelectorAll('.dia-semana-check').forEach(cb => cb.checked = false);
+        
+        // Desmarcar e fechar as caixas de saúde
+        document.getElementById('field-has-alergias').checked = false;
+        toggleHealthBox('alergias', false);
+
+        document.getElementById('field-has-restricoes').checked = false;
+        toggleHealthBox('restricoes', false);
+
+        document.getElementById('field-has-comorbidades').checked = false;
+        toggleHealthBox('comorbidades', false);
+
         document.getElementById('field-responsavel').value = '';
         document.getElementById('field-telefone').value = '';
         document.getElementById('field-ativo').checked = true;
@@ -430,30 +662,256 @@
         lucide.createIcons();
     }
 
-    function editStudent(id, nome, turmaId, turno, dataEntrada, dataDesligamento, hasAcomp, acompObs, acompDias, resp, tel, ativo) {
+    function editStudent(id) {
+        const st = STUDENTS_MAP[String(id)];
+        if (!st) {
+            alert('Não foi possível carregar os dados deste aluno.');
+            return;
+        }
+
+        // Se o modal de visualização estiver aberto, fecha ele
+        closeViewStudentModal();
+
         document.getElementById('modal-student-title').innerText = 'Editar Aluno';
         document.getElementById('form-action').value = 'update';
-        document.getElementById('form-aluno-id').value = id;
-        document.getElementById('field-nome').value = nome;
-        document.getElementById('field-turma').value = turmaId;
-        document.getElementById('field-turno').value = turno;
-        document.getElementById('field-data-entrada').value = dataEntrada || '';
-        document.getElementById('field-data-desligamento').value = dataDesligamento || '';
-        document.getElementById('field-has-acompanhamento').checked = hasAcomp;
-        document.getElementById('field-acomp-obs').value = acompObs;
+        document.getElementById('form-aluno-id').value = st.id;
+        document.getElementById('field-nome').value = st.nome;
+        if (st.turma_id) {
+            document.getElementById('field-turma').value = st.turma_id;
+        }
+        document.getElementById('field-turno').value = st.turno_raw || 'integral';
+        document.getElementById('field-data-entrada').value = st.data_entrada || '';
+        document.getElementById('field-data-desligamento').value = st.data_desligamento || '';
+        document.getElementById('field-has-acompanhamento').checked = st.has_acompanhamento;
+        document.getElementById('field-acomp-obs').value = st.acompanhamento_obs || '';
+        
         // Marcar os dias da semana
-        const diasAtivos = acompDias ? acompDias.split(',') : [];
+        const diasAtivos = st.acompanhamento_dias ? st.acompanhamento_dias.toLowerCase().split(',').map(s => s.trim()) : [];
         document.querySelectorAll('.dia-semana-check').forEach(cb => {
-            cb.checked = diasAtivos.includes(cb.value);
+            cb.checked = diasAtivos.includes(cb.value.toLowerCase());
         });
-        document.getElementById('field-responsavel').value = resp;
-        document.getElementById('field-telefone').value = tel;
-        document.getElementById('field-ativo').checked = ativo;
-        toggleAcompObs(hasAcomp);
+
+        // 1. Processar Alergias
+        const listAlergias = st.alergias ? st.alergias.split(',').map(s => s.trim()).filter(Boolean) : [];
+        const hasAlergias = listAlergias.length > 0;
+        document.getElementById('field-has-alergias').checked = hasAlergias;
+        toggleHealthBox('alergias', hasAlergias);
+
+        if (hasAlergias) {
+            const normSavedAlergias = listAlergias.map(normStr);
+            let customAlergias = [];
+
+            document.querySelectorAll('.alergia-check').forEach(cb => {
+                if (cb.value !== 'Outros') {
+                    const isChecked = normSavedAlergias.includes(normStr(cb.value));
+                    cb.checked = isChecked;
+                }
+            });
+
+            listAlergias.forEach(a => {
+                const isStandard = Array.from(document.querySelectorAll('.alergia-check'))
+                    .some(cb => cb.value !== 'Outros' && normStr(cb.value) === normStr(a));
+                if (!isStandard && a) {
+                    customAlergias.push(a);
+                }
+            });
+
+            const hasCustomAlergia = customAlergias.length > 0;
+            document.getElementById('check-alergias-outro').checked = hasCustomAlergia;
+            document.getElementById('field-alergias-outro').value = customAlergias.join(', ');
+            toggleOutroInput('alergias', hasCustomAlergia);
+        }
+
+        // 2. Processar Restrições
+        const listRestricoes = st.restricoes_alimentares ? st.restricoes_alimentares.split(',').map(s => s.trim()).filter(Boolean) : [];
+        const hasRestricoes = listRestricoes.length > 0;
+        document.getElementById('field-has-restricoes').checked = hasRestricoes;
+        toggleHealthBox('restricoes', hasRestricoes);
+
+        if (hasRestricoes) {
+            const normSavedRestricoes = listRestricoes.map(normStr);
+            let customRestricoes = [];
+
+            document.querySelectorAll('.restricao-check').forEach(cb => {
+                if (cb.value !== 'Outros') {
+                    const isChecked = normSavedRestricoes.includes(normStr(cb.value));
+                    cb.checked = isChecked;
+                }
+            });
+
+            listRestricoes.forEach(r => {
+                const isStandard = Array.from(document.querySelectorAll('.restricao-check'))
+                    .some(cb => cb.value !== 'Outros' && normStr(cb.value) === normStr(r));
+                if (!isStandard && r) {
+                    customRestricoes.push(r);
+                }
+            });
+
+            const hasCustomRestricao = customRestricoes.length > 0;
+            document.getElementById('check-restricoes-outro').checked = hasCustomRestricao;
+            document.getElementById('field-restricoes-outro').value = customRestricoes.join(', ');
+            toggleOutroInput('restricoes', hasCustomRestricao);
+        }
+
+        // 3. Processar Comorbidades
+        const listComorbidades = st.comorbidades ? st.comorbidades.split(',').map(s => s.trim()).filter(Boolean) : [];
+        const hasComorbidades = listComorbidades.length > 0;
+        document.getElementById('field-has-comorbidades').checked = hasComorbidades;
+        toggleHealthBox('comorbidades', hasComorbidades);
+
+        if (hasComorbidades) {
+            const normSavedComorbidades = listComorbidades.map(normStr);
+            let customComorbidades = [];
+
+            document.querySelectorAll('.comorbidade-check').forEach(cb => {
+                if (cb.value !== 'Outros') {
+                    const isChecked = normSavedComorbidades.includes(normStr(cb.value));
+                    cb.checked = isChecked;
+                }
+            });
+
+            listComorbidades.forEach(c => {
+                const isStandard = Array.from(document.querySelectorAll('.comorbidade-check'))
+                    .some(cb => cb.value !== 'Outros' && normStr(cb.value) === normStr(c));
+                if (!isStandard && c) {
+                    customComorbidades.push(c);
+                }
+            });
+
+            const hasCustomComorbidade = customComorbidades.length > 0;
+            document.getElementById('check-comorbidades-outro').checked = hasCustomComorbidade;
+            document.getElementById('field-comorbidades-outro').value = customComorbidades.join(', ');
+            toggleOutroInput('comorbidades', hasCustomComorbidade);
+        }
+
+        document.getElementById('field-responsavel').value = st.nome_responsavel || '';
+        document.getElementById('field-telefone').value = st.telefone_responsavel || '';
+        document.getElementById('field-ativo').checked = st.ativo;
+        toggleAcompObs(st.has_acompanhamento);
 
         document.getElementById('modal-student-form').style.display = 'flex';
         document.body.style.overflow = 'hidden';
         lucide.createIcons();
+    }
+
+    function viewStudentModal(id) {
+        const st = STUDENTS_MAP[String(id)];
+        if (!st) {
+            alert('Não foi possível carregar os dados deste aluno.');
+            return;
+        }
+
+        const body = document.getElementById('view-student-body');
+        const editBtn = document.getElementById('view-student-edit-btn');
+        editBtn.onclick = () => editStudent(st.id);
+
+        const alergiasList = st.alergias ? st.alergias.split(',').map(s => s.trim()).filter(Boolean) : [];
+        const restricoesList = st.restricoes_alimentares ? st.restricoes_alimentares.split(',').map(s => s.trim()).filter(Boolean) : [];
+        const comorbidadesList = st.comorbidades ? st.comorbidades.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+        let alergiasHtml = alergiasList.length > 0
+            ? alergiasList.map(a => `<span style="background: #fee2e2; color: #991b1b; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px; border: 1px solid #fecaca; margin-right: 4px; display: inline-block; margin-bottom: 4px;">⚠️ ${a}</span>`).join('')
+            : `<span style="color: var(--text-light); font-style: italic; font-size: 12.5px;">Nenhuma alergia cadastrada</span>`;
+
+        let restricoesHtml = restricoesList.length > 0
+            ? restricoesList.map(r => `<span style="background: #ffedd5; color: #9a3412; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px; border: 1px solid #fed7aa; margin-right: 4px; display: inline-block; margin-bottom: 4px;">🍽️ ${r}</span>`).join('')
+            : `<span style="color: var(--text-light); font-style: italic; font-size: 12.5px;">Nenhuma restrição alimentar cadastrada</span>`;
+
+        let comorbidadesHtml = comorbidadesList.length > 0
+            ? comorbidadesList.map(c => `<span style="background: #f3e8ff; color: #6b21a8; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px; border: 1px solid #e9d5ff; margin-right: 4px; display: inline-block; margin-bottom: 4px;">🩺 ${c}</span>`).join('')
+            : `<span style="color: var(--text-light); font-style: italic; font-size: 12.5px;">Nenhuma comorbidade ou condição prévia cadastrada</span>`;
+
+        let acompHtml = st.has_acompanhamento
+            ? `<div style="background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 8px; padding: 10px 14px; font-size: 12.5px; color: #0369a1;">
+                <strong>Possui Acompanhamento Especial:</strong><br>
+                ${st.acompanhamento_dias ? `<div>📅 Dias: <strong>${st.acompanhamento_dias.toUpperCase()}</strong></div>` : ''}
+                ${st.acompanhamento_obs ? `<div style="margin-top: 3px;">📝 <em>${st.acompanhamento_obs}</em></div>` : ''}
+               </div>`
+            : `<span style="color: var(--text-light); font-style: italic; font-size: 12.5px;">Não necessita de acompanhamento especial</span>`;
+
+        let statusPill = st.ativo
+            ? `<span style="background-color: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px;"><span style="width: 6px; height: 6px; border-radius: 999px; background-color: #16a34a;"></span> Matrícula Ativa</span>`
+            : `<span style="background-color: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px;"><span style="width: 6px; height: 6px; border-radius: 999px; background-color: #dc2626;"></span> Inativo</span>`;
+
+        let telLink = st.telefone_responsavel
+            ? `<a href="https://wa.me/55${st.telefone_responsavel.replace(/\D/g, '')}" target="_blank" style="color: #16a34a; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">${st.telefone_responsavel} <i data-lucide="message-circle" style="width: 13px; height: 13px;"></i></a>`
+            : `<span style="color: var(--text-light);">Não informado</span>`;
+
+        body.innerHTML = `
+            <!-- Card Principal -->
+            <div style="background: var(--bg-body); border: 1.5px solid var(--border-color); border-radius: 12px; padding: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                    <div>
+                        <h4 style="margin: 0; font-size: 17px; font-weight: 800; color: var(--text-primary);">${st.nome}</h4>
+                        <div style="display: flex; gap: 6px; margin-top: 6px; align-items: center; flex-wrap: wrap;">
+                            <span style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 12px;">Sala ${st.turma_nome}</span>
+                            <span style="background: #eff6ff; color: #1d4ed8; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 12px;">Turno ${st.turno}</span>
+                        </div>
+                    </div>
+                    ${statusPill}
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border-color); font-size: 12.5px;">
+                    <div>
+                        <span style="color: var(--text-secondary); display: block; font-size: 11.5px;">Data de Entrada:</span>
+                        <strong style="color: var(--text-primary);">${st.data_entrada_br}</strong>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-secondary); display: block; font-size: 11.5px;">Data de Desligamento:</span>
+                        <strong style="color: ${st.data_desligamento_br ? '#b91c1c' : 'var(--text-primary)'};">${st.data_desligamento_br || '—'}</strong>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-secondary); display: block; font-size: 11.5px;">Responsável:</span>
+                        <strong style="color: var(--text-primary);">${st.nome_responsavel || 'Não informado'}</strong>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-secondary); display: block; font-size: 11.5px;">Telefone / WhatsApp:</span>
+                        ${telLink}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card de Acompanhamento Especial -->
+            <div style="border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
+                <div style="font-weight: 700; font-size: 13px; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                    <span>🤝</span>
+                    <span>Acompanhamento Especial (Pedagógico / Saúde)</span>
+                </div>
+                ${acompHtml}
+            </div>
+
+            <!-- Card de Saúde, Alergias e Restrições -->
+            <div style="border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 12px;">
+                <div style="font-weight: 700; font-size: 13px; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                    <span>🩺</span>
+                    <span>Prontuário de Saúde & Restrições Clínicas</span>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 11.5px; font-weight: 700; color: #991b1b; margin-bottom: 4px;">Alergias Conhecidas:</label>
+                    <div>${alergiasHtml}</div>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 11.5px; font-weight: 700; color: #9a3412; margin-bottom: 4px;">Restrições Alimentares:</label>
+                    <div>${restricoesHtml}</div>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 11.5px; font-weight: 700; color: #6b21a8; margin-bottom: 4px;">Condições de Saúde / Comorbidades:</label>
+                    <div>${comorbidadesHtml}</div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('modal-view-student').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        lucide.createIcons();
+    }
+
+    function closeViewStudentModal() {
+        document.getElementById('modal-view-student').style.display = 'none';
+        document.body.style.overflow = 'auto';
     }
 
     function closeStudentModal() {
@@ -501,7 +959,7 @@
     }
 
     window.addEventListener('click', function(e) {
-        ['modal-student-form', 'modal-toggle-active'].forEach(id => {
+        ['modal-student-form', 'modal-toggle-active', 'modal-view-student'].forEach(id => {
             const el = document.getElementById(id);
             if (el && e.target === el) {
                 el.style.display = 'none';

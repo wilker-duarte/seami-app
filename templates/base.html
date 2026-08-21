@@ -59,6 +59,9 @@
                         <span class="brand-subtitle">Portal Creche</span>
                     </div>
                 </div>
+                <button type="button" class="sidebar-collapse-btn" id="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="Recolher / Expandir Menu Lateral" style="background: none; border: none; cursor: pointer; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 6px; transition: all 0.2s;">
+                    <i data-lucide="panel-left-close" id="sidebar-collapse-icon" style="width: 18px; height: 18px;"></i>
+                </button>
                 <button class="sidebar-close-btn" id="close-sidebar-btn" onclick="toggleSidebar(false)">
                     <span style="font-size: 24px;">&times;</span>
                 </button>
@@ -134,6 +137,18 @@
                     <span>Relatórios do Caderno</span>
                 </a>
 
+                <!-- MÓDULO III: ENFERMARIA -->
+                <div class="menu-section" style="margin-top: 14px; margin-bottom: 6px;">
+                    <span class="menu-section-title" title="Atendimentos clínicos, enfermagem, prontuário de saúde e controle de afastamentos.">
+                        Módulo III: Enfermaria
+                    </span>
+                </div>
+
+                <a href="{% url 'core:enfermaria' %}" class="menu-item {% if active_tab == 'enfermaria' %}active{% endif %}" title="Central de Atendimentos Clínicos e Prontuário dos Alunos">
+                    <i data-lucide="stethoscope"></i>
+                    <span>Enfermaria</span>
+                </a>
+
                 {% if user.is_authenticated and user.is_diretor or user.is_master_admin or user.is_superuser %}
                 <!-- SESSÃO ADMINISTRATIVA (DIRETORES E MASTER ADMIN) -->
                 <div class="menu-section" style="margin-top: 14px; margin-bottom: 6px;">
@@ -169,7 +184,7 @@
             <div class="sidebar-footer">
                 <div class="user-profile-widget">
                     <div class="user-avatar">
-                        {% if user.role == 'MASTER_ADMIN' or user.is_superuser %}👑{% elif user.role == 'DIRETOR' %}👩‍💼{% else %}👩‍🏫{% endif %}
+                        {% if user.role == 'MASTER_ADMIN' or user.is_superuser %}👑{% elif user.role == 'DIRETOR' %}👩‍💼{% elif user.role == 'ENFERMEIRA' %}🩺{% else %}👩‍🏫{% endif %}
                     </div>
                     <div class="user-info">
                         <span class="user-name">{{ user.get_full_name|default:user.username }}</span>
@@ -233,12 +248,6 @@
                             </div>
 
                             <div style="padding: 8px 0; display: flex; flex-direction: column; gap: 4px;">
-                                {% if user.is_staff or user.is_master_admin %}
-                                    <a href="/admin/" target="_blank" style="width: 100%; padding: 8px 12px; display: flex; align-items: center; gap: 8px; border-radius: 8px; color: var(--color-primary); font-size: 12.5px; font-weight: 600; text-decoration: none;">
-                                        <i data-lucide="shield"></i> Painel do Sistema (Admin)
-                                    </a>
-                                {% endif %}
-
                                 <a href="{% url 'accounts:usuarios_list' %}" style="width: 100%; padding: 8px 12px; display: flex; align-items: center; gap: 8px; border-radius: 8px; color: var(--text-primary); font-size: 12.5px; font-weight: 600; text-decoration: none;">
                                     <i data-lucide="users"></i> Usuários
                                 </a>
@@ -304,6 +313,21 @@
             }
         }
 
+        // Alternância de Expansão / Recolhimento da Sidebar
+        function toggleSidebarCollapse() {
+            const isCollapsed = document.body.classList.toggle('sidebar-collapsed');
+            localStorage.setItem('seami_sidebar_collapsed', isCollapsed ? 'true' : 'false');
+            updateCollapseIcon(isCollapsed);
+        }
+
+        function updateCollapseIcon(isCollapsed) {
+            const icon = document.getElementById('sidebar-collapse-icon');
+            if (icon) {
+                icon.setAttribute('data-lucide', isCollapsed ? 'panel-left-open' : 'panel-left-close');
+                lucide.createIcons();
+            }
+        }
+
         // Fecha menus ao clicar fora
         document.addEventListener('click', function(event) {
             const dropdown = document.getElementById('user-dropdown-menu');
@@ -313,12 +337,18 @@
             }
         });
 
-        // Carrega preferência de tema salva
+        // Carrega preferências de tema e sidebar salvas
         document.addEventListener('DOMContentLoaded', () => {
             const savedTheme = localStorage.getItem('seami_theme');
             if (savedTheme === 'dark' && !document.body.classList.contains('dark-mode')) {
                 document.body.classList.add('dark-mode');
                 updateThemeIcon(true);
+            }
+
+            const savedCollapse = localStorage.getItem('seami_sidebar_collapsed');
+            if (savedCollapse === 'true') {
+                document.body.classList.add('sidebar-collapsed');
+                updateCollapseIcon(true);
             }
         });
     </script>

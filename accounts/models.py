@@ -1,10 +1,16 @@
 from django.contrib.auth.models import AbstractUser, UserManager as BaseUserManager
+# pyrefly: ignore [missing-import]
 from django.db import models
+# pyrefly: ignore [missing-import]
+from django.utils import timezone
+from datetime import timedelta
+import uuid
 
 class UserRole(models.TextChoices):
     MASTER_ADMIN = 'MASTER_ADMIN', 'Master Admin'
     DIRETOR = 'DIRETOR', 'Diretor(a)'
     COORDENADOR = 'COORDENADOR', 'Coordenador(a)'
+    ENFERMEIRA = 'ENFERMEIRA', 'Enfermeira'
     PROFESSOR = 'PROFESSOR', 'Professor(a)'
     AUXILIAR = 'AUXILIAR', 'Auxiliar'
 
@@ -60,12 +66,16 @@ class User(AbstractUser):
         return self.role in [UserRole.DIRETOR, UserRole.MASTER_ADMIN] or self.is_superuser
 
     @property
-    def is_professor(self):
-        return self.role == UserRole.PROFESSOR
-
-    @property
     def is_coordenador(self):
         return self.role == UserRole.COORDENADOR
+
+    @property
+    def is_enfermeira(self):
+        return self.role == UserRole.ENFERMEIRA or self.role in [UserRole.DIRETOR, UserRole.MASTER_ADMIN] or self.is_superuser
+
+    @property
+    def is_professor(self):
+        return self.role == UserRole.PROFESSOR
 
     @property
     def is_auxiliar(self):
@@ -77,7 +87,7 @@ class ConviteUsuario(models.Model):
     Token temporário e seguro para Link Mágico de Primeiro Acesso.
     Permite ao administrador convidar educadores sem necessidade de senha manual inicial.
     """
-    import uuid
+
     email = models.EmailField(unique=True, verbose_name='E-mail do Convidado')
     nome = models.CharField(max_length=150, verbose_name='Nome Completo')
     role = models.CharField(
@@ -100,13 +110,11 @@ class ConviteUsuario(models.Model):
         return f"Convite: {self.email} ({self.get_role_display()}) - {'Utilizado' if self.utilizado else 'Pendente'}"
 
     def save(self, *args, **kwargs):
-        from django.utils import timezone
-        from datetime import timedelta
+
         if not self.expira_em:
             self.expira_em = timezone.now() + timedelta(days=2)  # 48 horas de validade padrão
         super().save(*args, **kwargs)
 
     @property
     def is_valido(self):
-        from django.utils import timezone
         return not self.utilizado and timezone.now() <= self.expira_em

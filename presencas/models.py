@@ -10,8 +10,17 @@ class StatusPresenca(models.TextChoices):
     PRESENTE = 'PRESENTE', 'Presente (P)'
     AUSENTE = 'AUSENTE', 'Falta (F)'
     JUSTIFICADO = 'JUSTIFICADO', 'Falta Justificada (FJ)'
+    PARCIAL = 'PARCIAL', 'Presença Parcial'
     RECESSO = 'RECESSO', 'Recesso Escolar (RE)'
     FERIADO = 'FERIADO', 'Feriado (FE)'
+
+
+class StatusTurnoPresenca(models.TextChoices):
+    PRESENTE = 'PRESENTE', 'Presente'
+    AUSENTE = 'AUSENTE', 'Falta'
+    JUSTIFICADO = 'JUSTIFICADO', 'Falta Justificada'
+    PENDENTE = 'PENDENTE', 'Pendente'
+    NA = 'NA', 'Não se Aplica'
 
 
 class TurnoAluno(models.TextChoices):
@@ -30,7 +39,6 @@ class TurnoFiltro(models.TextChoices):
 class Turma(models.Model):
     nome = models.CharField(max_length=100, unique=True, verbose_name='Nome da Turma / Sala')
     faixa_etaria = models.CharField(max_length=50, blank=True, verbose_name='Faixa Etária')
-    ano_letivo = models.IntegerField(default=2026, verbose_name='Ano Letivo')
     professores = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         related_name='turmas',
@@ -47,7 +55,7 @@ class Turma(models.Model):
         ordering = ['nome']
 
     def __str__(self):
-        return f"{self.nome} ({self.ano_letivo})"
+        return self.nome
 
 
 class AlunoQuerySet(models.QuerySet):
@@ -88,6 +96,9 @@ class Aluno(models.Model):
         verbose_name='Dias de Acompanhamento',
         help_text='Dias da semana separados por vírgula. Ex: seg,qua,sex'
     )
+    alergias = models.TextField(blank=True, default='', verbose_name='Alergias')
+    restricoes_alimentares = models.TextField(blank=True, default='', verbose_name='Restrições Alimentares')
+    comorbidades = models.TextField(blank=True, default='', verbose_name='Comorbidades / Condições de Saúde')
     nome_responsavel = models.CharField(max_length=150, blank=True, verbose_name='Nome do Responsável')
     telefone_responsavel = models.CharField(max_length=20, blank=True, verbose_name='Telefone do Responsável')
     ativo = models.BooleanField(default=True, verbose_name='Ativo')
@@ -213,13 +224,28 @@ class RegistroPresenca(models.Model):
         verbose_name='Turma'
     )
     data = models.DateField(default=timezone.now, verbose_name='Data')
+    
+    # Status consolidado e status detalhado por turnos
     status = models.CharField(
         max_length=20,
         choices=StatusPresenca.choices,
         default=StatusPresenca.PRESENTE,
-        verbose_name='Status'
+        verbose_name='Status Geral'
     )
-    observacao = models.TextField(blank=True, verbose_name='Observação / Justificativa')
+    status_matutino = models.CharField(
+        max_length=20,
+        choices=StatusTurnoPresenca.choices,
+        default=StatusTurnoPresenca.PENDENTE,
+        verbose_name='Status Matutino'
+    )
+    status_vespertino = models.CharField(
+        max_length=20,
+        choices=StatusTurnoPresenca.choices,
+        default=StatusTurnoPresenca.PENDENTE,
+        verbose_name='Status Vespertino'
+    )
+    
+    observacao = models.TextField(blank=True, verbose_name='Observação / Evidência')
     registrado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -241,10 +267,104 @@ class RegistroPresenca(models.Model):
             models.Index(fields=['data', 'turma']),
             models.Index(fields=['aluno', 'status']),
             models.Index(fields=['status', 'data']),
+            models.Index(fields=['data', 'status_matutino']),
+            models.Index(fields=['data', 'status_vespertino']),
         ]
 
     def __str__(self):
         return f"{self.aluno.nome} - {self.data.strftime('%d/%m/%Y')} ({self.get_status_display()})"
+
+    def calcular_status_e_observacao(self, custom_obs=None):
+        """
+        Calcula o status consolidado e a observação formatada de evidência por turno:
+        Ex: [Presença registrada - Matutino OK - Vespertino OK]
+            [Presença registrada - Matutino OK - Vespertino Pendente]
+            [Falta - Matutino Falta - Vespertino Falta]
+        """
+        turno_aluno = (self.aluno.turno or 'integral').lower() if hasattr(self, 'aluno') and self.aluno else 'integral'
+
+        # Aluno de Turno Matutino
+        if turno_aluno == 'matutino':
+            self.status_vespertino = StatusTurnoPresenca.NA
+            if self.status_matutino == StatusTurnoPresenca.PRESENTE:
+                self.status = StatusPresenca.PRESENTE
+                prefix = '[Presença registrada - Matutino OK]'
+            elif self.status_matutino == StatusTurnoPresenca.JUSTIFICADO:
+                self.status = StatusPresenca.JUSTIFICADO
+                prefix = '[Falta Justificada - Matutino FJ]'
+            elif self.status_matutino == StatusTurnoPresenca.AUSENTE:
+                self.status = StatusPresenca.AUSENTE
+                prefix = '[Falta - Matutino Falta]'
+            else:
+                self.status = StatusPresenca.PRESENTE
+                prefix = '[Presença - Matutino Pendente]'
+
+        # Aluno de Turno Vespertino
+        elif turno_aluno == 'vespertino':
+            self.status_matutino = StatusTurnoPresenca.NA
+            if self.status_vespertino == StatusTurnoPresenca.PRESENTE:
+                self.status = StatusPresenca.PRESENTE
+                prefix = '[Presença registrada - Vespertino OK]'
+            elif self.status_vespertino == StatusTurnoPresenca.JUSTIFICADO:
+                self.status = StatusPresenca.JUSTIFICADO
+                prefix = '[Falta Justificada - Vespertino FJ]'
+            elif self.status_vespertino == StatusTurnoPresenca.AUSENTE:
+                self.status = StatusPresenca.AUSENTE
+                prefix = '[Falta - Vespertino Falta]'
+            else:
+                self.status = StatusPresenca.PRESENTE
+                prefix = '[Presença - Vespertino Pendente]'
+
+        # Aluno de Turno Integral
+        else:
+            m = self.status_matutino
+            v = self.status_vespertino
+
+            m_lbl = 'Matutino OK' if m == StatusTurnoPresenca.PRESENTE else ('Matutino FJ' if m == StatusTurnoPresenca.JUSTIFICADO else ('Matutino Falta' if m == StatusTurnoPresenca.AUSENTE else 'Matutino Pendente'))
+            v_lbl = 'Vespertino OK' if v == StatusTurnoPresenca.PRESENTE else ('Vespertino FJ' if v == StatusTurnoPresenca.JUSTIFICADO else ('Vespertino Falta' if v == StatusTurnoPresenca.AUSENTE else 'Vespertino Pendente'))
+
+            if m == StatusTurnoPresenca.PRESENTE and v == StatusTurnoPresenca.PRESENTE:
+                self.status = StatusPresenca.PRESENTE
+                prefix = '[Presença registrada - Matutino OK - Vespertino OK]'
+            elif m == StatusTurnoPresenca.AUSENTE and v == StatusTurnoPresenca.AUSENTE:
+                self.status = StatusPresenca.AUSENTE
+                prefix = '[Falta - Matutino Falta - Vespertino Falta]'
+            elif m == StatusTurnoPresenca.JUSTIFICADO and v == StatusTurnoPresenca.JUSTIFICADO:
+                self.status = StatusPresenca.JUSTIFICADO
+                prefix = '[Falta Justificada - Matutino FJ - Vespertino FJ]'
+            elif m == StatusTurnoPresenca.PRESENTE and v in [StatusTurnoPresenca.AUSENTE, StatusTurnoPresenca.JUSTIFICADO]:
+                self.status = StatusPresenca.PARCIAL
+                prefix = f'[Presença registrada - {m_lbl} - {v_lbl}]'
+            elif v == StatusTurnoPresenca.PRESENTE and m in [StatusTurnoPresenca.AUSENTE, StatusTurnoPresenca.JUSTIFICADO]:
+                self.status = StatusPresenca.PARCIAL
+                prefix = f'[Presença registrada - {m_lbl} - {v_lbl}]'
+            elif m == StatusTurnoPresenca.PRESENTE and v == StatusTurnoPresenca.PENDENTE:
+                self.status = StatusPresenca.PRESENTE
+                prefix = '[Presença registrada - Matutino OK - Vespertino Pendente]'
+            elif v == StatusTurnoPresenca.PRESENTE and m == StatusTurnoPresenca.PENDENTE:
+                self.status = StatusPresenca.PRESENTE
+                prefix = '[Presença registrada - Matutino Pendente - Vespertino OK]'
+            elif m == StatusTurnoPresenca.JUSTIFICADO or v == StatusTurnoPresenca.JUSTIFICADO:
+                self.status = StatusPresenca.JUSTIFICADO
+                prefix = f'[Falta Justificada - {m_lbl} - {v_lbl}]'
+            else:
+                self.status = StatusPresenca.AUSENTE if (m == StatusTurnoPresenca.AUSENTE or v == StatusTurnoPresenca.AUSENTE) else StatusPresenca.PRESENTE
+                prefix = f'[{m_lbl} - {v_lbl}]'
+
+        # Adiciona observação extra se houver
+        if custom_obs and custom_obs.strip():
+            c_obs = custom_obs.strip()
+            # Remove prefixo antigo se já continha
+            if c_obs.startswith('[') and ']' in c_obs:
+                c_obs = c_obs.split(']', 1)[1].strip()
+            if c_obs:
+                self.observacao = f"{prefix} {c_obs}"
+            else:
+                self.observacao = prefix
+        else:
+            self.observacao = prefix
+
+        return self.observacao
 
 
 # ==============================================================================
@@ -274,17 +394,33 @@ def auto_popular_presencas_diario(sender, instance, created, **kwargs):
             ).values_list('aluno_id', flat=True)
         )
 
-        novos_registros = [
-            RegistroPresenca(
+        novos_registros = []
+        for aluno in alunos_qs:
+            if aluno.id in alunos_existentes_ids:
+                continue
+            turno_aluno = (aluno.turno or 'integral').lower()
+            if turno_aluno == 'matutino':
+                sm = StatusTurnoPresenca.PRESENTE
+                sv = StatusTurnoPresenca.NA
+            elif turno_aluno == 'vespertino':
+                sm = StatusTurnoPresenca.NA
+                sv = StatusTurnoPresenca.PRESENTE
+            else:
+                sm = StatusTurnoPresenca.PRESENTE
+                sv = StatusTurnoPresenca.PRESENTE
+
+            reg = RegistroPresenca(
                 diario_classe=instance,
                 turma=instance.turma,
                 aluno=aluno,
                 data=instance.data,
                 status=StatusPresenca.PRESENTE,
+                status_matutino=sm,
+                status_vespertino=sv,
                 registrado_por=instance.registrado_por
             )
-            for aluno in alunos_qs if aluno.id not in alunos_existentes_ids
-        ]
+            reg.calcular_status_e_observacao()
+            novos_registros.append(reg)
 
         if novos_registros:
             with transaction.atomic():
@@ -302,7 +438,7 @@ class TipoOcorrencia(models.TextChoices):
 class OcorrenciaCaderno(models.Model):
     """
     Entidade do Módulo II: Caderno SEAMI (Gestão de Imprevistos e Ocorrências).
-    Armazena Faltas, Atestados Médicos, Atrasos, Saídas Antecipadas e Amamentação.
+    Armazena Faltas, Atestados Médicos, Atrasos e Saídas Antecipadas.
     """
     tipo = models.CharField(
         max_length=20,
@@ -332,11 +468,20 @@ class OcorrenciaCaderno(models.Model):
     retorna = models.BooleanField(default=False, verbose_name='Retorna no mesmo dia?')
     justificado = models.BooleanField(default=False, verbose_name='Justificado?')
     avisado_pais = models.BooleanField(default=False, verbose_name='Avisado previamente pelos pais?')
-    cid = models.CharField(max_length=50, blank=True, verbose_name='CID (Classificação Internacional de Doenças)')
+    cid = models.CharField(max_length=255, blank=True, verbose_name='CID (Classificação Internacional de Doenças)')
     motivo = models.TextField(blank=True, verbose_name='Motivo Declarado')
-    quantidade = models.CharField(max_length=50, blank=True, verbose_name='Quantidade / Sessão / Duração')
+    responsavel = models.CharField(max_length=255, blank=True, verbose_name='Responsável / Acompanhante')
+    quantidade = models.CharField(max_length=255, blank=True, verbose_name='Quantidade / Sessão / Duração')
     observacao = models.TextField(blank=True, verbose_name='Observações Adicionais')
-    documento = models.FileField(upload_to='caderno_docs/%Y/%m/', null=True, blank=True, verbose_name='Documento / Atestado Anexo')
+    documento = models.FileField(
+        upload_to='attachments/ocorrencias/',
+        max_length=500,
+        null=True,
+        blank=True,
+        verbose_name='Documento / Anexo'
+    )
+    attachment_name = models.CharField(max_length=500, blank=True, verbose_name='Nome do Arquivo Anexo')
+    attachment_type = models.CharField(max_length=255, blank=True, verbose_name='Tipo MIME do Anexo')
     registrado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -353,7 +498,7 @@ class OcorrenciaCaderno(models.Model):
         ordering = ['-data', '-criado_em']
 
     def __str__(self):
-        nome = self.aluno.nome if self.aluno else "Amamentação Geral"
+        nome = self.aluno.nome if self.aluno else "Ocorrência Geral"
         return f"[{self.get_tipo_display()}] {nome} - {self.data.strftime('%d/%m/%Y')}"
 
     @property
@@ -361,8 +506,174 @@ class OcorrenciaCaderno(models.Model):
         """Retorna texto amigável de período (ex: '2 dias (13/08/2026 a 14/08/2026)')"""
         if not self.data_fim or self.data_fim == self.data:
             return f"1 dia ({self.data.strftime('%d/%m/%Y')})"
-        diff_dias = (self.data_fim - self.data).days + 1
-        return f"{diff_dias} dias ({self.data.strftime('%d/%m/%Y')} a {self.data_fim.strftime('%d/%m/%Y')})"
+        return f"{self.data.strftime('%d/%m/%Y')} até {self.data_fim.strftime('%d/%m/%Y')}"
+
+
+class RegistroAmamentacao(models.Model):
+    """
+    Registro diário de utilização da Sala de Amamentação (Série Histórica e Montantes Mensais/Anuais).
+    """
+    data = models.DateField(unique=True, verbose_name='Data de Utilização')
+    quantidade = models.PositiveIntegerField(default=1, verbose_name='Quantidade de Utilizações no Dia')
+    ano = models.IntegerField(verbose_name='Ano', db_index=True)
+    mes = models.IntegerField(verbose_name='Mês', db_index=True)
+    observacao = models.TextField(blank=True, verbose_name='Observações')
+    
+    anexo = models.FileField(
+        upload_to='attachments/amamentacao/',
+        max_length=500,
+        blank=True,
+        null=True,
+        verbose_name='Arquivo Anexo'
+    )
+    attachment_name = models.CharField(max_length=500, blank=True, verbose_name='Nome do Arquivo Anexo')
+    attachment_type = models.CharField(max_length=255, blank=True, verbose_name='Tipo MIME do Anexo')
+    
+    registrado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Registrado por'
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Registro de Amamentação'
+        verbose_name_plural = 'Registros de Amamentação (Sala de Apoio)'
+        ordering = ['-data']
+        indexes = [
+            models.Index(fields=['ano', 'mes']),
+            models.Index(fields=['data']),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.data:
+            self.ano = self.data.year
+            self.mes = self.data.month
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Amamentação {self.data.strftime('%d/%m/%Y')} - {self.quantidade} utilizações"
+
+
+class HistoricoFrequenciaMensal(models.Model):
+    """
+    Série Histórica Multiano de Frequência vs Alunos Matriculados (2019 até 2026+).
+    Registra os consolidados mensais de matrículas ativas e médias de presença.
+    """
+    mes_ano = models.CharField(max_length=7, unique=True, verbose_name='Mês/Ano (YYYY-MM)', db_index=True)
+    ano = models.IntegerField(verbose_name='Ano', db_index=True)
+    mes = models.IntegerField(verbose_name='Mês', db_index=True)
+    matriculados = models.PositiveIntegerField(default=0, verbose_name='Total de Alunos Matriculados')
+    presentes_media = models.PositiveIntegerField(default=0, verbose_name='Média de Alunos Presentes / Dia')
+    ausentes_media = models.PositiveIntegerField(default=0, verbose_name='Média de Alunos Ausentes / Faltas')
+    taxa_frequencia = models.FloatField(default=0.0, verbose_name='Taxa de Frequência (%)')
+    observacao = models.TextField(blank=True, verbose_name='Observações')
+    
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Histórico Mensal de Frequência'
+        verbose_name_plural = 'Históricos Mensais de Frequência (2019-2026)'
+        ordering = ['-ano', '-mes']
+        indexes = [
+            models.Index(fields=['ano', 'mes']),
+            models.Index(fields=['mes_ano']),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.mes_ano and '-' in self.mes_ano:
+            parts = self.mes_ano.split('-')
+            self.ano = int(parts[0])
+            self.mes = int(parts[1])
+        if self.matriculados > 0:
+            self.taxa_frequencia = round((self.presentes_media / self.matriculados) * 100, 1)
+            self.ausentes_media = max(0, self.matriculados - self.presentes_media)
+        super().save(*args, **kwargs)
+
+    @property
+    def mes_formatado(self):
+        meses = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+        nome_m = meses[self.mes] if 1 <= self.mes <= 12 else str(self.mes)
+        return f"{nome_m} / {self.ano}"
+
+    def __str__(self):
+        return f"{self.mes_formatado} - Matr: {self.matriculados} | Pres: {self.presentes_media} ({self.taxa_frequencia}%)"
+
+
+class AtendimentoEnfermariaQuerySet(models.QuerySet):
+    def ativos(self):
+        return self.filter(ativo=True)
+
+
+class AtendimentoEnfermaria(models.Model):
+    aluno = models.ForeignKey(
+        Aluno,
+        on_delete=models.CASCADE,
+        related_name='atendimentos_enfermaria',
+        verbose_name='Aluno'
+    )
+    data_atendimento = models.DateField(default=timezone.now, verbose_name='Data do Atendimento')
+    horario = models.TimeField(default=timezone.now, verbose_name='Horário do Atendimento')
+    motivo = models.CharField(max_length=150, verbose_name='Motivo Principal')
+    motivo_detalhado = models.TextField(blank=True, verbose_name='Detalhamento do Motivo / Outros')
+    
+    saida_imediata = models.BooleanField(default=False, verbose_name='Saída Imediata (Antecipada)')
+    retornara_dia_seguinte = models.BooleanField(default=True, verbose_name='Retornará no Dia Seguinte')
+    data_retorno_prevista = models.DateField(null=True, blank=True, verbose_name='Data Prevista de Retorno')
+    
+    observacoes_medicas = models.TextField(blank=True, verbose_name='Observações Médicas / Conduta')
+    cid = models.CharField(max_length=50, blank=True, verbose_name='CID (Classificação de Doenças)')
+    documento_anexo = models.FileField(upload_to='enfermaria/anexos/', blank=True, null=True, verbose_name='Documento Anexo / Atestado')
+    
+    registrado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='atendimentos_registrados',
+        verbose_name='Registrado por'
+    )
+
+    # Soft Delete exclusivo da Enfermaria
+    ativo = models.BooleanField(default=True, verbose_name='Registro Ativo')
+    deletado_em = models.DateTimeField(null=True, blank=True, verbose_name='Deletado em')
+    deletado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='atendimentos_deletados',
+        verbose_name='Deletado por'
+    )
+
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    objects = AtendimentoEnfermariaQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = 'Atendimento de Enfermaria'
+        verbose_name_plural = 'Atendimentos de Enfermaria'
+        ordering = ['-data_atendimento', '-horario', '-id']
+        indexes = [
+            models.Index(fields=['data_atendimento', 'ativo']),
+            models.Index(fields=['aluno', 'ativo']),
+        ]
+
+    def __str__(self):
+        return f"Atendimento: {self.aluno.nome} - {self.data_atendimento.strftime('%d/%m/%Y')} ({self.motivo})"
+
+    def soft_delete(self, user=None):
+        self.ativo = False
+        self.deletado_em = timezone.now()
+        if user:
+            self.deletado_por = user
+        self.save(update_fields=['ativo', 'deletado_em', 'deletado_por'])
 
 
 @receiver([post_save, post_delete], sender=Aluno)
@@ -376,3 +687,4 @@ def atualizar_cache_headcount_alunos(sender, instance, **kwargs):
         calcular_e_salvar_matriculados_headcount()
     except Exception as e:
         pass
+

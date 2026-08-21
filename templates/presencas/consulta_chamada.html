@@ -491,7 +491,7 @@
         "status": "{{ reg.status }}",
         "status_label": "{% if reg.status == 'PRESENTE' %}Presente (P){% elif reg.status == 'AUSENTE' %}Falta (F){% else %}Justificada (FJ){% endif %}",
         "obs": "{{ reg.observacao|default:'-'|escapejs }}",
-        "recorded_by": "{{ reg.registrado_por.get_full_name|default:reg.registrado_por.username|default:'Professor'|escapejs }}"
+        "recorded_by": "{% if reg.registrado_por %}{{ reg.registrado_por.get_full_name|default:reg.registrado_por.username|escapejs }}{% else %}Professor{% endif %}"
     }{% if not forloop.last %},{% endif %}
     {% endfor %}
 ]

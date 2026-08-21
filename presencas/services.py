@@ -212,14 +212,128 @@ def sync_historical_frequency_from_supabase():
 def get_historical_frequency_data():
     """
     Retorna a lista completa de registros históricos [{id, month, enrolled, present}, ...]
-    Se o arquivo não existir, realiza o fetch no Supabase.
+    consultando diretamente a model HistoricoFrequenciaMensal no banco de dados.
     """
-    file_path = get_historical_frequency_file_path()
-    if os.path.exists(file_path):
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception:
-            pass
+    from .models import HistoricoFrequenciaMensal
+    registros = HistoricoFrequenciaMensal.objects.all().order_by('-ano', '-mes')
+    return [
+        {
+            'id': f"hist_{r.id}",
+            'month': r.mes_ano,
+            'enrolled': r.matriculados,
+            'present': r.presentes_media,
+            'absences': r.ausentes_media,
+            'percentage': r.taxa_frequencia,
+            'observacao': r.observacao,
+        }
+        for r in registros
+    ]
 
-    return sync_historical_frequency_from_supabase()
+
+def registrar_atendimento_enfermaria(
+    aluno,
+    data_atendimento,
+    horario,
+    motivo,
+    motivo_detalhado='',
+    saida_imediata=False,
+    retornara_dia_seguinte=True,
+    data_retorno_prevista=None,
+    observacoes_medicas='',
+    cid='',
+    documento_anexo=None,
+    registrado_por=None
+):
+    """
+    Registra um atendimento clínico na Enfermaria e dispara as automações:
+    1. Cria AtendimentoEnfermaria.
+    2. Se saída imediata -> Cria OcorrenciaCaderno (tipo='saida').
+    3. Se não retorna amanhã e tem data de retorno -> Cria OcorrenciaCaderno (tipo='falta', justificado=True)
+       e RegistroPresenca (status=JUSTIFICADO) para cada dia útil até a véspera da data de retorno.
+    """
+    from datetime import timedelta
+    from .models import (
+        AtendimentoEnfermaria, OcorrenciaCaderno, TipoOcorrencia,
+        RegistroPresenca, StatusPresenca, StatusTurnoPresenca
+    )
+
+    atendimento = AtendimentoEnfermaria.objects.create(
+        aluno=aluno,
+        data_atendimento=data_atendimento,
+        horario=horario,
+        motivo=motivo,
+        motivo_detalhado=motivo_detalhado,
+        saida_imediata=saida_imediata,
+        retornara_dia_seguinte=retornara_dia_seguinte,
+        data_retorno_prevista=data_retorno_prevista if (saida_imediata and not retornara_dia_seguinte) else None,
+        observacoes_medicas=observacoes_medicas,
+        cid=cid,
+        documento_anexo=documento_anexo,
+        registrado_por=registrado_por,
+        ativo=True
+    )
+
+    # 1. Automação de Saída Antecipada Imediata
+    if saida_imediata:
+        motivo_saida = f"Atendimento Enfermaria: {motivo}"
+        if motivo_detalhado:
+            motivo_saida += f" ({motivo_detalhado})"
+        if cid:
+            motivo_saida += f" [CID: {cid}]"
+
+        OcorrenciaCaderno.objects.create(
+            tipo=TipoOcorrencia.SAIDA,
+            aluno=aluno,
+            turma=aluno.turma,
+            data=data_atendimento,
+            horario=horario,
+            motivo=motivo_saida,
+            justificado=True,
+            retorna=False,
+            cid=cid,
+            observacao=observacoes_medicas,
+            registrado_por=registrado_por
+        )
+
+        # 2. Automação de Falta Justificada nos dias seguintes até a data de retorno
+        if not retornara_dia_seguinte and data_retorno_prevista:
+            start_date = data_atendimento + timedelta(days=1)
+            end_date = data_retorno_prevista - timedelta(days=1)
+
+            cur_date = start_date
+            while cur_date <= end_date:
+                # Apenas dias úteis (Segunda a Sexta)
+                if cur_date.weekday() < 5:
+                    motivo_falta = f"Afastamento Médico / Enfermaria: {motivo}"
+                    if cid:
+                        motivo_falta += f" (CID: {cid})"
+
+                    OcorrenciaCaderno.objects.get_or_create(
+                        tipo=TipoOcorrencia.FALTA,
+                        aluno=aluno,
+                        data=cur_date,
+                        defaults={
+                            'turma': aluno.turma,
+                            'motivo': motivo_falta,
+                            'justificado': True,
+                            'cid': cid,
+                            'observacao': observacoes_medicas or f"Atestado/Enfermaria com retorno previsto em {data_retorno_prevista.strftime('%d/%m/%Y')}",
+                            'registrado_por': registrado_por
+                        }
+                    )
+
+                    RegistroPresenca.objects.update_or_create(
+                        aluno=aluno,
+                        data=cur_date,
+                        defaults={
+                            'turma': aluno.turma,
+                            'status': StatusPresenca.JUSTIFICADO,
+                            'status_matutino': StatusTurnoPresenca.JUSTIFICADO,
+                            'status_vespertino': StatusTurnoPresenca.JUSTIFICADO,
+                            'observacao': f"[Falta Justificada - Afastamento Enfermaria (CID {cid or 'N/A'})]",
+                            'registrado_por': registrado_por
+                        }
+                    )
+                cur_date += timedelta(days=1)
+
+    return atendimento

@@ -85,7 +85,7 @@ def usuarios_list_view(request):
         role = request.POST.get('role', '').strip()
         telefone = request.POST.get('telefone', '').strip()
 
-        valid_roles = [UserRole.PROFESSOR, UserRole.COORDENADOR, UserRole.DIRETOR, UserRole.AUXILIAR]
+        valid_roles = [UserRole.PROFESSOR, UserRole.COORDENADOR, UserRole.DIRETOR, UserRole.AUXILIAR, UserRole.ENFERMEIRA]
 
         if not nome:
             messages.error(request, "Por favor, informe o nome do usuário.")
@@ -174,7 +174,7 @@ def usuario_editar_view(request, user_id):
         is_active = request.POST.get('is_active') == '1'
         nova_senha = request.POST.get('nova_senha', '').strip()
 
-        valid_roles = [UserRole.PROFESSOR, UserRole.COORDENADOR, UserRole.DIRETOR, UserRole.AUXILIAR]
+        valid_roles = [UserRole.PROFESSOR, UserRole.COORDENADOR, UserRole.DIRETOR, UserRole.AUXILIAR, UserRole.ENFERMEIRA]
 
         if not nome:
             messages.error(request, "O nome não pode ficar em branco.")

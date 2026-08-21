@@ -905,7 +905,7 @@ def build_relatorios_context(request):
             present = int(h.get('present', 0))
             absences = max(enrolled - present, 0)
             pct = round((present / enrolled) * 100) if enrolled > 0 else 0
-            m_ext = MONTH_NAMES_PT.get(m_val, str(m_val))
+            m_ext = MONTH_NAMES_PT[m_val] if (0 <= m_val < len(MONTH_NAMES_PT)) else str(m_val)
             m_formatted = f"{m_ext} / {y_val}"
 
             item = {
@@ -1027,7 +1027,15 @@ def build_relatorios_context(request):
     if classroom_filter:
         deslig_realizados_qs = deslig_realizados_qs.filter(turma__nome__iexact=classroom_filter)
 
-    # Desligamentos Previstos (data_desligamento > today)
+    # Desligamentos Previstos no Ano Atual (data_desligamento > today)
+    all_deslig_previstos_year_qs = Aluno.objects.filter(
+        data_desligamento__year=current_year,
+        data_desligamento__gt=today
+    ).select_related('turma').order_by('data_desligamento')
+    if classroom_filter:
+        all_deslig_previstos_year_qs = all_deslig_previstos_year_qs.filter(turma__nome__iexact=classroom_filter)
+
+    # Desligamentos Previstos no período do filtro (se houver no range específico)
     deslig_previstos_qs = Aluno.objects.filter(
         data_desligamento__range=(date_start, date_end),
         data_desligamento__gt=today
@@ -1035,22 +1043,22 @@ def build_relatorios_context(request):
     if classroom_filter:
         deslig_previstos_qs = deslig_previstos_qs.filter(turma__nome__iexact=classroom_filter)
 
-    # Gráfico de Evolução Mensal (Matrículas, Desligamentos Realizados, Desligamentos Previstos)
-    mat_evolucao_labels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago']
-    mat_evolucao_entradas = [15, 8, 6, 4, 3, 5, 2, novas_mat_qs.count() or 4]
-    mat_evolucao_saidas_real = [2, 1, 3, 1, 2, 1, 2, deslig_realizados_qs.count() or 2]
-    mat_evolucao_saidas_prev = [0, 0, 0, 0, 1, 0, 1, deslig_previstos_qs.count() or 3]
+    # Gráfico de Evolução Mensal (Matrículas, Desligamentos Realizados, Desligamentos Previstos) - 12 Meses
+    mat_evolucao_labels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+    mat_evolucao_entradas = [novas_mat_qs.filter(data_entrada__month=m).count() for m in range(1, 13)]
+    mat_evolucao_saidas_real = [deslig_realizados_qs.filter(data_desligamento__month=m).count() for m in range(1, 13)]
+    mat_evolucao_saidas_prev = [all_deslig_previstos_year_qs.filter(data_desligamento__month=m).count() for m in range(1, 13)]
 
-    # Tabela Mês / Ano por Turma
+    # Tabela Mês / Ano por Turma (Jan a Dez do Ano)
     mat_tabela_list = []
-    for m_idx in range(8, 0, -1):
+    for m_idx in range(12, 0, -1):
         m_label = f"{MONTH_NAMES_PT[m_idx]} / {current_year}"
         for t in turmas_qs:
             t_style = cores_salas.get(t.nome.lower().strip(), {'bg': '#f1f5f9', 'color': '#475569', 'border': '#cbd5e1', 'emoji': '🏫'})
             mat_t = t.alunos.ativos().count()
-            novas_t = novas_mat_qs.filter(turma=t, data_entrada__month=m_idx).count()
-            desl_r_t = deslig_realizados_qs.filter(turma=t, data_desligamento__month=m_idx).count()
-            desl_p_t = deslig_previstos_qs.filter(turma=t, data_desligamento__month=m_idx).count()
+            novas_t = Aluno.objects.filter(turma=t, data_entrada__year=current_year, data_entrada__month=m_idx).count()
+            desl_r_t = Aluno.objects.filter(turma=t, data_desligamento__year=current_year, data_desligamento__month=m_idx, data_desligamento__lte=today).count()
+            desl_p_t = Aluno.objects.filter(turma=t, data_desligamento__year=current_year, data_desligamento__month=m_idx, data_desligamento__gt=today).count()
 
             mat_tabela_list.append({
                 'mes_ano': m_label,
@@ -1127,12 +1135,12 @@ def build_relatorios_context(request):
         'matriculas_cards': {
             'novas_matriculas': novas_mat_qs.count(),
             'desligamentos_realizados': deslig_realizados_qs.count(),
-            'desligamentos_previstos': deslig_previstos_qs.count(),
+            'desligamentos_previstos': deslig_previstos_qs.count() if deslig_previstos_qs.exists() else all_deslig_previstos_year_qs.count(),
             'total_matriculados_ativos': total_matriculados_ativos,
         },
         'novas_matriculas_modal_list': novas_mat_qs,
         'deslig_realizados_modal_list': deslig_realizados_qs,
-        'deslig_previstos_modal_list': deslig_previstos_qs,
+        'deslig_previstos_modal_list': deslig_previstos_qs if deslig_previstos_qs.exists() else all_deslig_previstos_year_qs,
         'mat_evolucao_chart_json': json.dumps({
             'labels': mat_evolucao_labels,
             'entradas': mat_evolucao_entradas,
@@ -1164,37 +1172,30 @@ def relatorios_view(request):
             try:
                 enrolled = int(enrolled)
                 present = int(present)
-                from presencas.services import get_historical_frequency_file_path
-                import os
-                file_path = get_historical_frequency_file_path()
-                if os.path.exists(file_path):
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                else:
-                    data = []
-                
-                existing = next((item for item in data if item['month'] == month_year), None)
-                if existing:
-                    existing['enrolled'] = enrolled
-                    existing['present'] = present
-                    existing['absences'] = enrolled - present if enrolled >= present else 0
-                else:
-                    data.append({
-                        'id': f'manual_{month_year}',
-                        'month': month_year,
-                        'enrolled': enrolled,
-                        'present': present,
-                        'absences': enrolled - present if enrolled >= present else 0
-                    })
-                
-                data.sort(key=lambda x: x['month'], reverse=True)
-                with open(file_path, 'w', encoding='utf-8') as f:
-                    json.dump(data, f, indent=4, ensure_ascii=False)
+                parts = month_year.split('-')
+                ano = int(parts[0])
+                mes = int(parts[1])
+                absences = max(0, enrolled - present)
+                taxa = round((present / enrolled) * 100, 1) if enrolled > 0 else 0.0
+
+                from presencas.models import HistoricoFrequenciaMensal
+                HistoricoFrequenciaMensal.objects.update_or_create(
+                    mes_ano=month_year,
+                    defaults={
+                        'ano': ano,
+                        'mes': mes,
+                        'matriculados': enrolled,
+                        'presentes_media': present,
+                        'ausentes_media': absences,
+                        'taxa_frequencia': taxa,
+                        'observacao': f"Lançamento manual de histórico ({month_year})"
+                    }
+                )
                 from django.contrib import messages
-                messages.success(request, f"Dados históricos para {month_year} salvos com sucesso!")
+                messages.success(request, f"Dados históricos para {month_year} salvos no banco com sucesso!")
             except Exception as e:
                 from django.contrib import messages
-                messages.error(request, f"Erro ao salvar: {str(e)}")
+                messages.error(request, f"Erro ao salvar histórico no banco: {str(e)}")
         return redirect('/relatorios/?tab=frequencia')
 
     context = build_relatorios_context(request)
@@ -1289,7 +1290,10 @@ def central_exportacao_view(request):
     """
     from django.contrib import messages
     from accounts.models import User, ConviteUsuario
-    from presencas.models import Turma, Aluno, DiarioDeClasse, RegistroPresenca, OcorrenciaCaderno
+    from presencas.models import (
+        Turma, Aluno, DiarioDeClasse, RegistroPresenca, 
+        OcorrenciaCaderno, TipoOcorrencia, AtendimentoEnfermaria
+    )
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -1329,7 +1333,7 @@ def central_exportacao_view(request):
                     messages.success(
                         request,
                         "🎉 BANCO DE DADOS COMPLETO RESTAURADO COM SUCESSO! "
-                        "Todos os registros, diários, frequências e ocorrências foram sincronizados no PostgreSQL."
+                        "Todos os registros, diários, frequências, amamentações e atendimentos clínicos foram sincronizados no PostgreSQL."
                     )
                 finally:
                     if os.path.exists(tmp_path):
@@ -1340,7 +1344,7 @@ def central_exportacao_view(request):
 
             return redirect('exportacao')
 
-        # 2. RESTAURAÇÃO PARCIAL / IMPORTAÇÃO POR MÓDULO
+        # 2. RESTAURAÇÃO PARCIAL / IMPORTAÇÃO POR MÓDULO (ORDEM SEQUENCIAL)
         elif action == 'import_backup':
             entity = request.POST.get('entity')
             uploaded_file = request.FILES.get('file')
@@ -1352,10 +1356,12 @@ def central_exportacao_view(request):
                 from .import_service import process_backup_import
                 created, updated = process_backup_import(uploaded_file, entity, request.user)
                 entity_labels = {
-                    'turmas': 'Turmas / Salas',
-                    'alunos': 'Crianças / Alunos',
-                    'presencas': 'Registros de Frequência',
-                    'ocorrencias': 'Ocorrências do Caderno SEAMI',
+                    'turmas': 'Turmas & Salas',
+                    'alunos': 'Crianças & Matrículas',
+                    'presencas': 'Registros de Frequência (Chamadas)',
+                    'ocorrencias': 'Caderno SEAMI (Ocorrências)',
+                    'amamentacao': 'Registros de Amamentação',
+                    'enfermaria': 'Enfermaria (Atendimentos Clínicos)',
                 }
                 lbl = entity_labels.get(entity, entity.title())
                 messages.success(
@@ -1401,7 +1407,36 @@ def central_exportacao_view(request):
             resp['Content-Disposition'] = f'attachment; filename="seami_backup_completo_{timestamp}.json"'
             return resp
 
-        if download == 'alunos':
+        # 1. ORDEM 1: TURMAS & SALAS
+        elif download == 'turmas':
+            qs = Turma.objects.prefetch_related('professores', 'alunos').order_by('nome')
+            if fmt == 'json':
+                data = [
+                    {
+                        "id": t.id,
+                        "nome": t.nome,
+                        "faixa_etaria": t.faixa_etaria,
+                        "ativo": t.ativo,
+                        "total_alunos": t.alunos.count(),
+                        "professores": [p.get_full_name() or p.username for p in t.professores.all()],
+                    }
+                    for t in qs
+                ]
+                resp = HttpResponse(json.dumps(data, indent=2, ensure_ascii=False), content_type="application/json; charset=utf-8")
+                resp['Content-Disposition'] = f'attachment; filename="1_turmas_seami_{timestamp}.json"'
+                return resp
+            else:
+                resp = HttpResponse(content_type="text/csv; charset=utf-8-sig")
+                resp['Content-Disposition'] = f'attachment; filename="1_turmas_seami_{timestamp}.csv"'
+                w = csv.writer(resp, delimiter=";")
+                w.writerow(["ID", "Nome da Turma", "Faixa Etária", "Total de Alunos", "Professores Responsáveis", "Status Ativo"])
+                for t in qs:
+                    profs = ", ".join([p.get_full_name() or p.username for p in t.professores.all()])
+                    w.writerow([t.id, t.nome, t.faixa_etaria, t.alunos.count(), profs, "Sim" if t.ativo else "Não"])
+                return resp
+
+        # 2. ORDEM 2: CRIANÇAS & MATRÍCULAS (ALUNOS)
+        elif download == 'alunos':
             qs = Aluno.objects.select_related('turma').order_by('turma__nome', 'nome')
             if fmt == 'json':
                 data = [
@@ -1418,22 +1453,26 @@ def central_exportacao_view(request):
                         "has_acompanhamento": a.has_acompanhamento,
                         "acompanhamento_obs": a.acompanhamento_obs,
                         "acompanhamento_dias": a.acompanhamento_dias,
+                        "alergias": a.alergias or "",
+                        "restricoes_alimentares": a.restricoes_alimentares or "",
+                        "comorbidades": a.comorbidades or "",
                         "nome_responsavel": a.nome_responsavel,
                         "telefone_responsavel": a.telefone_responsavel,
                     }
                     for a in qs
                 ]
                 resp = HttpResponse(json.dumps(data, indent=2, ensure_ascii=False), content_type="application/json; charset=utf-8")
-                resp['Content-Disposition'] = f'attachment; filename="alunos_seami_{timestamp}.json"'
+                resp['Content-Disposition'] = f'attachment; filename="2_alunos_seami_{timestamp}.json"'
                 return resp
             else:
                 resp = HttpResponse(content_type="text/csv; charset=utf-8-sig")
-                resp['Content-Disposition'] = f'attachment; filename="alunos_seami_{timestamp}.csv"'
+                resp['Content-Disposition'] = f'attachment; filename="2_alunos_seami_{timestamp}.csv"'
                 w = csv.writer(resp, delimiter=";")
                 w.writerow([
                     "ID", "Nome da Criança", "Turma ID", "Turma / Sala", "Turno", "Data de Nascimento",
                     "Data de Entrada", "Data de Desligamento", "Status Ativo", "Acompanhamento Especial",
-                    "Observações Acompanhamento", "Dias de Acompanhamento", "Nome do Responsável", "Telefone do Responsável"
+                    "Observações Acompanhamento", "Dias de Acompanhamento", "Alergias", "Restrições Alimentares", "Comorbidades",
+                    "Nome do Responsável", "Telefone do Responsável"
                 ])
                 for a in qs:
                     w.writerow([
@@ -1449,11 +1488,15 @@ def central_exportacao_view(request):
                         "Sim" if a.has_acompanhamento else "Não",
                         a.acompanhamento_obs,
                         a.acompanhamento_dias,
+                        a.alergias or "",
+                        a.restricoes_alimentares or "",
+                        a.comorbidades or "",
                         a.nome_responsavel,
                         a.telefone_responsavel,
                     ])
                 return resp
 
+        # 3. ORDEM 3: REGISTROS DE FREQUÊNCIA (CHAMADAS)
         elif download == 'presencas':
             qs = RegistroPresenca.objects.select_related('aluno', 'turma', 'registrado_por').order_by('-data', 'turma__nome', 'aluno__nome')
             if fmt == 'json':
@@ -1473,11 +1516,11 @@ def central_exportacao_view(request):
                     for r in qs
                 ]
                 resp = HttpResponse(json.dumps(data, indent=2, ensure_ascii=False), content_type="application/json; charset=utf-8")
-                resp['Content-Disposition'] = f'attachment; filename="registros_presenca_seami_{timestamp}.json"'
+                resp['Content-Disposition'] = f'attachment; filename="3_registros_presenca_seami_{timestamp}.json"'
                 return resp
             else:
                 resp = HttpResponse(content_type="text/csv; charset=utf-8-sig")
-                resp['Content-Disposition'] = f'attachment; filename="registros_presenca_seami_{timestamp}.csv"'
+                resp['Content-Disposition'] = f'attachment; filename="3_registros_presenca_seami_{timestamp}.csv"'
                 w = csv.writer(resp, delimiter=";")
                 w.writerow(["ID", "Data", "Turma ID", "Turma", "Aluno ID", "Aluno", "Status de Presença", "Observação", "Registrado por", "Criado em"])
                 for r in qs:
@@ -1495,8 +1538,9 @@ def central_exportacao_view(request):
                     ])
                 return resp
 
+        # 4. ORDEM 4: CADERNO SEAMI (OCORRÊNCIAS: ATESTADOS, FALTAS, ATRASOS, SAÍDAS)
         elif download == 'ocorrencias':
-            qs = OcorrenciaCaderno.objects.select_related('aluno', 'turma', 'registrado_por').order_by('-data', '-criado_em')
+            qs = OcorrenciaCaderno.objects.exclude(tipo=TipoOcorrencia.AMAMENTACAO).select_related('aluno', 'turma', 'registrado_por').order_by('-data', '-criado_em')
             if fmt == 'json':
                 data = [
                     {
@@ -1523,11 +1567,11 @@ def central_exportacao_view(request):
                     for o in qs
                 ]
                 resp = HttpResponse(json.dumps(data, indent=2, ensure_ascii=False), content_type="application/json; charset=utf-8")
-                resp['Content-Disposition'] = f'attachment; filename="caderno_seami_ocorrencias_{timestamp}.json"'
+                resp['Content-Disposition'] = f'attachment; filename="4_caderno_seami_ocorrencias_{timestamp}.json"'
                 return resp
             else:
                 resp = HttpResponse(content_type="text/csv; charset=utf-8-sig")
-                resp['Content-Disposition'] = f'attachment; filename="caderno_seami_ocorrencias_{timestamp}.csv"'
+                resp['Content-Disposition'] = f'attachment; filename="4_caderno_seami_ocorrencias_{timestamp}.csv"'
                 w = csv.writer(resp, delimiter=";")
                 w.writerow([
                     "ID", "Tipo de Ocorrência", "Aluno ID", "Aluno", "Turma ID", "Turma", "Data Início", "Data Fim",
@@ -1556,35 +1600,109 @@ def central_exportacao_view(request):
                     ])
                 return resp
 
-
-        elif download == 'turmas':
-            qs = Turma.objects.prefetch_related('professores', 'alunos').order_by('nome')
+        # 5. ORDEM 5: REGISTROS DE AMAMENTAÇÃO (CADERNO SEAMI)
+        elif download == 'amamentacao':
+            qs = OcorrenciaCaderno.objects.filter(tipo=TipoOcorrencia.AMAMENTACAO).select_related('aluno', 'turma', 'registrado_por').order_by('-data', '-criado_em')
             if fmt == 'json':
                 data = [
                     {
-                        "id": t.id,
-                        "nome": t.nome,
-                        "faixa_etaria": t.faixa_etaria,
-                        "ano_letivo": t.ano_letivo,
-                        "ativo": t.ativo,
-                        "total_alunos": t.alunos.count(),
-                        "professores": [p.get_full_name() or p.username for p in t.professores.all()],
+                        "id": o.id,
+                        "aluno_id": o.aluno_id,
+                        "aluno": o.aluno.nome if o.aluno else "",
+                        "turma_id": o.turma_id,
+                        "turma": o.turma.nome if o.turma else "",
+                        "data": o.data.strftime("%d/%m/%Y"),
+                        "horario": str(o.horario) if o.horario else "",
+                        "quantidade": o.quantidade,
+                        "motivo": o.motivo or "Mamadeira / Leite Materno",
+                        "observacao": o.observacao,
+                        "registrado_por": o.registrado_por.get_full_name() or o.registrado_por.username if o.registrado_por else "",
                     }
-                    for t in qs
+                    for o in qs
                 ]
                 resp = HttpResponse(json.dumps(data, indent=2, ensure_ascii=False), content_type="application/json; charset=utf-8")
-                resp['Content-Disposition'] = f'attachment; filename="turmas_seami_{timestamp}.json"'
+                resp['Content-Disposition'] = f'attachment; filename="5_amamentacao_seami_{timestamp}.json"'
                 return resp
             else:
                 resp = HttpResponse(content_type="text/csv; charset=utf-8-sig")
-                resp['Content-Disposition'] = f'attachment; filename="turmas_seami_{timestamp}.csv"'
+                resp['Content-Disposition'] = f'attachment; filename="5_amamentacao_seami_{timestamp}.csv"'
                 w = csv.writer(resp, delimiter=";")
-                w.writerow(["ID", "Nome da Turma", "Faixa Etária", "Ano Letivo", "Total de Alunos", "Professores Responsáveis", "Status Ativo"])
-                for t in qs:
-                    profs = ", ".join([p.get_full_name() or p.username for p in t.professores.all()])
-                    w.writerow([t.id, t.nome, t.faixa_etaria, t.ano_letivo, t.alunos.count(), profs, "Sim" if t.ativo else "Não"])
+                w.writerow(["ID", "Data", "Aluno ID", "Nome da Criança", "Turma ID", "Turma", "Horário", "Qtd Mamadeiras", "Motivo", "Observação", "Registrado por"])
+                for o in qs:
+                    w.writerow([
+                        o.id,
+                        o.data.strftime("%d/%m/%Y"),
+                        o.aluno_id or "",
+                        o.aluno.nome if o.aluno else "",
+                        o.turma_id or "",
+                        o.turma.nome if o.turma else "",
+                        str(o.horario) if o.horario else "",
+                        o.quantidade,
+                        o.motivo or "Mamadeira / Leite Materno",
+                        o.observacao,
+                        o.registrado_por.get_full_name() or o.registrado_por.username if o.registrado_por else "",
+                    ])
                 return resp
 
+        # 6. ORDEM 6: REGISTROS DA ENFERMARIA & SAÚDE ESCOLAR
+        elif download == 'enfermaria':
+            qs = AtendimentoEnfermaria.objects.ativos().select_related('aluno', 'aluno__turma', 'registrado_por').order_by('-data_atendimento', '-horario')
+            if fmt == 'json':
+                data = [
+                    {
+                        "id": at.id,
+                        "aluno_id": at.aluno_id,
+                        "aluno_nome": at.aluno.nome,
+                        "turma_id": at.aluno.turma_id,
+                        "turma_nome": at.aluno.turma.nome if at.aluno.turma else "",
+                        "data_atendimento": at.data_atendimento.strftime("%d/%m/%Y"),
+                        "horario": at.horario.strftime("%H:%M") if at.horario else "",
+                        "motivo": at.motivo,
+                        "motivo_detalhado": at.motivo_detalhado or "",
+                        "cid": at.cid or "",
+                        "saida_imediata": at.saida_imediata,
+                        "retornara_dia_seguinte": at.retornara_dia_seguinte,
+                        "data_retorno_prevista": at.data_retorno_prevista.strftime("%d/%m/%Y") if at.data_retorno_prevista else "",
+                        "observacoes_medicas": at.observacoes_medicas or "",
+                        "registrado_por": at.registrado_por.get_full_name() or at.registrado_por.username if at.registrado_por else "",
+                        "criado_em": timezone.localtime(at.criado_em).strftime("%d/%m/%Y %H:%M:%S") if at.criado_em else "",
+                    }
+                    for at in qs
+                ]
+                resp = HttpResponse(json.dumps(data, indent=2, ensure_ascii=False), content_type="application/json; charset=utf-8")
+                resp['Content-Disposition'] = f'attachment; filename="6_enfermaria_seami_{timestamp}.json"'
+                return resp
+            else:
+                resp = HttpResponse(content_type="text/csv; charset=utf-8-sig")
+                resp['Content-Disposition'] = f'attachment; filename="6_enfermaria_seami_{timestamp}.csv"'
+                w = csv.writer(resp, delimiter=";")
+                w.writerow([
+                    "ID", "Data", "Horário", "Aluno ID", "Nome da Criança", "Turma ID", "Turma",
+                    "Motivo Principal", "Motivo Detalhado", "CID", "Saída Imediata", "Retorna no Dia Seguinte",
+                    "Data Prevista Retorno", "Observações Médicas / Conduta", "Registrado por", "Criado em"
+                ])
+                for at in qs:
+                    w.writerow([
+                        at.id,
+                        at.data_atendimento.strftime("%d/%m/%Y"),
+                        at.horario.strftime("%H:%M") if at.horario else "",
+                        at.aluno_id,
+                        at.aluno.nome,
+                        at.aluno.turma_id or "",
+                        at.aluno.turma.nome if at.aluno.turma else "",
+                        at.motivo,
+                        at.motivo_detalhado or "",
+                        at.cid or "",
+                        "Sim" if at.saida_imediata else "Não",
+                        "Sim" if at.retornara_dia_seguinte else "Não",
+                        at.data_retorno_prevista.strftime("%d/%m/%Y") if at.data_retorno_prevista else "",
+                        at.observacoes_medicas or "",
+                        at.registrado_por.get_full_name() or at.registrado_por.username if at.registrado_por else "",
+                        timezone.localtime(at.criado_em).strftime("%d/%m/%Y %H:%M:%S") if at.criado_em else "",
+                    ])
+                return resp
+
+        # 7. USUÁRIOS & EQUIPE ESCOLAR
         elif download == 'usuarios':
             qs = User.objects.order_by('first_name', 'username')
             if fmt == 'json':
@@ -1624,15 +1742,17 @@ def central_exportacao_view(request):
                     ])
                 return resp
 
-    # Dados para renderização do Hub
+    # Dados para renderização do Hub em Ordem Sequencial
     context = {
         'active_tab': 'admin_export',
         'active_module': 'exportacao',
+        'total_turmas': Turma.objects.count(),
         'total_alunos': Aluno.objects.count(),
         'total_alunos_ativos': Aluno.objects.filter(ativo=True).count(),
-        'total_turmas': Turma.objects.count(),
         'total_presencas': RegistroPresenca.objects.count(),
-        'total_ocorrencias': OcorrenciaCaderno.objects.count(),
+        'total_ocorrencias': OcorrenciaCaderno.objects.exclude(tipo=TipoOcorrencia.AMAMENTACAO).count(),
+        'total_amamentacao': OcorrenciaCaderno.objects.filter(tipo=TipoOcorrencia.AMAMENTACAO).count(),
+        'total_enfermaria': AtendimentoEnfermaria.objects.filter(ativo=True).count(),
         'total_usuarios': User.objects.count(),
         'total_convites': ConviteUsuario.objects.count(),
     }

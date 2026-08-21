@@ -359,6 +359,55 @@ a {
 }
 
 /* ==========================================================================
+   SIDEBAR COLLAPSED (RECOLHIDO / EXPANSÍVEL)
+   ========================================================================== */
+body.sidebar-collapsed {
+    --sidebar-width: 80px;
+}
+
+body.sidebar-collapsed .logo-text,
+body.sidebar-collapsed .menu-item span,
+body.sidebar-collapsed .menu-section-title,
+body.sidebar-collapsed .sidebar-submenu,
+body.sidebar-collapsed .user-info,
+body.sidebar-collapsed .badge-new {
+    display: none !important;
+}
+
+body.sidebar-collapsed .sidebar-header {
+    padding: 0 14px;
+    justify-content: center;
+}
+
+body.sidebar-collapsed .logo-container {
+    justify-content: center;
+}
+
+body.sidebar-collapsed .sidebar-collapse-btn {
+    position: absolute;
+    right: 8px;
+    top: 26px;
+}
+
+body.sidebar-collapsed .menu-item {
+    justify-content: center;
+    padding: 12px;
+    position: relative;
+}
+
+body.sidebar-collapsed .menu-section {
+    margin: 12px 0 6px 0;
+    border-top: 1px dashed var(--border-color);
+    text-align: center;
+}
+
+body.sidebar-collapsed .user-profile-widget {
+    padding: 6px;
+    justify-content: center;
+}
+
+
+/* ==========================================================================
    TOP HEADER COMPONENT
    ========================================================================== */
 .app-header {
