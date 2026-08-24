@@ -15,6 +15,14 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Chart.js para Gráficos Analíticos -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Mozilla PDF.js para Visualização Inline sem bloqueio de iframe -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        if (window['pdfjs-dist/build/pdf'] || window.pdfjsLib) {
+            const pdfjs = window.pdfjsLib || window['pdfjs-dist/build/pdf'];
+            pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+    </script>
 
     <!-- Folha de Estilos Exata do SEAMI -->
     <link rel="stylesheet" href="{% static 'css/index.css' %}?v=2.0">

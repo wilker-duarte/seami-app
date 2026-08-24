@@ -15,64 +15,69 @@
     <!-- ================================================================= -->
     <!-- NAVEGADOR DE ABAS DO CADERNO SEAMI                                -->
     <!-- ================================================================= -->
-    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 14px;">
+    <div
+        style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 14px;">
         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
             <a href="{% url 'caderno_seami' 'faltas' %}"
-               class="seami-tab-btn {% if active_tab_nav == 'faltas' %}active-faltas{% endif %}"
-               style="text-decoration: none; padding: 9px 16px; border-radius: 10px; font-size: 13.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                class="seami-tab-btn {% if active_tab_nav == 'faltas' %}active-faltas{% endif %}"
+                style="text-decoration: none; padding: 9px 16px; border-radius: 10px; font-size: 13.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
                 <i data-lucide="calendar-x" style="width: 16px; height: 16px;"></i>
                 <span>Faltas</span>
             </a>
 
             <a href="{% url 'caderno_seami' 'atestados' %}"
-               class="seami-tab-btn {% if active_tab_nav == 'atestados' %}active-atestados{% endif %}"
-               style="text-decoration: none; padding: 9px 16px; border-radius: 10px; font-size: 13.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                class="seami-tab-btn {% if active_tab_nav == 'atestados' %}active-atestados{% endif %}"
+                style="text-decoration: none; padding: 9px 16px; border-radius: 10px; font-size: 13.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
                 <i data-lucide="activity" style="width: 16px; height: 16px;"></i>
                 <span>Atestados</span>
             </a>
 
             <a href="{% url 'caderno_seami' 'atrasos' %}"
-               class="seami-tab-btn {% if active_tab_nav == 'atrasos' %}active-atrasos{% endif %}"
-               style="text-decoration: none; padding: 9px 16px; border-radius: 10px; font-size: 13.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                class="seami-tab-btn {% if active_tab_nav == 'atrasos' %}active-atrasos{% endif %}"
+                style="text-decoration: none; padding: 9px 16px; border-radius: 10px; font-size: 13.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
                 <i data-lucide="clock" style="width: 16px; height: 16px;"></i>
                 <span>Atrasos</span>
             </a>
 
             <a href="{% url 'caderno_seami' 'saidas' %}"
-               class="seami-tab-btn {% if active_tab_nav == 'saidas' %}active-saidas{% endif %}"
-               style="text-decoration: none; padding: 9px 16px; border-radius: 10px; font-size: 13.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                class="seami-tab-btn {% if active_tab_nav == 'saidas' %}active-saidas{% endif %}"
+                style="text-decoration: none; padding: 9px 16px; border-radius: 10px; font-size: 13.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
                 <i data-lucide="log-out" style="width: 16px; height: 16px;"></i>
                 <span>Saídas Antecipadas</span>
             </a>
 
             <a href="{% url 'caderno_seami' 'amamentacao' %}"
-               class="seami-tab-btn {% if active_tab_nav == 'amamentacao' %}active-amamentacao{% endif %}"
-               style="text-decoration: none; padding: 9px 16px; border-radius: 10px; font-size: 13.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                class="seami-tab-btn {% if active_tab_nav == 'amamentacao' %}active-amamentacao{% endif %}"
+                style="text-decoration: none; padding: 9px 16px; border-radius: 10px; font-size: 13.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
                 <i data-lucide="heart" style="width: 16px; height: 16px;"></i>
                 <span>Amamentação</span>
             </a>
         </div>
 
         {% if active_tab_nav == 'amamentacao' %}
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button type="button" onclick="openCreateDailyAmamentacaoModal()" class="primary-btn" style="padding: 10px 18px; border-radius: 10px; background-color: #ec4899; color: white; border: none; font-weight: 700; font-size: 13.5px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow-sm);">
-                    <i data-lucide="plus" style="width: 18px; height: 18px;"></i>
-                    <span>Novo Registro Diário</span>
-                </button>
-                <button type="button" onclick="openCreateAmamentacaoModal()" class="secondary-btn" style="padding: 10px 18px; border-radius: 10px; background-color: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; font-weight: 700; font-size: 13.5px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow-sm);">
-                    <i data-lucide="calendar" style="width: 18px; height: 18px;"></i>
-                    <span>Adicionar Histórico Mensal</span>
-                </button>
-                <button type="button" onclick="exportAmamentacaoPDF()" class="secondary-btn" style="padding: 10px 18px; border-radius: 10px; background-color: #fdf2f8; color: #db2777; border: 1.5px solid #fbcfe8; font-weight: 700; font-size: 13.5px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow-sm);">
-                    <i data-lucide="file-text" style="width: 18px; height: 18px;"></i>
-                    <span>📄 Exportar PDF (Mensal)</span>
-                </button>
-            </div>
-        {% else %}
-            <button type="button" onclick="openCreateModal()" class="primary-btn" style="padding: 10px 18px; border-radius: 10px; background-color: {{ tab_info.color }}; color: white; border: none; font-weight: 700; font-size: 13.5px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow-sm);">
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button type="button" onclick="openCreateDailyAmamentacaoModal()" class="primary-btn"
+                style="padding: 10px 18px; border-radius: 10px; background-color: #ec4899; color: white; border: none; font-weight: 700; font-size: 13.5px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow-sm);">
                 <i data-lucide="plus" style="width: 18px; height: 18px;"></i>
-                <span>Novo Registro</span>
+                <span>Novo Registro Diário</span>
             </button>
+            <button type="button" onclick="openCreateAmamentacaoModal()" class="secondary-btn"
+                style="padding: 10px 18px; border-radius: 10px; background-color: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; font-weight: 700; font-size: 13.5px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow-sm);">
+                <i data-lucide="calendar" style="width: 18px; height: 18px;"></i>
+                <span>Adicionar Histórico Mensal</span>
+            </button>
+            <button type="button" onclick="exportAmamentacaoPDF()" class="secondary-btn"
+                style="padding: 10px 18px; border-radius: 10px; background-color: #fdf2f8; color: #db2777; border: 1.5px solid #fbcfe8; font-weight: 700; font-size: 13.5px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow-sm);">
+                <i data-lucide="file-text" style="width: 18px; height: 18px;"></i>
+                <span>📄 Exportar PDF (Mensal)</span>
+            </button>
+        </div>
+        {% else %}
+        <button type="button" onclick="openCreateModal()" class="primary-btn"
+            style="padding: 10px 18px; border-radius: 10px; background-color: {{ tab_info.color }}; color: white; border: none; font-weight: 700; font-size: 13.5px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow-sm);">
+            <i data-lucide="plus" style="width: 18px; height: 18px;"></i>
+            <span>Novo Registro</span>
+        </button>
         {% endif %}
     </div>
 
@@ -80,31 +85,39 @@
     <!-- FILTROS (SALA / TURMA E BUSCA INSTANTÂNEA A CADA CARACTERE)       -->
     <!-- ================================================================= -->
     <div class="filter-card" style="margin-bottom: 0;">
-        <form method="get" id="caderno-filter-form" style="display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; justify-content: space-between;">
-            
+        <form method="get" id="caderno-filter-form"
+            style="display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; justify-content: space-between;">
+
             <div style="display: flex; flex-wrap: wrap; gap: 14px; flex: 1; min-width: 280px;">
                 <!-- Pesquisa Instantânea por Aluno -->
                 <div class="filter-group" style="flex: 2; min-width: 220px;">
-                    <label style="font-size: 12px; font-weight: 700; color: var(--slate-600); margin-bottom: 6px; display: block;">
+                    <label
+                        style="font-size: 12px; font-weight: 700; color: var(--slate-600); margin-bottom: 6px; display: block;">
                         Buscar Criança / Motivo
                     </label>
                     <div style="position: relative; display: flex; align-items: center;">
-                        <i data-lucide="search" style="position: absolute; left: 12px; color: var(--slate-400); width: 16px; height: 16px;"></i>
-                        <input type="text" id="instant-search-input" name="q" value="{{ search }}" oninput="instantClientFilter(this.value)" placeholder="Digite para filtrar a cada caractere..."
-                               style="width: 100%; padding: 9px 12px 9px 36px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none;">
+                        <i data-lucide="search"
+                            style="position: absolute; left: 12px; color: var(--slate-400); width: 16px; height: 16px;"></i>
+                        <input type="text" id="instant-search-input" name="q" value="{{ search }}"
+                            oninput="instantClientFilter(this.value)"
+                            placeholder="Digite para filtrar a cada caractere..."
+                            style="width: 100%; padding: 9px 12px 9px 36px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none;">
                     </div>
                 </div>
 
                 <!-- Filtro por Sala/Turma (Default: Todas as salas) -->
                 {% if active_tab_nav != 'amamentacao' %}
                 <div class="filter-group" style="flex: 1; min-width: 160px;">
-                    <label style="font-size: 12px; font-weight: 700; color: var(--slate-600); margin-bottom: 6px; display: block;">
+                    <label
+                        style="font-size: 12px; font-weight: 700; color: var(--slate-600); margin-bottom: 6px; display: block;">
                         Sala / Turma
                     </label>
-                    <select name="classroom" onchange="this.form.submit()" style="width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none;">
+                    <select name="classroom" onchange="this.form.submit()"
+                        style="width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none;">
                         <option value="">Todas as salas</option>
                         {% for t in turmas %}
-                            <option value="{{ t.nome }}" {% if classroom_filter == t.nome %}selected{% endif %}>{{ t.nome }}</option>
+                        <option value="{{ t.nome }}" {% if classroom_filter == t.nome %}selected{% endif %}>{{ t.nome }}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
@@ -112,9 +125,10 @@
             </div>
 
             {% if search or classroom_filter %}
-                <a href="{% url 'caderno_seami' active_tab_nav %}" class="secondary-btn" style="padding: 9px 14px; border-radius: 10px; border: 1px solid var(--border-color); color: var(--text-secondary); text-decoration: none; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 4px;">
-                    Limpar Filtros
-                </a>
+            <a href="{% url 'caderno_seami' active_tab_nav %}" class="secondary-btn"
+                style="padding: 9px 14px; border-radius: 10px; border: 1px solid var(--border-color); color: var(--text-secondary); text-decoration: none; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+                Limpar Filtros
+            </a>
             {% endif %}
         </form>
     </div>
@@ -123,87 +137,99 @@
     <!-- TABELA DE REGISTROS DO CADERNO SEAMI                              -->
     <!-- ================================================================= -->
 
-     
-    <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden;">
-        <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; background-color: var(--bg-body);">
-            <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
-                <i data-lucide="{{ tab_info.icon }}" style="width: 18px; height: 18px; color: {{ tab_info.color }};"></i>
+
+    <div
+        style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden;">
+        <div
+            style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; background-color: var(--bg-body);">
+            <div
+                style="font-size: 14px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="{{ tab_info.icon }}"
+                    style="width: 18px; height: 18px; color: {{ tab_info.color }};"></i>
                 {% if active_tab_nav == 'amamentacao' %}
-                    <span>Registros Diários de Amamentação</span>
+                <span>Registros Diários de Amamentação</span>
                 {% else %}
-                    <span>Registros de {{ tab_info.title }}</span>
+                <span>Registros de {{ tab_info.title }}</span>
                 {% endif %}
-                <span id="counter-badge" style="font-size: 12px; font-weight: 700; background-color: {% if active_tab_nav == 'amamentacao' %}#fdf2f8{% else %}var(--color-primary-light){% endif %}; color: {% if active_tab_nav == 'amamentacao' %}#db2777{% else %}var(--color-primary){% endif %}; padding: 2px 8px; border-radius: 999px; border: 1px solid {% if active_tab_nav == 'amamentacao' %}#fbcfe8{% else %}transparent{% endif %};">
-                    {{ total_count }} {% if active_tab_nav == 'amamentacao' %}{{ total_count|pluralize:"registro diário,registros diários" }}{% else %}{{ total_count|pluralize:"registro,registros" }}{% endif %}
+                <span id="counter-badge"
+                    style="font-size: 12px; font-weight: 700; background-color: {% if active_tab_nav == 'amamentacao' %}#fdf2f8{% else %}var(--color-primary-light){% endif %}; color: {% if active_tab_nav == 'amamentacao' %}#db2777{% else %}var(--color-primary){% endif %}; padding: 2px 8px; border-radius: 999px; border: 1px solid {% if active_tab_nav == 'amamentacao' %}#fbcfe8{% else %}transparent{% endif %};">
+                    {{ total_count }} {% if active_tab_nav == 'amamentacao' %}{{ total_count|pluralize:"registro
+                    diário,registros diários" }}{% else %}{{ total_count|pluralize:"registro,registros" }}{% endif %}
                 </span>
             </div>
             {% if active_tab_nav == 'amamentacao' %}
-                <button type="button" onclick="openCreateDailyAmamentacaoModal()" class="primary-btn" style="padding: 8px 14px; border-radius: 8px; background-color: #ec4899; color: white; border: none; font-weight: 700; font-size: 12.5px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: var(--shadow-sm);">
-                    <i data-lucide="plus" style="width: 15px; height: 15px;"></i>
-                    <span>Nova Sessão Diária</span>
-                </button>
+            <button type="button" onclick="openCreateDailyAmamentacaoModal()" class="primary-btn"
+                style="padding: 8px 14px; border-radius: 8px; background-color: #ec4899; color: white; border: none; font-weight: 700; font-size: 12.5px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: var(--shadow-sm);">
+                <i data-lucide="plus" style="width: 15px; height: 15px;"></i>
+                <span>Nova Sessão Diária</span>
+            </button>
             {% endif %}
         </div>
 
         <div style="overflow-x: auto;">
             <table id="caderno-table" style="width: 100%; border-collapse: collapse; text-align: left;">
                 <thead>
-                    <tr style="border-bottom: 1.5px solid var(--border-color); background-color: var(--bg-body); color: var(--text-secondary); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">
-                        
+                    <tr
+                        style="border-bottom: 1.5px solid var(--border-color); background-color: var(--bg-body); color: var(--text-secondary); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">
+
                         {% if active_tab_nav == 'faltas' %}
-                            <th style="padding: 14px 18px; font-weight: 700;">Data</th>
-                            <th style="padding: 14px 18px; font-weight: 700;">Nome do Aluno</th>
-                            <th style="padding: 14px 18px; font-weight: 700;">Sala / Turma</th>
-                            <th style="padding: 14px 18px; font-weight: 700;">Período Ausência</th>
-                            <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Justificado?</th>
-                            <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Avisado pelos pais?</th>
-                            <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Doc</th>
-                            <th style="padding: 14px 18px; font-weight: 700; text-align: right;">Ações</th>
+                        <th style="padding: 14px 18px; font-weight: 700;">Data</th>
+                        <th style="padding: 14px 18px; font-weight: 700;">Nome do Aluno</th>
+                        <th style="padding: 14px 18px; font-weight: 700;">Sala / Turma</th>
+                        <th style="padding: 14px 18px; font-weight: 700;">Período Ausência</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Justificado?</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Avisado pelos pais?</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Doc</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: right;">Ações</th>
 
                         {% elif active_tab_nav == 'atestados' %}
-                            <th style="padding: 14px 18px; font-weight: 700;">Data</th>
-                            <th style="padding: 14px 18px; font-weight: 700;">Nome do Aluno</th>
-                            <th style="padding: 14px 18px; font-weight: 700;">Sala / Turma</th>
-                            <th style="padding: 14px 18px; font-weight: 700;">Período Afastamento</th>
-                            <th style="padding: 14px 18px; font-weight: 700;">CID</th>
-                            <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Atestado</th>
-                            <th style="padding: 14px 18px; font-weight: 700; text-align: right;">Ações</th>
+                        <th style="padding: 14px 18px; font-weight: 700;">Data</th>
+                        <th style="padding: 14px 18px; font-weight: 700;">Nome do Aluno</th>
+                        <th style="padding: 14px 18px; font-weight: 700;">Sala / Turma</th>
+                        <th style="padding: 14px 18px; font-weight: 700;">Período Afastamento</th>
+                        <th style="padding: 14px 18px; font-weight: 700;">CID</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Atestado</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: right;">Ações</th>
 
                         {% elif active_tab_nav == 'atrasos' %}
-                            <th style="padding: 14px 18px; font-weight: 700;">Data</th>
-                            <th style="padding: 14px 18px; font-weight: 700;">Nome do Aluno</th>
-                            <th style="padding: 14px 18px; font-weight: 700;">Sala / Turma</th>
-                            <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Horário</th>
-                            <th style="padding: 14px 18px; font-weight: 700;">Motivo Declarado</th>
-                            <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Justificado?</th>
-                            <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Avisado pelos pais?</th>
-                            <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Doc</th>
-                            <th style="padding: 14px 18px; font-weight: 700; text-align: right;">Ações</th>
+                        <th style="padding: 14px 18px; font-weight: 700;">Data</th>
+                        <th style="padding: 14px 18px; font-weight: 700;">Nome do Aluno</th>
+                        <th style="padding: 14px 18px; font-weight: 700;">Sala / Turma</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Horário</th>
+                        <th style="padding: 14px 18px; font-weight: 700;">Motivo Declarado</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Justificado?</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Avisado pelos pais?</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Doc</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: right;">Ações</th>
 
                         {% elif active_tab_nav == 'saidas' %}
-                            <th style="padding: 14px 18px; font-weight: 700;">Data</th>
-                            <th style="padding: 14px 18px; font-weight: 700;">Nome do Aluno</th>
-                            <th style="padding: 14px 18px; font-weight: 700;">Sala / Turma</th>
-                            <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Horário</th>
-                            <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Retorna?</th>
-                            <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Retorno</th>
-                            <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Doc</th>
-                            <th style="padding: 14px 18px; font-weight: 700; text-align: right;">Ações</th>
+                        <th style="padding: 14px 18px; font-weight: 700;">Data</th>
+                        <th style="padding: 14px 18px; font-weight: 700;">Nome do Aluno</th>
+                        <th style="padding: 14px 18px; font-weight: 700;">Sala / Turma</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Horário</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Retorna?</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Retorno</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Doc</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: right;">Ações</th>
 
                         {% elif active_tab_nav == 'amamentacao' %}
-                            <th style="padding: 14px 18px; font-weight: 700;">Data</th>
-                            <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Quantidade / Sessões</th>
-                            <th style="padding: 14px 18px; font-weight: 700;">Observação</th>
-                            <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Doc</th>
-                            <th style="padding: 14px 18px; font-weight: 700; text-align: right;">Ações</th>
+                        <th style="padding: 14px 18px; font-weight: 700;">Data</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Quantidade / Sessões</th>
+                        <th style="padding: 14px 18px; font-weight: 700;">Observação</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Doc</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: right;">Ações</th>
                         {% endif %}
 
                     </tr>
                 </thead>
                 <tbody id="caderno-tbody" style="font-size: 13.5px; color: var(--text-primary);">
                     {% for item in ocorrencias %}
-                    <tr class="caderno-row" data-search-text="{{ item.aluno.nome|default:'' }} {{ item.turma.nome|default:'' }} {{ item.motivo }} {{ item.cid }} {{ item.observacao }}" style="border-bottom: 1px solid var(--border-color); transition: background-color 0.15s ease;" onmouseenter="this.style.backgroundColor='var(--bg-input)'" onmouseleave="this.style.backgroundColor='transparent'">
-                        
+                    <tr class="caderno-row"
+                        data-search-text="{{ item.aluno.nome|default:'' }} {{ item.turma.nome|default:'' }} {{ item.motivo }} {{ item.cid }} {{ item.observacao }}"
+                        style="border-bottom: 1px solid var(--border-color); transition: background-color 0.15s ease;"
+                        onmouseenter="this.style.backgroundColor='var(--bg-input)'"
+                        onmouseleave="this.style.backgroundColor='transparent'">
+
                         <!-- Coluna Data -->
                         <td style="padding: 14px 18px; font-weight: 600; white-space: nowrap;">
                             {{ item.data|date:"d/m/Y" }}
@@ -211,163 +237,188 @@
 
                         <!-- Colunas conforme a aba ativa -->
                         {% if active_tab_nav == 'faltas' %}
-                            <!-- Nome do Aluno -->
-                            <td style="padding: 14px 18px; font-weight: 700;">
-                                {{ item.aluno.nome|default:"Não especificado" }}
-                            </td>
-                            <!-- Sala/Turma com cor exata -->
-                            <td style="padding: 14px 18px;">
-                                {% if item.turma %}
-                                    <span style="background-color: {{ item.turma_style.bg }}; color: {{ item.turma_style.color }}; border: 1px solid {{ item.turma_style.border }}; padding: 4px 10px; border-radius: 8px; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
-                                        {{ item.turma_style.emoji }} Sala {{ item.turma.nome }}
-                                    </span>
-                                {% else %}-{% endif %}
-                            </td>
-                            <!-- Período Ausência -->
-                            <td style="padding: 14px 18px; font-weight: 600; color: #991b1b;">
-                                {{ item.periodo }}
-                            </td>
-                            <!-- Justificado? -->
-                            <td style="padding: 14px 18px; text-align: center;">
-                                {% if item.justificado %}
-                                    <span style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px;">Sim</span>
-                                {% else %}
-                                    <span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px;">Não</span>
-                                {% endif %}
-                            </td>
-                            <!-- Avisado pelos pais? -->
-                            <td style="padding: 14px 18px; text-align: center;">
-                                {% if item.avisado_pais %}
-                                    <span style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px;">Sim</span>
-                                {% else %}
-                                    <span style="background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11.5px;">Não</span>
-                                {% endif %}
-                            </td>
+                        <!-- Nome do Aluno -->
+                        <td style="padding: 14px 18px; font-weight: 700;">
+                            {{ item.aluno.nome|default:"Não especificado" }}
+                        </td>
+                        <!-- Sala/Turma com cor exata -->
+                        <td style="padding: 14px 18px;">
+                            {% if item.turma %}
+                            <span
+                                style="background-color: {{ item.turma_style.bg }}; color: {{ item.turma_style.color }}; border: 1px solid {{ item.turma_style.border }}; padding: 4px 10px; border-radius: 8px; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                                {{ item.turma_style.emoji }} Sala {{ item.turma.nome }}
+                            </span>
+                            {% else %}-{% endif %}
+                        </td>
+                        <!-- Período Ausência -->
+                        <td style="padding: 14px 18px; font-weight: 600; color: #991b1b;">
+                            {{ item.periodo }}
+                        </td>
+                        <!-- Justificado? -->
+                        <td style="padding: 14px 18px; text-align: center;">
+                            {% if item.justificado %}
+                            <span
+                                style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px;">Sim</span>
+                            {% else %}
+                            <span
+                                style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px;">Não</span>
+                            {% endif %}
+                        </td>
+                        <!-- Avisado pelos pais? -->
+                        <td style="padding: 14px 18px; text-align: center;">
+                            {% if item.avisado_pais %}
+                            <span
+                                style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px;">Sim</span>
+                            {% else %}
+                            <span
+                                style="background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11.5px;">Não</span>
+                            {% endif %}
+                        </td>
 
                         {% elif active_tab_nav == 'atestados' %}
-                            <!-- Nome do Aluno -->
-                            <td style="padding: 14px 18px; font-weight: 700;">
-                                {{ item.aluno.nome|default:"Não especificado" }}
-                            </td>
-                            <!-- Sala/Turma -->
-                            <td style="padding: 14px 18px;">
-                                {% if item.turma %}
-                                    <span style="background-color: {{ item.turma_style.bg }}; color: {{ item.turma_style.color }}; border: 1px solid {{ item.turma_style.border }}; padding: 4px 10px; border-radius: 8px; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
-                                        {{ item.turma_style.emoji }} Sala {{ item.turma.nome }}
-                                    </span>
-                                {% else %}-{% endif %}
-                            </td>
-                            <!-- Período Afastamento -->
-                            <td style="padding: 14px 18px; font-weight: 600; color: #0284c7;">
-                                {{ item.periodo }}
-                            </td>
-                            <!-- CID -->
-                            <td style="padding: 14px 18px;">
-                                {% if item.cid %}
-                                    <span style="background: #f1f5f9; color: #334155; padding: 3px 8px; border-radius: 6px; font-family: monospace; font-weight: 700; font-size: 12px;">{{ item.cid }}</span>
-                                {% else %}
-                                    <span style="color: var(--text-light);">-</span>
-                                {% endif %}
-                            </td>
+                        <!-- Nome do Aluno -->
+                        <td style="padding: 14px 18px; font-weight: 700;">
+                            {{ item.aluno.nome|default:"Não especificado" }}
+                        </td>
+                        <!-- Sala/Turma -->
+                        <td style="padding: 14px 18px;">
+                            {% if item.turma %}
+                            <span
+                                style="background-color: {{ item.turma_style.bg }}; color: {{ item.turma_style.color }}; border: 1px solid {{ item.turma_style.border }}; padding: 4px 10px; border-radius: 8px; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                                {{ item.turma_style.emoji }} Sala {{ item.turma.nome }}
+                            </span>
+                            {% else %}-{% endif %}
+                        </td>
+                        <!-- Período Afastamento -->
+                        <td style="padding: 14px 18px; font-weight: 600; color: #0284c7;">
+                            {{ item.periodo }}
+                        </td>
+                        <!-- CID -->
+                        <td style="padding: 14px 18px;">
+                            {% if item.cid %}
+                            <span
+                                style="background: #f1f5f9; color: #334155; padding: 3px 8px; border-radius: 6px; font-family: monospace; font-weight: 700; font-size: 12px;">{{
+                                item.cid }}</span>
+                            {% else %}
+                            <span style="color: var(--text-light);">-</span>
+                            {% endif %}
+                        </td>
 
                         {% elif active_tab_nav == 'atrasos' %}
-                            <!-- Nome do Aluno -->
-                            <td style="padding: 14px 18px; font-weight: 700;">
-                                {{ item.aluno.nome|default:"Não especificado" }}
-                            </td>
-                            <!-- Sala/Turma -->
-                            <td style="padding: 14px 18px;">
-                                {% if item.turma %}
-                                    <span style="background-color: {{ item.turma_style.bg }}; color: {{ item.turma_style.color }}; border: 1px solid {{ item.turma_style.border }}; padding: 4px 10px; border-radius: 8px; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
-                                        {{ item.turma_style.emoji }} Sala {{ item.turma.nome }}
-                                    </span>
-                                {% else %}-{% endif %}
-                            </td>
-                            <!-- Horário -->
-                            <td style="padding: 14px 18px; text-align: center; font-weight: 700; color: #b45309;">
-                                {{ item.horario|default:"-" }}
-                            </td>
-                            <!-- Motivo Declarado -->
-                            <td style="padding: 14px 18px; font-size: 13px; color: var(--text-secondary);">
-                                {{ item.motivo|default:"Não informado" }}
-                            </td>
-                            <!-- Justificado? -->
-                            <td style="padding: 14px 18px; text-align: center;">
-                                {% if item.justificado %}
-                                    <span style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px;">Sim</span>
-                                {% else %}
-                                    <span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px;">Não</span>
-                                {% endif %}
-                            </td>
-                            <!-- Avisado pelos pais? -->
-                            <td style="padding: 14px 18px; text-align: center;">
-                                {% if item.avisado_pais %}
-                                    <span style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px;">Sim</span>
-                                {% else %}
-                                    <span style="background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11.5px;">Não</span>
-                                {% endif %}
-                            </td>
+                        <!-- Nome do Aluno -->
+                        <td style="padding: 14px 18px; font-weight: 700;">
+                            {{ item.aluno.nome|default:"Não especificado" }}
+                        </td>
+                        <!-- Sala/Turma -->
+                        <td style="padding: 14px 18px;">
+                            {% if item.turma %}
+                            <span
+                                style="background-color: {{ item.turma_style.bg }}; color: {{ item.turma_style.color }}; border: 1px solid {{ item.turma_style.border }}; padding: 4px 10px; border-radius: 8px; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                                {{ item.turma_style.emoji }} Sala {{ item.turma.nome }}
+                            </span>
+                            {% else %}-{% endif %}
+                        </td>
+                        <!-- Horário -->
+                        <td style="padding: 14px 18px; text-align: center; font-weight: 700; color: #b45309;">
+                            {{ item.horario|default:"-" }}
+                        </td>
+                        <!-- Motivo Declarado -->
+                        <td style="padding: 14px 18px; font-size: 13px; color: var(--text-secondary);">
+                            {{ item.motivo|default:"Não informado" }}
+                        </td>
+                        <!-- Justificado? -->
+                        <td style="padding: 14px 18px; text-align: center;">
+                            {% if item.justificado %}
+                            <span
+                                style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px;">Sim</span>
+                            {% else %}
+                            <span
+                                style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px;">Não</span>
+                            {% endif %}
+                        </td>
+                        <!-- Avisado pelos pais? -->
+                        <td style="padding: 14px 18px; text-align: center;">
+                            {% if item.avisado_pais %}
+                            <span
+                                style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px;">Sim</span>
+                            {% else %}
+                            <span
+                                style="background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11.5px;">Não</span>
+                            {% endif %}
+                        </td>
 
                         {% elif active_tab_nav == 'saidas' %}
-                            <!-- Nome do Aluno -->
-                            <td style="padding: 14px 18px; font-weight: 700;">
-                                {{ item.aluno.nome|default:"Não especificado" }}
-                            </td>
-                            <!-- Sala/Turma -->
-                            <td style="padding: 14px 18px;">
-                                {% if item.turma %}
-                                    <span style="background-color: {{ item.turma_style.bg }}; color: {{ item.turma_style.color }}; border: 1px solid {{ item.turma_style.border }}; padding: 4px 10px; border-radius: 8px; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
-                                        {{ item.turma_style.emoji }} Sala {{ item.turma.nome }}
-                                    </span>
-                                {% else %}-{% endif %}
-                            </td>
-                            <!-- Horário -->
-                            <td style="padding: 14px 18px; text-align: center; font-weight: 700; color: #b45309;">
-                                {{ item.horario|default:"-" }}
-                            </td>
-                            <!-- Retorna? -->
-                            <td style="padding: 14px 18px; text-align: center;">
-                                {% if item.retorna %}
-                                    <span style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px;">Sim</span>
-                                {% else %}
-                                    <span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px;">Não</span>
-                                {% endif %}
-                            </td>
-                            <!-- Retorno (hh:mm) -->
-                            <td style="padding: 14px 18px; text-align: center; font-weight: 600;">
-                                {{ item.horario_retorno|default:"-" }}
-                            </td>
+                        <!-- Nome do Aluno -->
+                        <td style="padding: 14px 18px; font-weight: 700;">
+                            {{ item.aluno.nome|default:"Não especificado" }}
+                        </td>
+                        <!-- Sala/Turma -->
+                        <td style="padding: 14px 18px;">
+                            {% if item.turma %}
+                            <span
+                                style="background-color: {{ item.turma_style.bg }}; color: {{ item.turma_style.color }}; border: 1px solid {{ item.turma_style.border }}; padding: 4px 10px; border-radius: 8px; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                                {{ item.turma_style.emoji }} Sala {{ item.turma.nome }}
+                            </span>
+                            {% else %}-{% endif %}
+                        </td>
+                        <!-- Horário -->
+                        <td style="padding: 14px 18px; text-align: center; font-weight: 700; color: #b45309;">
+                            {{ item.horario|default:"-" }}
+                        </td>
+                        <!-- Retorna? -->
+                        <td style="padding: 14px 18px; text-align: center;">
+                            {% if item.retorna %}
+                            <span
+                                style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px;">Sim</span>
+                            {% else %}
+                            <span
+                                style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px;">Não</span>
+                            {% endif %}
+                        </td>
+                        <!-- Retorno (hh:mm) -->
+                        <td style="padding: 14px 18px; text-align: center; font-weight: 600;">
+                            {{ item.horario_retorno|default:"-" }}
+                        </td>
 
                         {% elif active_tab_nav == 'amamentacao' %}
-                            <!-- Quantidade / Sessões -->
-                            <td style="padding: 14px 18px; text-align: center; font-weight: 800; color: #db2777;">
-                                {{ item.quantidade|default:"1" }}
-                            </td>
-                            <!-- Observação -->
-                            <td style="padding: 14px 18px; color: var(--text-secondary);">
-                                {{ item.observacao|default:"-" }}
-                            </td>
+                        <!-- Quantidade / Sessões -->
+                        <td style="padding: 14px 18px; text-align: center; font-weight: 800; color: #db2777;">
+                            {{ item.quantidade|default:"1" }}
+                        </td>
+                        <!-- Observação -->
+                        <td style="padding: 14px 18px; color: var(--text-secondary);">
+                            {{ item.observacao|default:"-" }}
+                        </td>
                         {% endif %}
 
                         <!-- Coluna Doc (Modal para ver anexo) -->
                         <td style="padding: 14px 18px; text-align: center;">
-                            {% if item.documento %}
-                                <button type="button" onclick="viewDoc('{{ item.documento.url }}', '{{ item.aluno.nome|default:tab_info.title|escapejs }}')" title="Visualizar Documento / Atestado" style="padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--brand-primary); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600;">
-                                    <i data-lucide="file-text" style="width: 14px; height: 14px;"></i>
-                                    <span>Ver</span>
-                                </button>
+                            {% if item.documento or item.anexo %}
+                            <button type="button"
+                                onclick="viewDoc('{% if item.documento %}{{ item.documento.url }}{% else %}{{ item.anexo.url }}{% endif %}', '{{ item.aluno.nome|default:tab_info.title|escapejs }}')"
+                                title="Visualizar Documento / Anexo"
+                                style="padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--brand-primary); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600;">
+                                <i data-lucide="file-text" style="width: 14px; height: 14px;"></i>
+                                <span>Ver</span>
+                            </button>
                             {% else %}
-                                <span style="color: var(--text-light); font-size: 12px;">Sem anexo</span>
+                            <span style="color: var(--text-light); font-size: 12px;">Sem anexo</span>
                             {% endif %}
                         </td>
 
                         <!-- Coluna Ações (Editar em Modal e Excluir com Confirmação) -->
                         <td style="padding: 14px 18px; text-align: right;">
                             <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
-                                <button type="button" onclick="openEditModal({{ item.id }}, '{{ item.aluno.id|default:'' }}', '{{ item.turma.id|default:'' }}', '{{ item.data|date:'Y-m-d' }}', '{{ item.data_fim|date:'Y-m-d'|default:'' }}', '{{ item.horario }}', '{{ item.horario_retorno }}', {{ item.retorna|yesno:'true,false' }}, {{ item.justificado|yesno:'true,false' }}, {{ item.avisado_pais|yesno:'true,false' }}, '{{ item.cid|escapejs }}', '{{ item.motivo|escapejs }}', '{{ item.quantidade|escapejs }}', '{{ item.observacao|escapejs }}')" title="Editar Registro" style="padding: 6px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--color-primary); cursor: pointer; display: inline-flex;">
+                                <button type="button"
+                                    onclick="openEditModal({{ item.id }}, '{{ item.aluno.id|default:'' }}', '{{ item.turma.id|default:'' }}', '{{ item.data|date:'Y-m-d' }}', '{{ item.data_fim|date:'Y-m-d'|default:'' }}', '{{ item.horario|default:'' }}', '{{ item.horario_retorno|default:'' }}', {{ item.retorna|yesno:'true,false' }}, {{ item.justificado|yesno:'true,false' }}, {{ item.avisado_pais|yesno:'true,false' }}, '{{ item.cid|default:''|escapejs }}', '{{ item.motivo|default:''|escapejs }}', '{{ item.quantidade|default:'1'|escapejs }}', '{{ item.observacao|default:''|escapejs }}', '{% if item.documento %}{{ item.documento.url }}{% elif item.anexo %}{{ item.anexo.url }}{% endif %}', '{% if item.documento %}{{ item.documento.name|escapejs }}{% elif item.anexo %}{{ item.anexo.name|escapejs }}{% endif %}')"
+                                    title="Editar Registro"
+                                    style="padding: 6px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--color-primary); cursor: pointer; display: inline-flex;">
                                     <i data-lucide="edit-2" style="width: 14px; height: 14px;"></i>
                                 </button>
-                                <button type="button" onclick="confirmDeleteModal({{ item.id }}, '{{ item.aluno.nome|default:tab_info.title|escapejs }}')" title="Excluir Registro" style="padding: 6px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-body); color: #dc2626; cursor: pointer; display: inline-flex;">
+                                <button type="button"
+                                    onclick="confirmDeleteModal({{ item.id }}, '{{ item.aluno.nome|default:tab_info.title|escapejs }}')"
+                                    title="Excluir Registro"
+                                    style="padding: 6px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-body); color: #dc2626; cursor: pointer; display: inline-flex;">
                                     <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
                                 </button>
                             </div>
@@ -378,10 +429,13 @@
                     <tr id="empty-row">
                         <td colspan="10" style="text-align: center; padding: 40px; color: var(--text-secondary);">
                             <div style="font-size: 36px; margin-bottom: 8px;">🍼</div>
-                            <div style="font-weight: 700; font-size: 15px; color: var(--text-primary); margin-bottom: 4px;">
-                                {% if active_tab_nav == 'amamentacao' %}Nenhum registro diário encontrado{% else %}Nenhum registro encontrado{% endif %}
+                            <div
+                                style="font-weight: 700; font-size: 15px; color: var(--text-primary); margin-bottom: 4px;">
+                                {% if active_tab_nav == 'amamentacao' %}Nenhum registro diário encontrado{% else
+                                %}Nenhum registro encontrado{% endif %}
                             </div>
-                            <div style="font-size: 13px;">Clique em "{% if active_tab_nav == 'amamentacao' %}Novo Registro Diário{% else %}Novo Registro{% endif %}" para adicionar uma ocorrência.</div>
+                            <div style="font-size: 13px;">Clique em "{% if active_tab_nav == 'amamentacao' %}Novo
+                                Registro Diário{% else %}Novo Registro{% endif %}" para adicionar uma ocorrência.</div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -396,18 +450,24 @@
 <!-- GRÁFICO: REGISTROS DE AMAMENTAÇÃO MÊS A MÊS (EVOLUÇÃO MENSAL NA COR ROSA) -->
 <!-- ========================================================================= -->
 <section style="margin-top: 28px;">
-    <div style="background-color: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border-color); padding: 22px; box-shadow: var(--shadow-sm);">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+    <div
+        style="background-color: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border-color); padding: 22px; box-shadow: var(--shadow-sm);">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
             <div style="display: flex; flex-direction: column; gap: 2px;">
-                <div style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                <div
+                    style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
                     <span style="font-size: 20px;">🤱</span>
                     <span>Registros de Amamentação Mês a Mês</span>
                 </div>
-                <span style="font-size: 12px; color: var(--text-secondary);">Acompanhamento mês a mês dos quantitativos consolidados e somatórios acumulados</span>
+                <span style="font-size: 12px; color: var(--text-secondary);">Acompanhamento mês a mês dos quantitativos
+                    consolidados e somatórios acumulados</span>
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="background-color: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; padding: 4px 12px; border-radius: 999px; font-size: 11.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
-                    <span style="width: 8px; height: 8px; border-radius: 50%; background-color: #ec4899; display: inline-block;"></span>
+                <span
+                    style="background-color: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; padding: 4px 12px; border-radius: 999px; font-size: 11.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+                    <span
+                        style="width: 8px; height: 8px; border-radius: 50%; background-color: #ec4899; display: inline-block;"></span>
                     Evolução Mensal (Rosa)
                 </span>
             </div>
@@ -422,26 +482,34 @@
 <!-- TABELA 2: QUANTITATIVO MENSAL DE AMAMENTAÇÃO (CONSOLIDADO)                -->
 <!-- ========================================================================= -->
 <section style="margin-top: 28px;">
-    <div style="background-color: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); overflow: hidden;">
-        <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; background-color: var(--bg-body);">
+    <div
+        style="background-color: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); overflow: hidden;">
+        <div
+            style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; background-color: var(--bg-body);">
             <div style="display: flex; flex-direction: column; gap: 2px;">
-                <div style="font-size: 14.5px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                <div
+                    style="font-size: 14.5px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
                     <span style="font-size: 16px;">📌</span>
                     <span>Quantitativo Mensal de Amamentação (Consolidado)</span>
-                    <span style="font-size: 12px; font-weight: 700; background-color: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; padding: 2px 8px; border-radius: 999px;">
-                        {{ historico_amamentacao|length }} {{ historico_amamentacao|length|pluralize:"mês contabilizado,meses contabilizados" }}
+                    <span
+                        style="font-size: 12px; font-weight: 700; background-color: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; padding: 2px 8px; border-radius: 999px;">
+                        {{ historico_amamentacao|length }} {{ historico_amamentacao|length|pluralize:"mês
+                        contabilizado,meses contabilizados" }}
                     </span>
                 </div>
                 <span style="font-size: 12px; color: var(--text-secondary);">
-                    Totais mensais consolidados (soma automática dos dias até hoje para meses em andamento como o atual e históricos anteriores)
+                    Totais mensais consolidados (soma automática dos dias até hoje para meses em andamento como o atual
+                    e históricos anteriores)
                 </span>
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
-                <button type="button" onclick="exportAmamentacaoPDF()" class="secondary-btn" style="padding: 8px 14px; border-radius: 8px; background-color: #fdf2f8; color: #db2777; border: 1.5px solid #fbcfe8; font-weight: 700; font-size: 12.5px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                <button type="button" onclick="exportAmamentacaoPDF()" class="secondary-btn"
+                    style="padding: 8px 14px; border-radius: 8px; background-color: #fdf2f8; color: #db2777; border: 1.5px solid #fbcfe8; font-weight: 700; font-size: 12.5px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
                     <i data-lucide="file-text" style="width: 15px; height: 15px;"></i>
                     <span>Exportar PDF Mensal</span>
                 </button>
-                <button type="button" onclick="openCreateAmamentacaoModal()" class="secondary-btn" style="padding: 8px 14px; border-radius: 8px; background-color: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; font-weight: 700; font-size: 12.5px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                <button type="button" onclick="openCreateAmamentacaoModal()" class="secondary-btn"
+                    style="padding: 8px 14px; border-radius: 8px; background-color: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; font-weight: 700; font-size: 12.5px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
                     <i data-lucide="plus" style="width: 15px; height: 15px;"></i>
                     <span>Adicionar Histórico</span>
                 </button>
@@ -450,39 +518,53 @@
         <div style="overflow-x: auto;">
             <table style="width: 100%; border-collapse: collapse; font-size: 13.5px; text-align: left;">
                 <thead>
-                    <tr style="border-bottom: 1.5px solid var(--border-color); background-color: var(--bg-body); color: var(--text-secondary); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">
+                    <tr
+                        style="border-bottom: 1.5px solid var(--border-color); background-color: var(--bg-body); color: var(--text-secondary); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">
                         <th style="padding: 14px 18px; font-weight: 700;">Mês / Ano</th>
-                        <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Quantidade Total no Mês</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Quantidade Total no Mês
+                        </th>
                         <th style="padding: 14px 18px; font-weight: 700;">Origem / Observação</th>
                         <th style="padding: 14px 18px; font-weight: 700; text-align: right;">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for hist in historico_amamentacao %}
-                    <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.15s ease;" onmouseenter="this.style.backgroundColor='var(--bg-input)'" onmouseleave="this.style.backgroundColor='transparent'">
+                    <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.15s ease;"
+                        onmouseenter="this.style.backgroundColor='var(--bg-input)'"
+                        onmouseleave="this.style.backgroundColor='transparent'">
                         <td style="padding: 14px 18px; font-weight: 700; color: #db2777;">
                             🗓️ {{ hist.month_label }}
                         </td>
-                        <td style="padding: 14px 18px; text-align: center; color: #db2777; font-weight: 800; font-size: 15px;">
-                            {{ hist.total_quantity }} <span style="font-size: 12px; font-weight: 600; color: #be185d;">{{ hist.total_quantity|pluralize:"utilização,utilizações" }}</span>
+                        <td
+                            style="padding: 14px 18px; text-align: center; color: #db2777; font-weight: 800; font-size: 15px;">
+                            {{ hist.total_quantity }} <span
+                                style="font-size: 12px; font-weight: 600; color: #be185d;">{{
+                                hist.total_quantity|pluralize:"utilização,utilizações" }}</span>
                         </td>
                         <td style="padding: 14px 18px; color: var(--text-secondary);">
                             {% if hist.is_daily_sum %}
-                                {{ hist.observacao }}
+                            {{ hist.observacao }}
                             {% else %}
-                                <span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background-color: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; margin-right: 6px;">
-                                    📌 Histórico Mensal
-                                </span>
-                                {{ hist.observacao|default:"-" }}
+                            <span
+                                style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background-color: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; margin-right: 6px;">
+                                📌 Histórico Mensal
+                            </span>
+                            {{ hist.observacao|default:"-" }}
                             {% endif %}
                         </td>
                         <td style="padding: 14px 18px; text-align: right;">
                             {% if hist.id %}
                             <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
-                                <button type="button" onclick="openEditAmamentacaoModal({{ hist.id }}, '{{ hist.month_key }}', '{{ hist.total_quantity }}', '{{ hist.observacao|escapejs }}')" title="Editar Histórico" style="padding: 6px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--color-primary); cursor: pointer; display: inline-flex;">
+                                <button type="button"
+                                    onclick="openEditAmamentacaoModal({{ hist.id }}, '{{ hist.month_key }}', '{{ hist.total_quantity }}', '{{ hist.observacao|escapejs }}')"
+                                    title="Editar Histórico"
+                                    style="padding: 6px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--color-primary); cursor: pointer; display: inline-flex;">
                                     <i data-lucide="edit-2" style="width: 14px; height: 14px;"></i>
                                 </button>
-                                <button type="button" onclick="confirmDeleteModal({{ hist.id }}, 'Histórico de {{ hist.month_label }}')" title="Excluir Histórico" style="padding: 6px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-body); color: #dc2626; cursor: pointer; display: inline-flex;">
+                                <button type="button"
+                                    onclick="confirmDeleteModal({{ hist.id }}, 'Histórico de {{ hist.month_label }}')"
+                                    title="Excluir Histórico"
+                                    style="padding: 6px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-body); color: #dc2626; cursor: pointer; display: inline-flex;">
                                     <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
                                 </button>
                             </div>
@@ -497,8 +579,11 @@
                     <tr>
                         <td colspan="4" style="text-align: center; padding: 36px; color: var(--text-secondary);">
                             <div style="font-size: 28px; margin-bottom: 8px;">🍼</div>
-                            <div style="font-weight: 700; font-size: 14px; color: var(--text-primary); margin-bottom: 4px;">Nenhum quantitativo mensal consolidado</div>
-                            <div style="font-size: 12.5px;">Adicione registros diários ou insira totais históricos para visualizar aqui.</div>
+                            <div
+                                style="font-weight: 700; font-size: 14px; color: var(--text-primary); margin-bottom: 4px;">
+                                Nenhum quantitativo mensal consolidado</div>
+                            <div style="font-size: 12.5px;">Adicione registros diários ou insira totais históricos para
+                                visualizar aqui.</div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -513,54 +598,72 @@
 <!-- MODAL DE CADASTRO E EDIÇÃO DO CADERNO SEAMI (IGUAL AO SEAMI)              -->
 <!-- ========================================================================= -->
 <div id="modal-caderno-form" class="modal-overlay" style="display: none;">
-    <div class="modal-card modal-large" style="max-width: 820px; width: 95%; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);" onclick="event.stopPropagation()">
-        
+    <div class="modal-card modal-large"
+        style="max-width: 820px; width: 95%; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);"
+        onclick="event.stopPropagation()">
+
         <!-- Header com ícone temático e subtítulo explicativo -->
-        <div class="modal-header" style="border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; background: var(--bg-card);">
+        <div class="modal-header"
+            style="border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; background: var(--bg-card);">
             <div style="display: flex; align-items: center; gap: 12px;">
-                <div id="modal-icon-badge" style="width: 40px; height: 40px; border-radius: 12px; background-color: var(--color-primary-light); color: {{ tab_info.color }}; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                <div id="modal-icon-badge"
+                    style="width: 40px; height: 40px; border-radius: 12px; background-color: var(--color-primary-light); color: {{ tab_info.color }}; display: flex; align-items: center; justify-content: center; font-size: 18px;">
                     <i id="modal-header-icon" data-lucide="{{ tab_info.icon }}" style="width: 22px; height: 22px;"></i>
                 </div>
                 <div>
-                    <h3 id="caderno-modal-title" style="margin: 0; font-size: 18px; font-weight: 800; color: var(--text-primary);">
+                    <h3 id="caderno-modal-title"
+                        style="margin: 0; font-size: 18px; font-weight: 800; color: var(--text-primary);">
                         Novo Registro de {{ tab_info.title }}
                     </h3>
-                    <span id="caderno-modal-subtitle" style="font-size: 12px; color: var(--text-secondary); display: block; margin-top: 2px;">
-                        Apenas <strong>Nome do Aluno</strong> e <strong>Tipo de Registro</strong> são obrigatórios no formulário.
+                    <span id="caderno-modal-subtitle"
+                        style="font-size: 12px; color: var(--text-secondary); display: block; margin-top: 2px;">
+                        Apenas <strong>Nome do Aluno</strong> e <strong>Tipo de Registro</strong> são obrigatórios no
+                        formulário.
                     </span>
                 </div>
             </div>
-            <button type="button" onclick="closeCadernoModal()" style="border: none; background: #f1f5f9; color: #64748b; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; font-weight: 700; transition: all 0.15s ease;">✕</button>
+            <button type="button" onclick="closeCadernoModal()"
+                style="border: none; background: #f1f5f9; color: #64748b; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; font-weight: 700; transition: all 0.15s ease;">✕</button>
         </div>
 
-        <form id="caderno-main-form" method="post" enctype="multipart/form-data" style="display: flex; flex-direction: column; flex: 1; overflow: hidden; margin: 0;">
+        <form id="caderno-main-form" method="post" enctype="multipart/form-data"
+            style="display: flex; flex-direction: column; flex: 1; overflow: hidden; margin: 0;">
             {% csrf_token %}
             <input type="hidden" name="action" id="form-caderno-action" value="create">
             <input type="hidden" name="ocorrencia_id" id="form-caderno-id" value="">
             <input type="hidden" name="aluno" id="field-aluno" value="">
             <input type="hidden" name="data_fim" id="field-data-fim-hidden" value="">
 
-            <div class="form-body" style="padding: 20px 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;">
-                
+            <div class="form-body"
+                style="padding: 20px 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;">
+
                 <!-- 1. SELETOR DE ESTUDANTE (Ocultado em Amamentação) -->
-                <div id="box-student-select" style="border: 1px solid #bfdbfe; border-radius: 12px; padding: 16px; background-color: #eff6ff;">
-                    <span style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: #1e3a8a; margin-bottom: 10px;">
+                <div id="box-student-select"
+                    style="border: 1px solid #bfdbfe; border-radius: 12px; padding: 16px; background-color: #eff6ff;">
+                    <span
+                        style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: #1e3a8a; margin-bottom: 10px;">
                         <i data-lucide="users" style="width: 16px; height: 16px;"></i>
                         Selecionar Aluno da Creche <span style="color: #ef4444;">*</span>
                     </span>
 
                     <!-- Card Aluno Selecionado -->
-                    <div id="selected-student-card" style="display: none; align-items: center; justify-content: space-between; padding: 12px 16px; background-color: white; border-radius: 10px; border: 2px solid #3b82f6; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.05);">
+                    <div id="selected-student-card"
+                        style="display: none; align-items: center; justify-content: space-between; padding: 12px 16px; background-color: white; border-radius: 10px; border: 2px solid #3b82f6; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.05);">
                         <div style="display: flex; align-items: center; gap: 12px;">
-                            <div id="selected-student-avatar" style="width: 36px; height: 36px; border-radius: 50%; background-color: #3b82f6; color: white; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;">
+                            <div id="selected-student-avatar"
+                                style="width: 36px; height: 36px; border-radius: 50%; background-color: #3b82f6; color: white; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;">
                                 A
                             </div>
                             <div>
-                                <strong id="selected-student-name" style="color: #1e293b; font-size: 14.5px; display: block;">Nome do Aluno</strong>
-                                <span id="selected-student-classroom" style="font-size: 11px; color: #3b82f6; font-weight: 700; text-transform: uppercase;">SALA / TURMA: Sala Alegria</span>
+                                <strong id="selected-student-name"
+                                    style="color: #1e293b; font-size: 14.5px; display: block;">Nome do Aluno</strong>
+                                <span id="selected-student-classroom"
+                                    style="font-size: 11px; color: #3b82f6; font-weight: 700; text-transform: uppercase;">SALA
+                                    / TURMA: Sala Alegria</span>
                             </div>
                         </div>
-                        <button type="button" onclick="deselectModalStudent()" title="Trocar Aluno" style="border: none; background: #f1f5f9; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; color: #64748b; display: flex; align-items: center; justify-content: center; font-size: 13px;">
+                        <button type="button" onclick="deselectModalStudent()" title="Trocar Aluno"
+                            style="border: none; background: #f1f5f9; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; color: #64748b; display: flex; align-items: center; justify-content: center; font-size: 13px;">
                             ✕
                         </button>
                     </div>
@@ -568,30 +671,40 @@
                     <!-- Busca e Lista de Alunos -->
                     <div id="student-search-container">
                         <div style="position: relative; margin-bottom: 8px;">
-                            <i data-lucide="search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #3b82f6; width: 16px; height: 16px;"></i>
-                            <input type="text" id="modal-student-search" oninput="filterModalStudents(this.value)" placeholder="Digite para buscar alunos cadastrados nas turmas..."
-                                   style="width: 100%; padding: 9px 12px 9px 36px; border-radius: 8px; border: 1px solid #93c5fd; background-color: white; font-size: 13.5px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                            <i data-lucide="search"
+                                style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #3b82f6; width: 16px; height: 16px;"></i>
+                            <input type="text" id="modal-student-search" oninput="filterModalStudents(this.value)"
+                                placeholder="Digite para buscar alunos cadastrados nas turmas..."
+                                style="width: 100%; padding: 9px 12px 9px 36px; border-radius: 8px; border: 1px solid #93c5fd; background-color: white; font-size: 13.5px; color: var(--text-primary); outline: none; box-sizing: border-box;">
                         </div>
 
-                        <div id="modal-student-list" style="border: 1px solid #bfdbfe; border-radius: 8px; background-color: white; max-height: 140px; overflow-y: auto; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                        <div id="modal-student-list"
+                            style="border: 1px solid #bfdbfe; border-radius: 8px; background-color: white; max-height: 140px; overflow-y: auto; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
                             {% for st in alunos %}
-                                <div class="modal-student-item" data-id="{{ st.id }}" data-name="{{ st.nome }}" data-turma="{{ st.turma.nome|default:'' }}" onclick="selectModalStudent('{{ st.id }}', '{{ st.nome|escapejs }}', '{{ st.turma.nome|default:''|escapejs }}')"
-                                     style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; transition: background-color 0.15s ease;"
-                                     onmouseenter="this.style.backgroundColor='#eff6ff'" onmouseleave="this.style.backgroundColor='transparent'">
-                                    <div style="display: flex; align-items: center; gap: 10px;">
-                                        <div style="width: 26px; height: 26px; border-radius: 50%; background-color: #dbeafe; color: #1e40af; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;">
-                                            {{ st.nome|slice:":1" }}
-                                        </div>
-                                        <span style="font-weight: 600; color: var(--text-primary); font-size: 13px;">{{ st.nome }}</span>
+                            <div class="modal-student-item" data-id="{{ st.id }}" data-name="{{ st.nome }}"
+                                data-turma="{{ st.turma.nome|default:'' }}"
+                                onclick="selectModalStudent('{{ st.id }}', '{{ st.nome|escapejs }}', '{{ st.turma.nome|default:''|escapejs }}')"
+                                style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; transition: background-color 0.15s ease;"
+                                onmouseenter="this.style.backgroundColor='#eff6ff'"
+                                onmouseleave="this.style.backgroundColor='transparent'">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <div
+                                        style="width: 26px; height: 26px; border-radius: 50%; background-color: #dbeafe; color: #1e40af; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;">
+                                        {{ st.nome|slice:":1" }}
                                     </div>
-                                    <span style="font-size: 10px; padding: 2px 8px; border-radius: 10px; background-color: #dbeafe; color: #1e40af; font-weight: 700;">
-                                        Sala {{ st.turma.nome|default:"-" }}
-                                    </span>
+                                    <span style="font-weight: 600; color: var(--text-primary); font-size: 13px;">{{
+                                        st.nome }}</span>
                                 </div>
+                                <span
+                                    style="font-size: 10px; padding: 2px 8px; border-radius: 10px; background-color: #dbeafe; color: #1e40af; font-weight: 700;">
+                                    Sala {{ st.turma.nome|default:"-" }}
+                                </span>
+                            </div>
                             {% empty %}
-                                <div style="padding: 12px; font-size: 13px; color: var(--text-secondary); text-align: center;">
-                                    Nenhum aluno cadastrado.
-                                </div>
+                            <div
+                                style="padding: 12px; font-size: 13px; color: var(--text-secondary); text-align: center;">
+                                Nenhum aluno cadastrado.
+                            </div>
                             {% endfor %}
                         </div>
                     </div>
@@ -600,42 +713,51 @@
                 <!-- 2. GRID: TIPO DE REGISTRO & DATA -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
                     <div>
-                        <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                        <label
+                            style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
                             Tipo de Registro <span style="color: #ef4444;">*</span>
                         </label>
-                        <select name="tipo" id="field-tipo" onchange="onModalTypeChange(this.value)" style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; font-weight: 600; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                        <select name="tipo" id="field-tipo" onchange="onModalTypeChange(this.value)"
+                            style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; font-weight: 600; color: var(--text-primary); outline: none; box-sizing: border-box;">
                             <option value="falta" {% if active_tab_nav == 'faltas' %}selected{% endif %}>Falta</option>
-                            <option value="atestado" {% if active_tab_nav == 'atestados' %}selected{% endif %}>Atestado Médico</option>
+                            <option value="atestado" {% if active_tab_nav == 'atestados' %}selected{% endif %}>Atestado
+                                Médico</option>
                             <option value="atraso" {% if active_tab_nav == 'atrasos' %}selected{% endif %}>Atraso</option>
-                            <option value="saida" {% if active_tab_nav == 'saidas' %}selected{% endif %}>Saída Antecipada</option>
-                            <option value="amamentacao" {% if active_tab_nav == 'amamentacao' %}selected{% endif %}>Amamentação</option>
+                            <option value="saida" {% if active_tab_nav == 'saidas' %}selected{% endif %}>Saída Antecipada
+                            </option>
+                            <option value="amamentacao" {% if active_tab_nav == 'amamentacao' %}selected{% endif %}>
+                                Amamentação</option>
                         </select>
                     </div>
 
                     <div>
-                        <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                        <label
+                            style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
                             Data (Opcional)
                         </label>
                         <input type="date" name="data" id="field-data" value="{{ today }}"
-                               style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                            style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none; box-sizing: border-box;">
                     </div>
                 </div>
 
                 <!-- 3. GRID: HORÁRIO & QUEM REGISTROU (Ocultado em Amamentação) -->
                 <div id="box-time-recorded" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
                     <div>
-                        <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                        <label
+                            style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
                             Horário (Opcional)
                         </label>
                         <input type="time" name="horario" id="field-horario" value="08:15"
-                               style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                            style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none; box-sizing: border-box;">
                     </div>
                     <div>
-                        <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                        <label
+                            style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
                             Responsável pelo Registro (Opcional)
                         </label>
-                        <input type="text" name="responsavel_staff" id="field-recorded-by" placeholder="Ex: Coordenação / Recepção"
-                               style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                        <input type="text" name="responsavel_staff" id="field-recorded-by"
+                            placeholder="Ex: Coordenação / Recepção"
+                            style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none; box-sizing: border-box;">
                     </div>
                 </div>
 
@@ -645,68 +767,82 @@
 
                 <!-- 1. CAMPOS DE FALTAS -->
                 <div id="block-falta" style="display: flex; flex-direction: column; gap: 12px;">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px; background-color: #fcf2f2; border: 1px solid #fca5a5; border-radius: 10px;">
+                    <div
+                        style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px; background-color: #fcf2f2; border: 1px solid #fca5a5; border-radius: 10px;">
                         <div>
-                            <label style="display: block; font-size: 12px; font-weight: 700; color: #b91c1c; margin-bottom: 6px;">
+                            <label
+                                style="display: block; font-size: 12px; font-weight: 700; color: #b91c1c; margin-bottom: 6px;">
                                 A falta é Justificada?
                             </label>
-                            <select name="justificado" id="field-justificado" style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fca5a5; background: white; font-size: 13px; color: #991b1b; outline: none; box-sizing: border-box;">
+                            <select name="justificado" id="field-justificado"
+                                style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fca5a5; background: white; font-size: 13px; color: #991b1b; outline: none; box-sizing: border-box;">
                                 <option value="nao">Não</option>
                                 <option value="sim">Sim (Falta Justificada)</option>
                             </select>
                         </div>
                         <div>
-                            <label style="display: block; font-size: 12px; font-weight: 700; color: #b91c1c; margin-bottom: 6px;">
+                            <label
+                                style="display: block; font-size: 12px; font-weight: 700; color: #b91c1c; margin-bottom: 6px;">
                                 Pais avisaram previamente?
                             </label>
-                            <select name="avisado_pais" id="field-avisado-pais" style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fca5a5; background: white; font-size: 13px; color: #991b1b; outline: none; box-sizing: border-box;">
+                            <select name="avisado_pais" id="field-avisado-pais"
+                                style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fca5a5; background: white; font-size: 13px; color: #991b1b; outline: none; box-sizing: border-box;">
                                 <option value="nao">Não</option>
                                 <option value="sim">Sim</option>
                             </select>
                         </div>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px; background-color: #fcf2f2; border: 1px solid #fca5a5; border-radius: 10px;">
+                    <div
+                        style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px; background-color: #fcf2f2; border: 1px solid #fca5a5; border-radius: 10px;">
                         <div>
-                            <label style="display: block; font-size: 12px; font-weight: 700; color: #b91c1c; margin-bottom: 6px;">
+                            <label
+                                style="display: block; font-size: 12px; font-weight: 700; color: #b91c1c; margin-bottom: 6px;">
                                 Data de Início da Ausência
                             </label>
-                            <input type="date" id="field-falta-inicio" onchange="document.getElementById('field-data').value = this.value;"
-                                   style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fca5a5; background: white; font-size: 13px; color: #991b1b; outline: none; box-sizing: border-box;">
+                            <input type="date" id="field-falta-inicio"
+                                onchange="document.getElementById('field-data').value = this.value;"
+                                style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fca5a5; background: white; font-size: 13px; color: #991b1b; outline: none; box-sizing: border-box;">
                         </div>
                         <div>
-                            <label style="display: block; font-size: 12px; font-weight: 700; color: #b91c1c; margin-bottom: 6px;">
+                            <label
+                                style="display: block; font-size: 12px; font-weight: 700; color: #b91c1c; margin-bottom: 6px;">
                                 Data de Fim da Ausência
                             </label>
                             <input type="date" name="data_fim" id="field-falta-fim"
-                                   style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fca5a5; background: white; font-size: 13px; color: #991b1b; outline: none; box-sizing: border-box;">
+                                style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fca5a5; background: white; font-size: 13px; color: #991b1b; outline: none; box-sizing: border-box;">
                         </div>
                     </div>
                 </div>
 
                 <!-- 2. CAMPOS DE ATESTADOS -->
-                <div id="block-atestado" style="display: none; padding: 14px; background-color: #fdf2f8; border: 1px solid #fbcfe8; border-radius: 10px;">
+                <div id="block-atestado"
+                    style="display: none; padding: 14px; background-color: #fdf2f8; border: 1px solid #fbcfe8; border-radius: 10px;">
                     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
                         <div>
-                            <label style="display: block; font-size: 12px; font-weight: 700; color: #be185d; margin-bottom: 6px;">
+                            <label
+                                style="display: block; font-size: 12px; font-weight: 700; color: #be185d; margin-bottom: 6px;">
                                 Início Afastamento
                             </label>
                             <input type="date" id="field-atestado-inicio" onchange="calcAtestadoReturn()"
-                                   style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fbcfe8; background: white; font-size: 13px; color: #9d174d; outline: none; box-sizing: border-box;">
+                                style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fbcfe8; background: white; font-size: 13px; color: #9d174d; outline: none; box-sizing: border-box;">
                         </div>
                         <div>
-                            <label style="display: block; font-size: 12px; font-weight: 700; color: #be185d; margin-bottom: 6px;">
+                            <label
+                                style="display: block; font-size: 12px; font-weight: 700; color: #be185d; margin-bottom: 6px;">
                                 Dias Concedidos
                             </label>
-                            <input type="number" name="dias_concedidos" id="field-atestado-dias" min="1" placeholder="Ex: 3" oninput="calcAtestadoReturn()"
-                                   style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fbcfe8; background: white; font-size: 13px; color: #9d174d; outline: none; box-sizing: border-box;">
+                            <input type="number" name="dias_concedidos" id="field-atestado-dias" min="1"
+                                placeholder="Ex: 3" oninput="calcAtestadoReturn()"
+                                style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fbcfe8; background: white; font-size: 13px; color: #9d174d; outline: none; box-sizing: border-box;">
                         </div>
                         <div>
-                            <label style="display: block; font-size: 12px; font-weight: 700; color: #be185d; margin-bottom: 6px;">
+                            <label
+                                style="display: block; font-size: 12px; font-weight: 700; color: #be185d; margin-bottom: 6px;">
                                 CID Médico
                             </label>
                             <input type="text" name="cid" id="field-cid" placeholder="Ex: J11"
-                                   style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fbcfe8; background: white; font-size: 13px; color: #9d174d; outline: none; box-sizing: border-box;">
+                                style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fbcfe8; background: white; font-size: 13px; color: #9d174d; outline: none; box-sizing: border-box;">
                         </div>
                     </div>
                     <div style="margin-top: 8px; color: #db2777; font-size: 11.5px; font-weight: 700;">
@@ -716,21 +852,26 @@
 
                 <!-- 3. CAMPOS DE ATRASOS OU SAÍDAS -->
                 <div id="block-atraso-saida" style="display: none; flex-direction: column; gap: 12px;">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px; background-color: #fdfbeb; border: 1px solid #fde68a; border-radius: 10px;">
+                    <div
+                        style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px; background-color: #fdfbeb; border: 1px solid #fde68a; border-radius: 10px;">
                         <div>
-                            <label style="display: block; font-size: 12px; font-weight: 700; color: #b45309; margin-bottom: 6px;">
+                            <label
+                                style="display: block; font-size: 12px; font-weight: 700; color: #b45309; margin-bottom: 6px;">
                                 Responsável Familiar
                             </label>
-                            <input type="text" name="responsavel_familiar" id="field-guardian" placeholder="Nome de quem trouxe/retirou"
-                                   style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fde68a; background: white; font-size: 13px; color: #78350f; outline: none; box-sizing: border-box;">
+                            <input type="text" name="responsavel_familiar" id="field-guardian"
+                                placeholder="Nome de quem trouxe/retirou"
+                                style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fde68a; background: white; font-size: 13px; color: #78350f; outline: none; box-sizing: border-box;">
                         </div>
 
                         <!-- Opção de Saída -->
                         <div id="box-saida-return" style="display: none;">
-                            <label style="display: block; font-size: 12px; font-weight: 700; color: #b45309; margin-bottom: 6px;">
+                            <label
+                                style="display: block; font-size: 12px; font-weight: 700; color: #b45309; margin-bottom: 6px;">
                                 Retorna hoje?
                             </label>
-                            <select name="retorna" id="field-retorna" onchange="toggleRetornoHorario(this.value)" style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fde68a; background: white; font-size: 13px; color: #78350f; outline: none; box-sizing: border-box;">
+                            <select name="retorna" id="field-retorna" onchange="toggleRetornoHorario(this.value)"
+                                style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fde68a; background: white; font-size: 13px; color: #78350f; outline: none; box-sizing: border-box;">
                                 <option value="nao">Não retorna</option>
                                 <option value="sim">Sim (Retornará mais tarde)</option>
                             </select>
@@ -738,39 +879,47 @@
 
                         <!-- Opção de Atraso -->
                         <div id="box-atraso-staff">
-                            <label style="display: block; font-size: 12px; font-weight: 700; color: #b45309; margin-bottom: 6px;">
+                            <label
+                                style="display: block; font-size: 12px; font-weight: 700; color: #b45309; margin-bottom: 6px;">
                                 Auxiliar/Professor Responsável
                             </label>
                             <input type="text" name="staff_auxiliar" id="field-staff" placeholder="Quem acompanhou"
-                                   style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fde68a; background: white; font-size: 13px; color: #78350f; outline: none; box-sizing: border-box;">
+                                style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fde68a; background: white; font-size: 13px; color: #78350f; outline: none; box-sizing: border-box;">
                         </div>
                     </div>
 
                     <!-- Horário Previsto de Retorno (Saídas) -->
-                    <div id="box-retorno-time" style="display: none; padding: 12px 14px; background-color: #fdfbeb; border: 1px solid #fde68a; border-radius: 10px;">
-                        <label style="display: block; font-size: 12px; font-weight: 700; color: #b45309; margin-bottom: 6px;">
+                    <div id="box-retorno-time"
+                        style="display: none; padding: 12px 14px; background-color: #fdfbeb; border: 1px solid #fde68a; border-radius: 10px;">
+                        <label
+                            style="display: block; font-size: 12px; font-weight: 700; color: #b45309; margin-bottom: 6px;">
                             Previsão de Retorno (hh:mm)
                         </label>
                         <input type="time" name="horario_retorno" id="field-horario-retorno"
-                               style="width: 100%; max-width: 200px; padding: 8px 10px; border-radius: 8px; border: 1px solid #fde68a; background: white; font-size: 13px; color: #78350f; outline: none; box-sizing: border-box;">
+                            style="width: 100%; max-width: 200px; padding: 8px 10px; border-radius: 8px; border: 1px solid #fde68a; background: white; font-size: 13px; color: #78350f; outline: none; box-sizing: border-box;">
                     </div>
 
                     <!-- Justificado / Avisado para Atrasos -->
-                    <div id="box-atraso-justified" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px; background-color: #fdfbeb; border: 1px solid #fde68a; border-radius: 10px;">
+                    <div id="box-atraso-justified"
+                        style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px; background-color: #fdfbeb; border: 1px solid #fde68a; border-radius: 10px;">
                         <div>
-                            <label style="display: block; font-size: 12px; font-weight: 700; color: #b45309; margin-bottom: 6px;">
+                            <label
+                                style="display: block; font-size: 12px; font-weight: 700; color: #b45309; margin-bottom: 6px;">
                                 O atraso é Justificado?
                             </label>
-                            <select name="justificado_atraso" id="field-atraso-justificado" style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fde68a; background: white; font-size: 13px; color: #78350f; outline: none; box-sizing: border-box;">
+                            <select name="justificado_atraso" id="field-atraso-justificado"
+                                style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fde68a; background: white; font-size: 13px; color: #78350f; outline: none; box-sizing: border-box;">
                                 <option value="sim">Sim (Atraso Justificado)</option>
                                 <option value="nao">Não</option>
                             </select>
                         </div>
                         <div>
-                            <label style="display: block; font-size: 12px; font-weight: 700; color: #b45309; margin-bottom: 6px;">
+                            <label
+                                style="display: block; font-size: 12px; font-weight: 700; color: #b45309; margin-bottom: 6px;">
                                 Pais avisaram previamente?
                             </label>
-                            <select name="avisado_atraso" id="field-atraso-avisado" style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fde68a; background: white; font-size: 13px; color: #78350f; outline: none; box-sizing: border-box;">
+                            <select name="avisado_atraso" id="field-atraso-avisado"
+                                style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fde68a; background: white; font-size: 13px; color: #78350f; outline: none; box-sizing: border-box;">
                                 <option value="sim">Sim</option>
                                 <option value="nao">Não</option>
                             </select>
@@ -779,89 +928,114 @@
                 </div>
 
                 <!-- 4. CAMPOS DE AMAMENTAÇÃO -->
-                <div id="block-amamentacao" style="display: none; padding: 14px; background-color: #fdf2f8; border: 1px solid #fbcfe8; border-radius: 10px;">
+                <div id="block-amamentacao"
+                    style="display: none; padding: 14px; background-color: #fdf2f8; border: 1px solid #fbcfe8; border-radius: 10px;">
                     <div>
-                        <label style="display: block; font-size: 12.5px; font-weight: 700; color: #db2777; margin-bottom: 6px;">
+                        <label
+                            style="display: block; font-size: 12.5px; font-weight: 700; color: #db2777; margin-bottom: 6px;">
                             Quantidade de Atendimentos / Sessões <span style="color: #ef4444;">*</span>
                         </label>
-                        <input type="number" name="quantidade" id="field-quantidade" min="1" value="1" placeholder="Ex: 1"
-                               style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid #fbcfe8; background: white; font-size: 13.5px; font-weight: 700; color: #db2777; outline: none; box-sizing: border-box;">
+                        <input type="number" name="quantidade" id="field-quantidade" min="1" value="1"
+                            placeholder="Ex: 1"
+                            style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid #fbcfe8; background: white; font-size: 13.5px; font-weight: 700; color: #db2777; outline: none; box-sizing: border-box;">
                     </div>
                 </div>
 
                 <!-- JUSTIFICATIVA / MOTIVO DECLARADO (Ocultado em Amamentação) -->
                 <div id="box-motivo">
-                    <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                    <label
+                        style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
                         Justificativa / Motivo Declarado (Opcional)
                     </label>
-                    <input type="text" name="motivo" id="field-motivo" placeholder="Ex: Teve febre de madrugada / consulta oftalmológica"
-                           style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                    <input type="text" name="motivo" id="field-motivo"
+                        placeholder="Ex: Teve febre de madrugada / consulta oftalmológica"
+                        style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none; box-sizing: border-box;">
                 </div>
 
                 <!-- OBSERVAÇÕES DETALHADAS -->
                 <div>
-                    <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                    <label
+                        style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
                         Observações Detalhas (Opcional)
                     </label>
-                    <textarea name="observacao" id="field-observacao" rows="3" placeholder="Descrição livre com detalhes pertinentes para o registro..."
-                              style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13px; color: var(--text-primary); outline: none; resize: vertical; box-sizing: border-box;"></textarea>
+                    <textarea name="observacao" id="field-observacao" rows="3"
+                        placeholder="Descrição livre com detalhes pertinentes para o registro..."
+                        style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13px; color: var(--text-primary); outline: none; resize: vertical; box-sizing: border-box;"></textarea>
                 </div>
 
                 <!-- UPLOAD ZONE (DRAG & DROP COM PREVIEW) -->
                 <div>
-                    <label style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px;">
+                    <label
+                        style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px;">
                         <i data-lucide="paperclip" style="width: 15px; height: 15px; color: var(--color-primary);"></i>
                         <span>Documento Anexo</span>
-                        <span style="font-weight: 400; font-size: 11px; color: var(--text-light); margin-left: 2px;">(opcional — PDF, imagem, Word, e-mail · máx 15MB)</span>
+                        <span
+                            style="font-weight: 400; font-size: 11px; color: var(--text-light); margin-left: 2px;">(opcional
+                            — PDF, imagem, Word, e-mail · máx 15MB)</span>
                     </label>
 
                     <!-- Preview quando arquivo já está selecionado -->
-                    <div id="attachment-preview-box" style="display: none; align-items: center; gap: 12px; padding: 12px 16px; background-color: #f0fdf4; border-radius: 12px; border: 1.5px solid #86efac;">
-                        <div style="width: 38px; height: 38px; border-radius: 10px; background-color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: center; color: #16a34a;">
+                    <div id="attachment-preview-box"
+                        style="display: none; align-items: center; gap: 12px; padding: 12px 16px; background-color: #f0fdf4; border-radius: 12px; border: 1.5px solid #86efac;">
+                        <div
+                            style="width: 38px; height: 38px; border-radius: 10px; background-color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: center; color: #16a34a;">
                             <i data-lucide="file-check" style="width: 20px; height: 20px;"></i>
                         </div>
                         <div style="flex: 1; min-width: 0;">
-                            <div id="attachment-preview-name" style="font-weight: 700; font-size: 13px; color: #166534; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            <div id="attachment-preview-name"
+                                style="font-weight: 700; font-size: 13px; color: #166534; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                 documento.pdf
                             </div>
                             <div id="attachment-preview-size" style="font-size: 11px; color: #16a34a; margin-top: 2px;">
                                 ✓ Pronto para anexar
                             </div>
                         </div>
-                        <button type="button" onclick="clearModalAttachment()" style="border: 1px solid #fca5a5; background-color: #fff1f2; color: #dc2626; padding: 5px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 700;">
+                        <button type="button" onclick="clearModalAttachment()"
+                            style="border: 1px solid #fca5a5; background-color: #fff1f2; color: #dc2626; padding: 5px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 700;">
                             Remover
                         </button>
                     </div>
 
                     <!-- Drop Zone Interativa -->
                     <div id="attachment-drop-zone" onclick="document.getElementById('field-documento').click()"
-                         style="border: 2px dashed #cbd5e1; border-radius: 12px; padding: 22px 16px; background-color: #f8fafc; cursor: pointer; text-align: center; transition: all 0.15s ease;">
-                        <div style="width: 44px; height: 44px; border-radius: 12px; background-color: #f1f5f9; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; color: #64748b;">
+                        style="border: 2px dashed #cbd5e1; border-radius: 12px; padding: 22px 16px; background-color: #f8fafc; cursor: pointer; text-align: center; transition: all 0.15s ease;">
+                        <div
+                            style="width: 44px; height: 44px; border-radius: 12px; background-color: #f1f5f9; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; color: #64748b;">
                             <i data-lucide="upload-cloud" style="width: 24px; height: 24px;"></i>
                         </div>
                         <div style="font-weight: 700; font-size: 13px; color: #475569; margin-bottom: 4px;">
-                            <span style="color: var(--color-primary); text-decoration: underline;">Clique para selecionar</span> ou arraste o arquivo aqui
+                            <span style="color: var(--color-primary); text-decoration: underline;">Clique para
+                                selecionar</span> ou arraste o arquivo aqui
                         </div>
                         <div style="font-size: 11px; color: #94a3b8; margin-bottom: 10px;">
                             PDF · PNG · JPG · DOCX · MSG · EML &mdash; máx 15MB
                         </div>
                         <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
-                            <span style="font-size: 10px; padding: 2px 8px; border-radius: 20px; background-color: #fee2e2; color: #dc2626; font-weight: 700;">PDF</span>
-                            <span style="font-size: 10px; padding: 2px 8px; border-radius: 20px; background-color: #dcfce7; color: #16a34a; font-weight: 700;">Imagem</span>
-                            <span style="font-size: 10px; padding: 2px 8px; border-radius: 20px; background-color: #dbeafe; color: #2563eb; font-weight: 700;">Word</span>
-                            <span style="font-size: 10px; padding: 2px 8px; border-radius: 20px; background-color: #f3e8ff; color: #9333ea; font-weight: 700;">E-mail</span>
+                            <span
+                                style="font-size: 10px; padding: 2px 8px; border-radius: 20px; background-color: #fee2e2; color: #dc2626; font-weight: 700;">PDF</span>
+                            <span
+                                style="font-size: 10px; padding: 2px 8px; border-radius: 20px; background-color: #dcfce7; color: #16a34a; font-weight: 700;">Imagem</span>
+                            <span
+                                style="font-size: 10px; padding: 2px 8px; border-radius: 20px; background-color: #dbeafe; color: #2563eb; font-weight: 700;">Word</span>
+                            <span
+                                style="font-size: 10px; padding: 2px 8px; border-radius: 20px; background-color: #f3e8ff; color: #9333ea; font-weight: 700;">E-mail</span>
                         </div>
                     </div>
 
-                    <input type="file" name="documento" id="field-documento" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.msg,.eml" onchange="handleModalFileSelect(this)" style="display: none;">
+                    <input type="file" name="documento" id="field-documento"
+                        accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.msg,.eml" onchange="handleModalFileSelect(this)"
+                        style="display: none;">
                 </div>
 
             </div>
 
             <!-- Footer com Botões -->
-            <div class="modal-footer" style="border-top: 1px solid var(--border-color); padding: 16px 24px; display: flex; justify-content: flex-end; gap: 10px; background: var(--bg-card);">
-                <button type="button" onclick="closeCadernoModal()" class="secondary-btn" style="padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 13.5px;">Cancelar</button>
-                <button type="submit" id="modal-submit-btn" class="primary-btn" style="padding: 10px 24px; border-radius: 8px; background-color: {{ tab_info.color }}; color: white; border: none; font-weight: 700; font-size: 13.5px; box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.2); cursor: pointer;">
+            <div class="modal-footer"
+                style="border-top: 1px solid var(--border-color); padding: 16px 24px; display: flex; justify-content: flex-end; gap: 10px; background: var(--bg-card);">
+                <button type="button" onclick="closeCadernoModal()" class="secondary-btn"
+                    style="padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 13.5px;">Cancelar</button>
+                <button type="submit" id="modal-submit-btn" class="primary-btn"
+                    style="padding: 10px 24px; border-radius: 8px; background-color: {{ tab_info.color }}; color: white; border: none; font-weight: 700; font-size: 13.5px; box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.2); cursor: pointer;">
                     Salvar Registro
                 </button>
             </div>
@@ -873,14 +1047,18 @@
     <div class="modal-card" style="max-width: 440px;" onclick="event.stopPropagation()">
         <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding: 18px 22px;">
             <div style="display: flex; align-items: center; gap: 10px;">
-                <h3 id="amamentacao-modal-title" style="margin: 0; font-size: 16px; font-weight: 800; color: var(--text-primary);">
+                <h3 id="amamentacao-modal-title"
+                    style="margin: 0; font-size: 16px; font-weight: 800; color: var(--text-primary);">
                     📌 Adicionar Quantitativo Mensal (Histórico)
                 </h3>
             </div>
-            <button type="button" onclick="closeAmamentacaoModal()" style="border: none; background: none; cursor: pointer; color: var(--text-light); font-size: 18px;">✕</button>
+            <button type="button" onclick="closeAmamentacaoModal()"
+                style="border: none; background: none; cursor: pointer; color: var(--text-light); font-size: 18px;">✕</button>
         </div>
-        <div style="background-color: var(--bg-secondary); padding: 18px 22px; font-size: 12.5px; font-weight: 700; color: var(--text-secondary);">
-            <span>🍼 Insira o quantitativo total de amamentações referente a meses passados para relatórios e estatísticas.</span>
+        <div
+            style="background-color: var(--bg-secondary); padding: 18px 22px; font-size: 12.5px; font-weight: 700; color: var(--text-secondary);">
+            <span>🍼 Insira o quantitativo total de amamentações referente a meses passados para relatórios e
+                estatísticas.</span>
         </div>
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
@@ -889,23 +1067,32 @@
             <div style="padding: 18px 22px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <div>
-                        <label for="mes-ano" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">Mês/Ano</label>
-                        <input type="month" name="mes-ano" id="mes-ano" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                        <label for="mes-ano"
+                            style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">Mês/Ano</label>
+                        <input type="month" name="mes-ano" id="mes-ano"
+                            style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13px; color: var(--text-primary); outline: none; box-sizing: border-box;">
                     </div>
                     <div>
-                        <label for="quantidade" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">Quantidade</label>
-                        <input type="number" name="quantidade" id="quantidade" placeholder="Ex: 120" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                        <label for="quantidade"
+                            style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">Quantidade</label>
+                        <input type="number" name="quantidade" id="quantidade" placeholder="Ex: 120"
+                            style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13px; color: var(--text-primary); outline: none; box-sizing: border-box;">
                     </div>
                 </div>
                 <div style="margin-top: 10px;">
-                    <label for="observacao" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">Observação</label>
-                    <textarea name="observacao" id="observacao" rows="2" placeholder="Registro histórico inserido manualmente"
-                              style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13px; color: var(--text-primary); outline: none; resize: none; box-sizing: border-box;"></textarea>
+                    <label for="observacao"
+                        style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">Observação</label>
+                    <textarea name="observacao" id="observacao" rows="2"
+                        placeholder="Registro histórico inserido manualmente"
+                        style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13px; color: var(--text-primary); outline: none; resize: none; box-sizing: border-box;"></textarea>
                 </div>
             </div>
             <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; padding: 18px 22px;">
-                <button type="button" onclick="closeAmamentacaoModal()" class="secondary-btn" style="padding: 9px 16px; border-radius: 8px;">Cancelar</button>
-                <button type="submit" class="primary-btn" style="padding: 9px 20px; border-radius: 8px; background-color: {{ tab_info.color }}; color: white; border: none; font-weight: 700;">Salvar Registro</button>
+                <button type="button" onclick="closeAmamentacaoModal()" class="secondary-btn"
+                    style="padding: 9px 16px; border-radius: 8px;">Cancelar</button>
+                <button type="submit" class="primary-btn"
+                    style="padding: 9px 20px; border-radius: 8px; background-color: {{ tab_info.color }}; color: white; border: none; font-weight: 700;">Salvar
+                    Registro</button>
             </div>
         </form>
     </div>
@@ -929,13 +1116,16 @@
             <input type="hidden" name="action" value="delete">
             <input type="hidden" name="ocorrencia_id" id="delete-ocorrencia-id" value="">
 
-            <p id="delete-confirm-msg" style="margin: 0; font-size: 14px; color: var(--text-secondary); line-height: 1.5;">
+            <p id="delete-confirm-msg"
+                style="margin: 0; font-size: 14px; color: var(--text-secondary); line-height: 1.5;">
                 Tem certeza que deseja excluir permanentemente este registro?
             </p>
 
             <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px;">
-                <button type="button" onclick="closeDeleteModal()" class="secondary-btn" style="padding: 8px 16px; border-radius: 8px;">Cancelar</button>
-                <button type="submit" class="primary-btn" style="padding: 8px 18px; border-radius: 8px; background-color: #dc2626; color: white; border: none; font-weight: 700;">Excluir</button>
+                <button type="button" onclick="closeDeleteModal()" class="secondary-btn"
+                    style="padding: 8px 16px; border-radius: 8px;">Cancelar</button>
+                <button type="submit" class="primary-btn"
+                    style="padding: 8px 18px; border-radius: 8px; background-color: #dc2626; color: white; border: none; font-weight: 700;">Excluir</button>
             </div>
         </form>
     </div>
@@ -944,23 +1134,33 @@
 <!-- ========================================================================= -->
 <!-- MODAL DE VISUALIZAÇÃO DE DOCUMENTO ANEXO (DOC)                            -->
 <!-- ========================================================================= -->
-<div id="modal-doc-viewer" class="modal-overlay" style="display: none;">
-    <div class="modal-card" style="max-width: 680px; width: 90%;" onclick="event.stopPropagation()">
-        <div class="modal-header" style="border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 16px 20px;">
+<div id="modal-doc-viewer" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.6); z-index: 99999 !important; justify-content: center; align-items: center; backdrop-filter: blur(4px); padding: 20px; box-sizing: border-box;">
+    <div class="modal-card" style="max-width: 720px; width: 95%; max-height: 92vh; background: var(--bg-card); border-radius: var(--radius-lg); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); overflow: hidden; display: flex; flex-direction: column;" onclick="event.stopPropagation()">
+        <div class="modal-header"
+            style="border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 16px 20px;">
             <div style="display: flex; align-items: center; gap: 8px;">
                 <i data-lucide="file-text" style="width: 18px; height: 18px; color: var(--brand-primary);"></i>
-                <h3 id="doc-viewer-title" style="margin: 0; font-size: 16px; font-weight: 800; color: var(--text-primary);">
+                <h3 id="doc-viewer-title"
+                    style="margin: 0; font-size: 16px; font-weight: 800; color: var(--text-primary);">
                     Documento Anexo
                 </h3>
             </div>
-            <button type="button" onclick="closeDocViewer()" style="border: none; background: none; cursor: pointer; color: var(--text-light); font-size: 18px;">✕</button>
+            <button type="button" onclick="closeDocViewer()"
+                style="border: none; background: none; cursor: pointer; color: var(--text-light); font-size: 18px;">✕</button>
         </div>
         <div style="padding: 20px; text-align: center;">
-            <div id="doc-viewer-body" style="max-height: 480px; overflow: auto; display: flex; align-items: center; justify-content: center; background: var(--bg-body); border-radius: 10px; padding: 12px;">
+            <div id="doc-viewer-body"
+                style="max-height: 480px; overflow: auto; display: flex; align-items: center; justify-content: center; background: var(--bg-body); border-radius: 10px; padding: 12px;">
                 <!-- Conteúdo dinâmico via JS -->
             </div>
             <div style="margin-top: 14px; display: flex; justify-content: flex-end; gap: 10px;">
-                <a id="doc-download-link" href="#" target="_blank" download class="primary-btn" style="padding: 8px 16px; border-radius: 8px; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                <a id="doc-open-link" href="#" target="_blank" class="secondary-btn"
+                    style="padding: 8px 16px; border-radius: 8px; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                    <i data-lucide="external-link" style="width: 14px; height: 14px;"></i>
+                    Abrir em Nova Aba
+                </a>
+                <a id="doc-download-link" href="#" target="_blank" download class="primary-btn"
+                    style="padding: 8px 16px; border-radius: 8px; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
                     <i data-lucide="download" style="width: 14px; height: 14px;"></i>
                     Baixar Arquivo
                 </a>
@@ -970,20 +1170,46 @@
 </div>
 
 <style>
-.seami-tab-btn {
-    background-color: var(--bg-card);
-    color: var(--text-secondary);
-    border: 1px solid var(--border-color);
-}
-.seami-tab-btn:hover {
-    color: var(--text-primary);
-    border-color: var(--slate-400);
-}
-.active-faltas { background-color: #ef4444 !important; color: white !important; border-color: #ef4444 !important; }
-.active-atestados { background-color: #0284c7 !important; color: white !important; border-color: #0284c7 !important; }
-.active-atrasos { background-color: #f59e0b !important; color: white !important; border-color: #f59e0b !important; }
-.active-saidas { background-color: #ea580c !important; color: white !important; border-color: #ea580c !important; }
-.active-amamentacao { background-color: #ec4899 !important; color: white !important; border-color: #ec4899 !important; }
+    .seami-tab-btn {
+        background-color: var(--bg-card);
+        color: var(--text-secondary);
+        border: 1px solid var(--border-color);
+    }
+
+    .seami-tab-btn:hover {
+        color: var(--text-primary);
+        border-color: var(--slate-400);
+    }
+
+    .active-faltas {
+        background-color: #ef4444 !important;
+        color: white !important;
+        border-color: #ef4444 !important;
+    }
+
+    .active-atestados {
+        background-color: #0284c7 !important;
+        color: white !important;
+        border-color: #0284c7 !important;
+    }
+
+    .active-atrasos {
+        background-color: #f59e0b !important;
+        color: white !important;
+        border-color: #f59e0b !important;
+    }
+
+    .active-saidas {
+        background-color: #ea580c !important;
+        color: white !important;
+        border-color: #ea580c !important;
+    }
+
+    .active-amamentacao {
+        background-color: #ec4899 !important;
+        color: white !important;
+        border-color: #ec4899 !important;
+    }
 </style>
 
 <script>
@@ -1063,7 +1289,7 @@
         const isEditing = document.getElementById('form-caderno-action').value === 'update';
 
         document.getElementById('caderno-modal-title').innerText = isEditing ? `Editar Registro de ${conf.title}` : `Novo Registro de ${conf.title}`;
-        document.getElementById('caderno-modal-subtitle').innerHTML = type === 'amamentacao' 
+        document.getElementById('caderno-modal-subtitle').innerHTML = type === 'amamentacao'
             ? 'Preencha a <strong>Data</strong> e a <strong>Quantidade</strong> para registrar.'
             : 'Apenas <strong>Nome do Aluno</strong> e <strong>Tipo de Registro</strong> são obrigatórios no formulário.';
 
@@ -1125,7 +1351,7 @@
         // Retorno é no dia seguinte ao término dos dias concedidos
         const endDate = new Date(startDate);
         endDate.setDate(startDate.getDate() + diasVal - 1);
-        
+
         const returnDate = new Date(startDate);
         returnDate.setDate(startDate.getDate() + diasVal);
 
@@ -1153,7 +1379,7 @@
             document.getElementById('attachment-preview-name').innerText = file.name;
             const sizeKb = (file.size / 1024).toFixed(1);
             document.getElementById('attachment-preview-size').innerText = `✓ Pronto para anexar (${sizeKb} KB)`;
-            
+
             document.getElementById('attachment-drop-zone').style.display = 'none';
             document.getElementById('attachment-preview-box').style.display = 'flex';
         }
@@ -1166,7 +1392,7 @@
     }
 
     // Setup Drag & Drop
-    document.addEventListener("DOMContentLoaded", function() {
+    document.addEventListener("DOMContentLoaded", function () {
         const dropZone = document.getElementById('attachment-drop-zone');
         if (dropZone) {
             ['dragenter', 'dragover'].forEach(eventName => {
@@ -1202,9 +1428,14 @@
     function openCreateModal(defaultType) {
         document.getElementById('form-caderno-action').value = 'create';
         document.getElementById('form-caderno-id').value = '';
-        
+
         deselectModalStudent();
         clearModalAttachment();
+
+        const existingCard = document.getElementById('existing-attachment-card');
+        if (existingCard) {
+            existingCard.style.display = 'none';
+        }
 
         const curType = defaultType || '{{ active_tab_nav }}';
         const typeSelect = document.getElementById('field-tipo');
@@ -1214,7 +1445,6 @@
 
         document.getElementById('field-data').value = '{{ today }}';
         document.getElementById('field-horario').value = '08:15';
-        document.getElementById('field-recorded-by').value = '';
         document.getElementById('field-motivo').value = '';
         document.getElementById('field-observacao').value = '';
         document.getElementById('field-quantidade').value = '1';
@@ -1239,10 +1469,15 @@
         document.getElementById('field-atraso-justificado').value = 'nao';
         document.getElementById('field-atraso-avisado').value = 'nao';
 
-        onModalTypeChange(typeSelect.value);
+        onModalTypeChange(typeSelect ? typeSelect.value : curType);
 
-        document.getElementById('modal-caderno-form').style.display = 'flex';
+        const modal = document.getElementById('modal-caderno-form');
+        if (modal) {
+            modal.style.display = 'flex';
+            modal.classList.add('active');
+        }
         document.body.style.overflow = 'hidden';
+        if (window.lucide) lucide.createIcons();
     }
 
     function openCreateDailyAmamentacaoModal() {
@@ -1256,8 +1491,13 @@
         document.getElementById('quantidade').value = '';
         document.getElementById('observacao').value = '';
         document.getElementById('amamentacao-modal-title').innerText = '📌 Adicionar Quantitativo Mensal (Histórico)';
-        document.getElementById('modal-amamentacao').style.display = 'flex';
+        const modal = document.getElementById('modal-amamentacao');
+        if (modal) {
+            modal.style.display = 'flex';
+            modal.classList.add('active');
+        }
         document.body.style.overflow = 'hidden';
+        if (window.lucide) lucide.createIcons();
     }
 
     function openEditAmamentacaoModal(id, mesAno, quantidade, observacao) {
@@ -1267,21 +1507,50 @@
         document.getElementById('quantidade').value = quantidade;
         document.getElementById('observacao').value = observacao === '-' ? '' : observacao;
         document.getElementById('amamentacao-modal-title').innerText = '📌 Editar Quantitativo Mensal (Histórico)';
-        document.getElementById('modal-amamentacao').style.display = 'flex';
+        const modal = document.getElementById('modal-amamentacao');
+        if (modal) {
+            modal.style.display = 'flex';
+            modal.classList.add('active');
+        }
         document.body.style.overflow = 'hidden';
+        if (window.lucide) lucide.createIcons();
     }
 
     function closeAmamentacaoModal() {
-        document.getElementById('modal-amamentacao').style.display = 'none';
+        const modal = document.getElementById('modal-amamentacao');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.remove('active');
+        }
         document.body.style.overflow = 'auto';
-        lucide.createIcons();
+        if (window.lucide) lucide.createIcons();
     }
 
     // Abrir Modal de Edição com dados preenchidos
-    function openEditModal(id, alunoId, turmaId, data, dataFim, horario, horarioRetorno, retorna, justificado, avisadoPais, cid, motivo, quantidade, observacao) {
+    function openEditModal(id, alunoId, turmaId, data, dataFim, horario, horarioRetorno, retorna, justificado, avisadoPais, cid, motivo, quantidade, observacao, docUrl, docName) {
         document.getElementById('form-caderno-action').value = 'update';
         document.getElementById('form-caderno-id').value = id;
         clearModalAttachment();
+
+        // Configuração de anexo existente
+        const existingCard = document.getElementById('existing-attachment-card');
+        if (existingCard) {
+            if (docUrl && docUrl !== 'None' && docUrl !== '') {
+                existingCard.style.display = 'flex';
+                const nameEl = document.getElementById('existing-attachment-name');
+                if (nameEl) nameEl.innerText = docName || 'Documento Anexado';
+                const downLink = document.getElementById('link-download-existing-doc');
+                if (downLink) downLink.href = docUrl;
+                const viewBtn = document.getElementById('btn-view-existing-doc');
+                if (viewBtn) {
+                    viewBtn.onclick = function() {
+                        viewDoc(docUrl, docName || 'Anexo Atual');
+                    };
+                }
+            } else {
+                existingCard.style.display = 'none';
+            }
+        }
 
         const curType = '{{ active_tab_nav }}';
         const typeSelect = document.getElementById('field-tipo');
@@ -1336,56 +1605,179 @@
         document.getElementById('field-atraso-justificado').value = justificado ? 'sim' : 'nao';
         document.getElementById('field-atraso-avisado').value = avisadoPais ? 'sim' : 'nao';
 
-        onModalTypeChange(typeSelect.value);
+        onModalTypeChange(typeSelect ? typeSelect.value : curType);
 
-        document.getElementById('modal-caderno-form').style.display = 'flex';
+        const modal = document.getElementById('modal-caderno-form');
+        if (modal) {
+            modal.style.display = 'flex';
+            modal.classList.add('active');
+        }
         document.body.style.overflow = 'hidden';
+        if (window.lucide) lucide.createIcons();
     }
 
     function closeCadernoModal() {
-        document.getElementById('modal-caderno-form').style.display = 'none';
+        const modal = document.getElementById('modal-caderno-form');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.remove('active');
+        }
         document.body.style.overflow = 'auto';
     }
 
     function confirmDeleteModal(id, nome) {
         document.getElementById('delete-ocorrencia-id').value = id;
         document.getElementById('delete-confirm-msg').innerText = `Deseja realmente excluir este registro de "${nome}"? Esta ação não pode ser desfeita.`;
-        document.getElementById('modal-delete-confirm').style.display = 'flex';
+        const modal = document.getElementById('modal-delete-confirm');
+        if (modal) {
+            modal.style.display = 'flex';
+            modal.classList.add('active');
+        }
         document.body.style.overflow = 'hidden';
-        lucide.createIcons();
+        if (window.lucide) lucide.createIcons();
     }
 
     function closeDeleteModal() {
-        document.getElementById('modal-delete-confirm').style.display = 'none';
+        const modal = document.getElementById('modal-delete-confirm');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.remove('active');
+        }
         document.body.style.overflow = 'auto';
     }
 
     function viewDoc(url, title) {
-        document.getElementById('doc-viewer-title').innerText = `Documento - ${title}`;
-        document.getElementById('doc-download-link').href = url;
-        const body = document.getElementById('doc-viewer-body');
-        
-        if (url.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
-            body.innerHTML = `<img src="${url}" alt="Atestado / Documento" style="max-width: 100%; max-height: 440px; border-radius: 8px; box-shadow: var(--shadow-sm);">`;
-        } else {
-            body.innerHTML = `<iframe src="${url}" style="width: 100%; height: 420px; border: none; border-radius: 8px;"></iframe>`;
+        if (!url || url === 'None' || url === '') {
+            alert('Não há arquivo anexo disponível para este registro.');
+            return;
         }
 
-        document.getElementById('modal-doc-viewer').style.display = 'flex';
+        // Normaliza a URL para garantir que use o mesmo host e porta atual da página
+        let docUrl = url;
+        try {
+            if (docUrl.startsWith('http://') || docUrl.startsWith('https://')) {
+                const parsedUrl = new URL(docUrl);
+                // Se a URL veio com localhost sem porta ou com porta errada, extrai pathname
+                if (parsedUrl.host !== window.location.host) {
+                    docUrl = parsedUrl.pathname + parsedUrl.search;
+                }
+            }
+        } catch (e) {
+            console.error('Erro ao normalizar URL do documento:', e);
+        }
+
+        if (!docUrl.startsWith('http') && !docUrl.startsWith('/')) {
+            docUrl = '/' + docUrl;
+        }
+
+        document.getElementById('doc-viewer-title').innerText = `Documento - ${title || 'Visualização'}`;
+        document.getElementById('doc-download-link').href = docUrl;
+        const openLink = document.getElementById('doc-open-link');
+        if (openLink) openLink.href = docUrl;
+
+        const body = document.getElementById('doc-viewer-body');
+        const lowerUrl = docUrl.toLowerCase();
+
+        if (lowerUrl.match(/\.(jpeg|jpg|gif|png|webp|svg|bmp)(\?.*)?$/i) || lowerUrl.includes('image')) {
+            body.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; gap: 12px;">
+                    <img src="${docUrl}" alt="Documento / Anexo" style="max-width: 100%; max-height: 520px; object-fit: contain; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+                </div>`;
+        } else if (lowerUrl.match(/\.pdf(\?.*)?$/i) || lowerUrl.includes('pdf')) {
+            body.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
+                    <div id="pdf-loading-indicator" style="padding: 24px; font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; gap: 8px;">
+                        <span>Carregando documento PDF...</span>
+                    </div>
+                    <div id="pdf-canvas-container" style="max-height: 500px; overflow-y: auto; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 4px;"></div>
+                </div>`;
+
+            const pdfjs = window.pdfjsLib || window['pdfjs-dist/build/pdf'];
+            if (pdfjs) {
+                pdfjs.getDocument(docUrl).promise.then(function (pdfDoc) {
+                    const loading = document.getElementById('pdf-loading-indicator');
+                    if (loading) loading.style.display = 'none';
+                    const container = document.getElementById('pdf-canvas-container');
+                    if (!container) return;
+
+                    const total = Math.min(pdfDoc.numPages, 10);
+                    for (let num = 1; num <= total; num++) {
+                        pdfDoc.getPage(num).then(function (page) {
+                            const scale = 1.35;
+                            const viewport = page.getViewport({ scale: scale });
+                            const canvas = document.createElement('canvas');
+                            canvas.style.maxWidth = '100%';
+                            canvas.style.height = 'auto';
+                            canvas.style.borderRadius = '6px';
+                            canvas.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
+                            canvas.style.background = '#ffffff';
+
+                            const ctx = canvas.getContext('2d');
+                            canvas.height = viewport.height;
+                            canvas.width = viewport.width;
+
+                            page.render({ canvasContext: ctx, viewport: viewport });
+                            container.appendChild(canvas);
+                        });
+                    }
+                }).catch(function (err) {
+                    console.warn('Fallback para visualizador nativo:', err);
+                    body.innerHTML = `
+                        <div style="width: 100%; height: 500px; display: flex; flex-direction: column; border-radius: 8px; overflow: hidden; background: #f8fafc; border: 1px solid var(--border-color);">
+                            <iframe src="${docUrl}" style="width: 100%; height: 100%; border: none; background: white;" title="Visualizador de PDF"></iframe>
+                        </div>`;
+                });
+            } else {
+                body.innerHTML = `
+                    <div style="width: 100%; height: 500px; display: flex; flex-direction: column; border-radius: 8px; overflow: hidden; background: #f8fafc; border: 1px solid var(--border-color);">
+                        <iframe src="${docUrl}" style="width: 100%; height: 100%; border: none; background: white;" title="Visualizador de PDF"></iframe>
+                    </div>`;
+            }
+        } else {
+            body.innerHTML = `
+                <div style="padding: 36px 16px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; width: 100%; background: #f8fafc; border-radius: 8px; border: 1px dashed var(--border-color);">
+                    <div style="width: 56px; height: 56px; border-radius: 14px; background: #e0e7ff; color: #4338ca; display: flex; align-items: center; justify-content: center;">
+                        <i data-lucide="file-text" style="width: 32px; height: 32px;"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight: 700; font-size: 15px; color: var(--text-primary);">Documento Anexado</div>
+                        <p style="font-size: 13px; color: var(--text-secondary); margin: 4px 0 0 0;">Este tipo de arquivo pode ser aberto diretamente ou baixado para visualização.</p>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 8px;">
+                        <a href="${docUrl}" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 8px; background: var(--color-primary); color: white; text-decoration: none; font-weight: 700; font-size: 13px;">
+                            <i data-lucide="external-link" style="width: 15px; height: 15px;"></i> Abrir Arquivo
+                        </a>
+                        <a href="${docUrl}" download style="display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 8px; background: white; border: 1px solid var(--border-color); color: var(--text-primary); text-decoration: none; font-weight: 700; font-size: 13px;">
+                            <i data-lucide="download" style="width: 15px; height: 15px;"></i> Baixar
+                        </a>
+                    </div>
+                </div>`;
+        }
+
+        const modal = document.getElementById('modal-doc-viewer');
+        if (modal) {
+            modal.style.display = 'flex';
+            modal.classList.add('active');
+        }
         document.body.style.overflow = 'hidden';
-        lucide.createIcons();
+        if (window.lucide) lucide.createIcons();
     }
 
     function closeDocViewer() {
-        document.getElementById('modal-doc-viewer').style.display = 'none';
+        const modal = document.getElementById('modal-doc-viewer');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.remove('active');
+        }
         document.body.style.overflow = 'auto';
     }
 
-    window.addEventListener('click', function(e) {
+    window.addEventListener('click', function (e) {
         ['modal-caderno-form', 'modal-delete-confirm', 'modal-doc-viewer', 'modal-amamentacao'].forEach(id => {
             const el = document.getElementById(id);
             if (el && e.target === el) {
                 el.style.display = 'none';
+                el.classList.remove('active');
                 document.body.style.overflow = 'auto';
             }
         });
@@ -1444,80 +1836,80 @@
         const dataPoints = sortedMonths.map(r => r.total_quantity);
 
         const valueLabelsPlugin = {
-          id: 'valueLabels',
-          afterDatasetsDraw(chart) {
-            const { ctx } = chart;
-            ctx.save();
-            chart.data.datasets.forEach((dataset, datasetIndex) => {
-              const meta = chart.getDatasetMeta(datasetIndex);
-              if (meta.hidden) return;
-              meta.data.forEach((element, index) => {
-                const val = dataset.data[index];
-                if (val !== undefined && val !== null && val !== 0) {
-                  ctx.fillStyle = '#9d174d';
-                  ctx.font = 'bold 11px Helvetica, Arial, sans-serif';
-                  ctx.textAlign = 'center';
-                  ctx.textBaseline = 'bottom';
-                  const position = element.tooltipPosition();
-                  ctx.fillText(String(val), position.x, position.y - 4);
-                }
-              });
-            });
-            ctx.restore();
-          }
+            id: 'valueLabels',
+            afterDatasetsDraw(chart) {
+                const { ctx } = chart;
+                ctx.save();
+                chart.data.datasets.forEach((dataset, datasetIndex) => {
+                    const meta = chart.getDatasetMeta(datasetIndex);
+                    if (meta.hidden) return;
+                    meta.data.forEach((element, index) => {
+                        const val = dataset.data[index];
+                        if (val !== undefined && val !== null && val !== 0) {
+                            ctx.fillStyle = '#9d174d';
+                            ctx.font = 'bold 11px Helvetica, Arial, sans-serif';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'bottom';
+                            const position = element.tooltipPosition();
+                            ctx.fillText(String(val), position.x, position.y - 4);
+                        }
+                    });
+                });
+                ctx.restore();
+            }
         };
 
         const chartInst = new Chart(offscreenCtx, {
-          type: 'line',
-          data: {
-            labels: labels,
-            datasets: [{
-              label: 'Total de Amamentações',
-              data: dataPoints,
-              borderColor: '#db2777',
-              backgroundColor: 'rgba(219, 39, 119, 0.15)',
-              pointBackgroundColor: '#db2777',
-              pointBorderColor: '#ffffff',
-              pointRadius: 6,
-              pointHoverRadius: 9,
-              pointBorderWidth: 2,
-              tension: 0.35,
-              fill: true
-            }]
-          },
-          options: {
-            responsive: false,
-            animation: false,
-            plugins: {
-              legend: { display: true, position: 'top', labels: { font: { family: 'Helvetica', weight: 'bold' } } },
-              title: { display: true, text: 'Evolução Mensal do Quantitativo de Amamentações', font: { family: 'Helvetica', weight: 'bold', size: 14 }, color: '#9d174d' }
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Total de Amamentações',
+                    data: dataPoints,
+                    borderColor: '#db2777',
+                    backgroundColor: 'rgba(219, 39, 119, 0.15)',
+                    pointBackgroundColor: '#db2777',
+                    pointBorderColor: '#ffffff',
+                    pointRadius: 6,
+                    pointHoverRadius: 9,
+                    pointBorderWidth: 2,
+                    tension: 0.35,
+                    fill: true
+                }]
             },
-            scales: {
-              x: { grid: { display: false }, ticks: { font: { weight: 'bold' } } },
-              y: { grid: { color: '#fbcfe8' }, beginAtZero: true, ticks: { font: { weight: 'bold' } } }
-            }
-          },
-          plugins: [valueLabelsPlugin]
+            options: {
+                responsive: false,
+                animation: false,
+                plugins: {
+                    legend: { display: true, position: 'top', labels: { font: { family: 'Helvetica', weight: 'bold' } } },
+                    title: { display: true, text: 'Evolução Mensal do Quantitativo de Amamentações', font: { family: 'Helvetica', weight: 'bold', size: 14 }, color: '#9d174d' }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { font: { weight: 'bold' } } },
+                    y: { grid: { color: '#fbcfe8' }, beginAtZero: true, ticks: { font: { weight: 'bold' } } }
+                }
+            },
+            plugins: [valueLabelsPlugin]
         });
 
         try {
-          const chartImg = offscreenCanvas.toDataURL('image/png');
-          chartInst.destroy();
-          doc.addImage(chartImg, 'PNG', 12, y, 186, 62);
-          y += 68;
+            const chartImg = offscreenCanvas.toDataURL('image/png');
+            chartInst.destroy();
+            doc.addImage(chartImg, 'PNG', 12, y, 186, 62);
+            y += 68;
         } catch (e) {
-          console.error('Erro ao inserir gráfico de amamentação no PDF:', e);
-          chartInst.destroy();
+            console.error('Erro ao inserir gráfico de amamentação no PDF:', e);
+            chartInst.destroy();
         } finally {
-          if (document.body.contains(offscreenCanvas)) {
-            document.body.removeChild(offscreenCanvas);
-          }
+            if (document.body.contains(offscreenCanvas)) {
+                document.body.removeChild(offscreenCanvas);
+            }
         }
 
         // Tabela Mensal Consolidada (Sem detalhamento por dia)
         if (y + 25 > 275) {
-          doc.addPage();
-          y = 20;
+            doc.addPage();
+            y = 20;
         }
 
         doc.setFillColor(241, 245, 249);
@@ -1530,38 +1922,38 @@
         y += 8;
 
         sortedMonths.forEach(row => {
-          if (y > 275) {
-            doc.addPage();
-            y = 20;
-            doc.setFillColor(241, 245, 249);
-            doc.rect(10, y - 5, 190, 8, 'F');
+            if (y > 275) {
+                doc.addPage();
+                y = 20;
+                doc.setFillColor(241, 245, 249);
+                doc.rect(10, y - 5, 190, 8, 'F');
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(30, 41, 59);
+                doc.setFontSize(9);
+                doc.text('Mês / Ano', 20, y);
+                doc.text('Quantidade Total de Amamentações no Mês', 110, y);
+                y += 8;
+            }
+
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(30, 41, 59);
-            doc.setFontSize(9);
-            doc.text('Mês / Ano', 20, y);
-            doc.text('Quantidade Total de Amamentações no Mês', 110, y);
+            doc.text(row.month_label, 20, y);
+
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(219, 39, 119);
+            const suffix = row.is_daily_sum ? "" : '';
+            doc.text(`${row.total_quantity}${suffix}`, 130, y);
+
+            doc.setDrawColor(226, 232, 240);
+            doc.line(10, y + 2, 200, y + 2);
             y += 8;
-          }
-
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(30, 41, 59);
-          doc.text(row.month_label, 20, y);
-
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(219, 39, 119);
-          const suffix = row.is_daily_sum ? "" : '';
-          doc.text(`${row.total_quantity}${suffix}`, 130, y);
-
-          doc.setDrawColor(226, 232, 240);
-          doc.line(10, y + 2, 200, y + 2);
-          y += 8;
         });
 
         doc.save(`Relatorio_Amamentacao_Mensal_${new Date().toISOString().split('T')[0]}.pdf`);
     }
 
     {% if active_tab_nav == 'amamentacao' and chart_labels %}
-    document.addEventListener("DOMContentLoaded", function() {
+    document.addEventListener("DOMContentLoaded", function () {
         const ctx = document.getElementById('amamentacaoChart');
         if (ctx) {
             const labels = {{ chart_labels|safe }};
@@ -1599,7 +1991,7 @@
                             cornerRadius: 8,
                             displayColors: false,
                             callbacks: {
-                                label: function(context) {
+                                label: function (context) {
                                     const val = context.parsed.y;
                                     return ` ${val} ${val === 1 ? 'utilização no mês' : 'utilizações no mês'}`;
                                 }
