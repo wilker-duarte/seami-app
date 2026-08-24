@@ -135,18 +135,21 @@ def lancar_chamada_view(request):
             
     alunos_qs = alunos_qs.order_by('nome')
 
-    # Busca Ocorrências do Caderno SEAMI ativas na data (Ausências Programadas: Atestados e Faltas Agendadas)
+    # Busca Ocorrências do Caderno SEAMI ativas na data
     ocorrencias_data_qs = OcorrenciaCaderno.objects.filter(
         Q(data=current_date, data_fim__isnull=True) |
         Q(data__lte=current_date, data_fim__gte=current_date) |
         Q(data=current_date)
     ).select_related('aluno')
 
-    # Mapeia ocorrência por aluno_id
+    # Mapeia ocorrência por aluno_id (prioriza faltas e atestados se houver múltiplos registros no dia)
     mapa_ocorrencias = {}
     for oc in ocorrencias_data_qs:
-        if oc.aluno_id and oc.aluno_id not in mapa_ocorrencias:
-            mapa_ocorrencias[oc.aluno_id] = oc
+        if oc.aluno_id:
+            if oc.aluno_id not in mapa_ocorrencias:
+                mapa_ocorrencias[oc.aluno_id] = oc
+            elif oc.tipo in [TipoOcorrencia.ATESTADO, TipoOcorrencia.FALTA] and mapa_ocorrencias[oc.aluno_id].tipo not in [TipoOcorrencia.ATESTADO, TipoOcorrencia.FALTA]:
+                mapa_ocorrencias[oc.aluno_id] = oc
 
     # Registros de presença existentes para a data
     regs_query = RegistroPresenca.objects.filter(data=current_date)
@@ -163,41 +166,72 @@ def lancar_chamada_view(request):
         reg = registros.get(aluno.id)
         oc_aluno = mapa_ocorrencias.get(aluno.id)
 
-        # Informações de Ausência Programada
-        ausencia_info = None
+        # Informações de Ocorrência do Caderno SEAMI (Ausência Programada ou Informativo de Atraso/Saída)
+        ocorrencia_info = None
         if oc_aluno:
             dt_inicio_str = oc_aluno.data.strftime('%d/%m/%Y')
             dt_fim_str = oc_aluno.data_fim.strftime('%d/%m/%Y') if oc_aluno.data_fim else dt_inicio_str
-            periodo_str = f"({dt_inicio_str} a {dt_fim_str})"
+            periodo_str = f"({dt_inicio_str} a {dt_fim_str})" if (oc_aluno.data_fim and oc_aluno.data_fim != oc_aluno.data) else f"({dt_inicio_str})"
+            horario_str = f" às {oc_aluno.horario.strftime('%H:%M')}" if oc_aluno.horario else ""
 
             if oc_aluno.tipo == TipoOcorrencia.ATESTADO:
-                tipo_titulo = "Atestado Médico"
-                is_atestado = True
-                is_falta_agendada = False
-            else:
-                tipo_titulo = "Falta Agendada"
-                is_atestado = False
-                is_falta_agendada = True
+                ocorrencia_info = {
+                    'tipo': oc_aluno.tipo,
+                    'is_ausencia': True,
+                    'is_atestado': True,
+                    'is_falta': False,
+                    'is_atraso': False,
+                    'is_saida': False,
+                    'titulo': f"Ausência Programada: Atestado Médico {periodo_str}",
+                    'motivo': oc_aluno.motivo or oc_aluno.observacao or oc_aluno.cid,
+                }
+            elif oc_aluno.tipo == TipoOcorrencia.FALTA:
+                titulo_tipo = "Falta Justificada" if oc_aluno.justificado else "Falta Agendada"
+                ocorrencia_info = {
+                    'tipo': oc_aluno.tipo,
+                    'is_ausencia': True,
+                    'is_atestado': False,
+                    'is_falta': True,
+                    'is_atraso': False,
+                    'is_saida': False,
+                    'titulo': f"Ausência Programada: {titulo_tipo} {periodo_str}",
+                    'motivo': oc_aluno.motivo or oc_aluno.observacao,
+                }
+            elif oc_aluno.tipo == TipoOcorrencia.ATRASO:
+                ocorrencia_info = {
+                    'tipo': oc_aluno.tipo,
+                    'is_ausencia': False,
+                    'is_atestado': False,
+                    'is_falta': False,
+                    'is_atraso': True,
+                    'is_saida': False,
+                    'titulo': f"Registro Informativo: Atraso{horario_str}",
+                    'motivo': oc_aluno.motivo or oc_aluno.observacao,
+                }
+            elif oc_aluno.tipo == TipoOcorrencia.SAIDA:
+                ocorrencia_info = {
+                    'tipo': oc_aluno.tipo,
+                    'is_ausencia': False,
+                    'is_atestado': False,
+                    'is_falta': False,
+                    'is_atraso': False,
+                    'is_saida': True,
+                    'titulo': f"Registro Informativo: Saída Antecipada{horario_str}",
+                    'motivo': oc_aluno.motivo or oc_aluno.observacao,
+                }
 
-            ausencia_info = {
-                'tipo': oc_aluno.tipo,
-                'titulo': tipo_titulo,
-                'periodo': periodo_str,
-                'is_atestado': is_atestado,
-                'is_falta_agendada': is_falta_agendada,
-                'motivo': oc_aluno.motivo or oc_aluno.observacao or oc_aluno.cid,
-            }
-
-        # Definição do status inicial
+        # Definição do status inicial:
+        # Atrasos e Saídas NÃO configuram falta. A criança esteve presente.
+        # Apenas Atestado Médico (Falta Justificada) e Falta (Ausente/Justificada) configuram ausência.
         if reg:
             current_status = reg.status
             obs = reg.observacao
-        elif oc_aluno:
-            if oc_aluno.tipo == TipoOcorrencia.ATESTADO or oc_aluno.justificado:
-                current_status = StatusPresenca.JUSTIFICADO
-            else:
-                current_status = StatusPresenca.AUSENTE
-            obs = oc_aluno.motivo or oc_aluno.observacao or 'Ausência programada no Caderno SEAMI'
+        elif oc_aluno and oc_aluno.tipo == TipoOcorrencia.ATESTADO:
+            current_status = StatusPresenca.JUSTIFICADO
+            obs = oc_aluno.motivo or oc_aluno.observacao or oc_aluno.cid or 'Atestado médico no Caderno SEAMI'
+        elif oc_aluno and oc_aluno.tipo == TipoOcorrencia.FALTA:
+            current_status = StatusPresenca.JUSTIFICADO if oc_aluno.justificado else StatusPresenca.AUSENTE
+            obs = oc_aluno.motivo or oc_aluno.observacao or 'Falta registrada no Caderno SEAMI'
         else:
             current_status = StatusPresenca.PRESENTE
             obs = ''
@@ -758,7 +792,15 @@ def lista_alunos_view(request):
         alunos_qs = alunos_qs.filter(ativo=False)
 
     alunos_qs = alunos_qs.order_by('nome')
-    turmas_qs = Turma.objects.filter(ativo=True).order_by('nome')
+    ordem_salas_map = {
+        'amizade': 1,
+        'união': 2,
+        'uniao': 2,
+        'felicidade': 3,
+        'carinho': 4,
+        'alegria': 5,
+    }
+    turmas_qs = sorted(Turma.objects.filter(ativo=True), key=lambda t: (ordem_salas_map.get(t.nome.lower().strip(), 99), t.nome))
 
     # Mapeamento de Cores Idênticas ao Dashboard por Sala
     cores_salas = {

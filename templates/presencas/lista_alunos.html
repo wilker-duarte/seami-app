@@ -279,7 +279,9 @@
                     </label>
                     <select name="turma" id="field-turma" required style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 14px; color: var(--text-primary); outline: none; box-sizing: border-box;">
                         {% for t in turmas %}
-                            <option value="{{ t.id }}">{{ t.nome }} ({{ t.faixa_etaria|default:"Geral" }})</option>
+                            <option value="{{ t.id }}">
+                                {% if t.nome|lower == 'amizade' %}Amizade 6 a 12 meses{% elif t.nome|lower == 'união' or t.nome|lower == 'uniao' %}União 12 a 18 meses{% elif t.nome|lower == 'felicidade' %}Felicidade 18 a 24 meses{% elif t.nome|lower == 'carinho' %}Carinho 24 a 30 meses{% elif t.nome|lower == 'alegria' %}Alegria 30 a 36 meses{% else %}{{ t.nome }}{% if t.faixa_etaria %} ({{ t.faixa_etaria }}){% endif %}{% endif %}
+                            </option>
                         {% endfor %}
                     </select>
                 </div>

@@ -301,21 +301,37 @@
                                             </div>
                                         {% endif %}
 
-                                        <!-- Ausência Programada (Atestado Médico ou Falta Agendada) -->
+                                        <!-- Ocorrências do Caderno SEAMI (Ausência Programada ou Registro Informativo) -->
                                         {% if student.ausencia_programada %}
                                             <div style="margin-top: 2px;">
                                                 {% if student.ausencia_programada.is_atestado %}
                                                     <span style="font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 6px; background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a; display: inline-flex; align-items: center; gap: 5px;">
                                                         <span>🏥</span>
-                                                        <span>Ausência Programada: Atestado Médico {{ student.ausencia_programada.periodo }}</span>
+                                                        <span>{{ student.ausencia_programada.titulo }}</span>
                                                         {% if student.ausencia_programada.motivo %}
                                                             <span style="font-weight: 500; opacity: 0.9;">&bull; {{ student.ausencia_programada.motivo }}</span>
                                                         {% endif %}
                                                     </span>
-                                                {% else %}
+                                                {% elif student.ausencia_programada.is_falta %}
                                                     <span style="font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 6px; background-color: #fef2f2; color: #dc2626; border: 1px solid #fecaca; display: inline-flex; align-items: center; gap: 5px;">
                                                         <span>📅</span>
-                                                        <span>Ausência Programada: Falta Agendada {{ student.ausencia_programada.periodo }}</span>
+                                                        <span>{{ student.ausencia_programada.titulo }}</span>
+                                                        {% if student.ausencia_programada.motivo %}
+                                                            <span style="font-weight: 500; opacity: 0.9;">&bull; {{ student.ausencia_programada.motivo }}</span>
+                                                        {% endif %}
+                                                    </span>
+                                                {% elif student.ausencia_programada.is_atraso %}
+                                                    <span style="font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 6px; background-color: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; display: inline-flex; align-items: center; gap: 5px;">
+                                                        <span>⏰</span>
+                                                        <span>{{ student.ausencia_programada.titulo }}</span>
+                                                        {% if student.ausencia_programada.motivo %}
+                                                            <span style="font-weight: 500; opacity: 0.9;">&bull; {{ student.ausencia_programada.motivo }}</span>
+                                                        {% endif %}
+                                                    </span>
+                                                {% elif student.ausencia_programada.is_saida %}
+                                                    <span style="font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 6px; background-color: #f8fafc; color: #475569; border: 1px solid #cbd5e1; display: inline-flex; align-items: center; gap: 5px;">
+                                                        <span>🚪</span>
+                                                        <span>{{ student.ausencia_programada.titulo }}</span>
                                                         {% if student.ausencia_programada.motivo %}
                                                             <span style="font-weight: 500; opacity: 0.9;">&bull; {{ student.ausencia_programada.motivo }}</span>
                                                         {% endif %}
