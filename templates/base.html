@@ -145,16 +145,16 @@
                     <span>Relatórios do Caderno</span>
                 </a>
 
-                <!-- MÓDULO III: ENFERMARIA -->
+                <!-- MÓDULO III: ENFERMAGEM -->
                 <div class="menu-section" style="margin-top: 14px; margin-bottom: 6px;">
                     <span class="menu-section-title" title="Atendimentos clínicos, enfermagem, prontuário de saúde e controle de afastamentos.">
-                        Módulo III: Enfermaria
+                        Módulo III: Enfermagem
                     </span>
                 </div>
 
-                <a href="{% url 'core:enfermaria' %}" class="menu-item {% if active_tab == 'enfermaria' %}active{% endif %}" title="Central de Atendimentos Clínicos e Prontuário dos Alunos">
+                <a href="{% url 'core:enfermaria' %}" class="menu-item {% if active_tab == 'enfermaria' %}active{% endif %}" title="Central de Atendimentos de Enfermagem e Prontuário dos Alunos">
                     <i data-lucide="stethoscope"></i>
-                    <span>Enfermaria</span>
+                    <span>Enfermagem</span>
                 </a>
 
                 {% if user.is_authenticated and user.is_diretor or user.is_master_admin or user.is_superuser %}

@@ -112,12 +112,14 @@ def enfermaria_dashboard_view(request):
             'responsavel_tel': a.telefone_responsavel or '',
         }
 
-    # Dicionário JSON leve de atendimentos para o modal de Ficha Completa
+    # Dicionário JSON leve de atendimentos para o modal de Ficha Completa e Edição
     atendimentos_map = {}
     for at in atendimentos_filtrados:
         atendimentos_map[str(at.id)] = {
             'id': at.id,
+            'aluno_id': at.aluno_id,
             'aluno_nome': at.aluno.nome,
+            'aluno_turma': at.aluno.turma.nome if at.aluno.turma else '',
             'turma_nome': at.aluno.turma.nome if at.aluno.turma else 'Sem Sala',
             'turno': at.aluno.get_turno_display() if hasattr(at.aluno, 'get_turno_display') else str(at.aluno.turno),
             'responsavel_nome': at.aluno.nome_responsavel or 'Não informado',
@@ -129,15 +131,19 @@ def enfermaria_dashboard_view(request):
             'acompanhamento_obs': at.aluno.acompanhamento_obs or '',
             'acompanhamento_dias': at.aluno.acompanhamento_dias or '',
             'data_atendimento': at.data_atendimento.strftime('%d/%m/%Y'),
+            'data_atendimento_raw': at.data_atendimento.isoformat(),
             'horario': at.horario.strftime('%H:%M') if at.horario else '',
+            'horario_raw': at.horario.strftime('%H:%M') if at.horario else '',
             'motivo': at.motivo,
             'motivo_detalhado': at.motivo_detalhado or '',
             'cid': at.cid or '',
             'saida_imediata': at.saida_imediata,
             'retornara_dia_seguinte': at.retornara_dia_seguinte,
             'data_retorno_prevista': at.data_retorno_prevista.strftime('%d/%m/%Y') if at.data_retorno_prevista else '',
+            'data_retorno_prevista_raw': at.data_retorno_prevista.isoformat() if at.data_retorno_prevista else '',
             'observacoes_medicas': at.observacoes_medicas or '',
             'documento_url': at.documento_anexo.url if at.documento_anexo else '',
+            'documento_name': at.documento_anexo.name.split('/')[-1] if at.documento_anexo else '',
             'registrado_por': at.registrado_por.get_full_name() or at.registrado_por.username if at.registrado_por else 'Sistema',
             'criado_em': timezone.localtime(at.criado_em).strftime('%d/%m/%Y às %H:%M') if at.criado_em else '',
         }
@@ -183,7 +189,7 @@ def enfermaria_dashboard_view(request):
 @require_POST
 def enfermaria_novo_atendimento_view(request):
     """
-    Processa o formulário de cadastro de novo atendimento clínico.
+    Processa o formulário de cadastro de novo atendimento clínico de enfermagem.
     Executa automações de saída antecipada e faltas justificadas.
     """
     aluno_id = request.POST.get('aluno_id')
@@ -191,7 +197,7 @@ def enfermaria_novo_atendimento_view(request):
     horario_str = request.POST.get('horario')
     motivo = request.POST.get('motivo', '').strip()
     motivo_outro = request.POST.get('motivo_outro', '').strip()
-    saida_imediata = request.POST.get('saida_imediata') == 'on' or request.POST.get('saida_imediata') == 'true'
+    saida_imediata = request.POST.get('saida_imediata') in ['on', 'true', 'sim', 'True']
     retornara_dia_seguinte = request.POST.get('retornara_dia_seguinte') != 'nao'
     data_retorno_str = request.POST.get('data_retorno_prevista', '').strip()
     observacoes_medicas = request.POST.get('observacoes_medicas', '').strip()
@@ -250,7 +256,7 @@ def enfermaria_novo_atendimento_view(request):
             registrado_por=request.user
         )
         
-        msg = f"Atendimento de {aluno.nome} registrado com sucesso na Enfermaria!"
+        msg = f"Atendimento de {aluno.nome} registrado com sucesso na Enfermagem!"
         if saida_imediata:
             msg += " (Saída antecipada registrada no Caderno SEAMI)"
         if saida_imediata and not retornara_dia_seguinte and data_retorno_prevista:
@@ -259,6 +265,81 @@ def enfermaria_novo_atendimento_view(request):
         messages.success(request, msg)
     except Exception as e:
         messages.error(request, f"Erro ao registrar atendimento: {e}")
+
+    return redirect('core:enfermaria')
+
+
+@login_required
+@require_POST
+def enfermaria_editar_atendimento_view(request, atendimento_id):
+    """
+    Edita um atendimento clínico de enfermagem já existente.
+    """
+    atendimento = get_object_or_404(AtendimentoEnfermaria, id=atendimento_id)
+
+    aluno_id = request.POST.get('aluno_id')
+    data_atendimento_str = request.POST.get('data_atendimento')
+    horario_str = request.POST.get('horario')
+    motivo = request.POST.get('motivo', '').strip()
+    motivo_outro = request.POST.get('motivo_outro', '').strip()
+    saida_imediata = request.POST.get('saida_imediata') in ['on', 'true', 'sim', 'True']
+    retornara_dia_seguinte = request.POST.get('retornara_dia_seguinte') != 'nao'
+    data_retorno_str = request.POST.get('data_retorno_prevista', '').strip()
+    observacoes_medicas = request.POST.get('observacoes_medicas', '').strip()
+    cid = request.POST.get('cid', '').strip().upper()
+    documento_anexo = request.FILES.get('documento_anexo')
+
+    if aluno_id:
+        aluno = Aluno.objects.filter(id=aluno_id).first()
+        if aluno:
+            atendimento.aluno = aluno
+
+    # Trata motivo
+    if motivo == 'Outros' and motivo_outro:
+        atendimento.motivo = motivo_outro
+        atendimento.motivo_detalhado = ''
+    elif motivo:
+        atendimento.motivo = motivo
+        atendimento.motivo_detalhado = motivo_outro if motivo != 'Outros' else ''
+
+    if data_atendimento_str:
+        try:
+            atendimento.data_atendimento = date.fromisoformat(data_atendimento_str)
+        except ValueError:
+            pass
+
+    if horario_str:
+        try:
+            from datetime import time
+            parts = horario_str.split(':')
+            atendimento.horario = time(int(parts[0]), int(parts[1]))
+        except Exception:
+            pass
+
+    atendimento.saida_imediata = saida_imediata
+    atendimento.retornara_dia_seguinte = retornara_dia_seguinte
+
+    if saida_imediata and not retornara_dia_seguinte and data_retorno_str:
+        try:
+            atendimento.data_retorno_prevista = date.fromisoformat(data_retorno_str)
+        except ValueError:
+            atendimento.data_retorno_prevista = None
+    else:
+        atendimento.data_retorno_prevista = None
+
+    atendimento.observacoes_medicas = observacoes_medicas
+    atendimento.cid = cid
+
+    if documento_anexo:
+        atendimento.documento_anexo = documento_anexo
+
+    try:
+        atendimento.save()
+        from presencas.services import sincronizar_automacoes_enfermaria
+        sincronizar_automacoes_enfermaria(atendimento, user=request.user)
+        messages.success(request, f"Atendimento de {atendimento.aluno.nome} atualizado com sucesso na Enfermagem!")
+    except Exception as e:
+        messages.error(request, f"Erro ao atualizar atendimento: {e}")
 
     return redirect('core:enfermaria')
 

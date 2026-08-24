@@ -671,8 +671,8 @@ class AtendimentoEnfermaria(models.Model):
     objects = AtendimentoEnfermariaQuerySet.as_manager()
 
     class Meta:
-        verbose_name = 'Atendimento de Enfermaria'
-        verbose_name_plural = 'Atendimentos de Enfermaria'
+        verbose_name = 'Atendimento de Enfermagem'
+        verbose_name_plural = 'Atendimentos de Enfermagem'
         ordering = ['-data_atendimento', '-horario', '-id']
         indexes = [
             models.Index(fields=['data_atendimento', 'ativo']),
@@ -688,6 +688,12 @@ class AtendimentoEnfermaria(models.Model):
         if user:
             self.deletado_por = user
         self.save(update_fields=['ativo', 'deletado_em', 'deletado_por'])
+
+        try:
+            from .services import reverter_automacoes_enfermaria
+            reverter_automacoes_enfermaria(self)
+        except Exception:
+            pass
 
 
 @receiver([post_save, post_delete], sender=Aluno)
@@ -810,4 +816,17 @@ def reverter_presenca_ao_excluir_ocorrencia(sender, instance, **kwargs):
             if changed:
                 reg.calcular_status_e_observacao()
                 reg.save(update_fields=['status', 'status_matutino', 'status_vespertino', 'observacao'])
+
+
+@receiver(post_delete, sender=AtendimentoEnfermaria)
+def reverter_ao_excluir_atendimento_enfermaria(sender, instance, **kwargs):
+    """
+    Ao excluir definitivamente um registro de atendimento de enfermagem,
+    reverte as ocorrências no Caderno SEAMI e os status de presença gerados.
+    """
+    try:
+        from .services import reverter_automacoes_enfermaria
+        reverter_automacoes_enfermaria(instance)
+    except Exception:
+        pass
 
