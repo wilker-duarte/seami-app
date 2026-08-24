@@ -262,7 +262,7 @@ def lancar_chamada_view(request):
             'turno_raw': aluno.turno,
             'has_acompanhamento': aluno.has_acompanhamento,
             'acompanhamento_obs': aluno.acompanhamento_obs,
-            'ausencia_programada': ausencia_info,
+            'ausencia_programada': ocorrencia_info,
             'status': current_status,
             'status_matutino': status_m,
             'status_vespertino': status_v,
