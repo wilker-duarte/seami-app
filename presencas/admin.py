@@ -53,20 +53,42 @@ class RegistroPresencaAdmin(ExportActionMixin, admin.ModelAdmin):
     list_per_page = 50
 
 
+from django.utils.html import format_html
+
+
 @admin.register(OcorrenciaCaderno)
 class OcorrenciaCadernoAdmin(ExportActionMixin, admin.ModelAdmin):
-    list_display = ('tipo', 'aluno', 'turma', 'data', 'justificado', 'attachment_name', 'registrado_por', 'criado_em')
+    list_display = ('tipo', 'aluno', 'turma', 'data', 'justificado', 'ver_documento', 'registrado_por', 'criado_em')
     list_filter = ('tipo', 'turma', 'justificado', 'data')
     search_fields = ('aluno__nome', 'turma__nome', 'motivo', 'cid', 'observacao', 'attachment_name')
     date_hierarchy = 'data'
+    readonly_fields = ('preview_documento',)
+
+    def ver_documento(self, obj):
+        if obj.documento:
+            return format_html('<a href="{}" target="_blank" style="font-weight: 700; color: #0284c7; text-decoration: underline;">📄 Ver Anexo</a>', obj.documento.url)
+        return "-"
+    ver_documento.short_description = 'Anexo'
+
+    def preview_documento(self, obj):
+        if obj.documento:
+            return format_html('<a href="{}" target="_blank" class="button" style="padding: 6px 12px; background: #0284c7; color: white; border-radius: 4px; text-decoration: none; font-weight: bold;">Abrir Documento em Nova Aba</a>', obj.documento.url)
+        return "Nenhum arquivo anexado."
+    preview_documento.short_description = 'Visualização do Documento'
 
 
 @admin.register(RegistroAmamentacao)
 class RegistroAmamentacaoAdmin(ExportActionMixin, admin.ModelAdmin):
-    list_display = ('data', 'quantidade', 'ano', 'mes', 'attachment_name', 'registrado_por', 'criado_em')
+    list_display = ('data', 'quantidade', 'ano', 'mes', 'ver_anexo', 'registrado_por', 'criado_em')
     list_filter = ('ano', 'mes', 'data')
     search_fields = ('observacao', 'attachment_name')
     date_hierarchy = 'data'
+
+    def ver_anexo(self, obj):
+        if obj.anexo:
+            return format_html('<a href="{}" target="_blank" style="font-weight: 700; color: #db2777; text-decoration: underline;">📄 Ver Anexo</a>', obj.anexo.url)
+        return "-"
+    ver_anexo.short_description = 'Anexo'
 
 
 @admin.register(HistoricoFrequenciaMensal)

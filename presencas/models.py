@@ -62,8 +62,10 @@ class AlunoQuerySet(models.QuerySet):
     def ativos(self, target_date=None):
         if target_date is None:
             target_date = timezone.localdate()
-        return self.filter(ativo=True).filter(
-            models.Q(data_desligamento__isnull=True) | models.Q(data_desligamento__gte=target_date)
+        return self.filter(
+            models.Q(ativo=True) | models.Q(data_desligamento__gt=target_date)
+        ).filter(
+            models.Q(data_desligamento__isnull=True) | models.Q(data_desligamento__gt=target_date)
         ).filter(
             models.Q(data_entrada__isnull=True) | models.Q(data_entrada__lte=target_date)
         )
@@ -118,6 +120,18 @@ class Aluno(models.Model):
     def __str__(self):
         return f"{self.nome} - Sala {self.turma.nome}"
 
+    def save(self, *args, **kwargs):
+        today = timezone.localdate()
+        if self.data_desligamento:
+            if self.data_desligamento <= today:
+                self.ativo = False
+            else:
+                self.ativo = True  # Permanece ativo até a data da saída futura
+        elif not self.ativo and not self.data_desligamento:
+            self.data_desligamento = today
+
+        super().save(*args, **kwargs)
+
     @property
     def is_ativo_hoje(self):
         today = timezone.localdate()
@@ -125,7 +139,7 @@ class Aluno(models.Model):
             return False
         if self.data_entrada and self.data_entrada > today:
             return False
-        if self.data_desligamento and self.data_desligamento < today:
+        if self.data_desligamento and self.data_desligamento <= today:
             return False
         return True
 
@@ -687,4 +701,113 @@ def atualizar_cache_headcount_alunos(sender, instance, **kwargs):
         calcular_e_salvar_matriculados_headcount()
     except Exception as e:
         pass
+
+
+@receiver(post_save, sender=OcorrenciaCaderno)
+def sincronizar_ocorrencia_com_presenca(sender, instance, **kwargs):
+    """
+    Quando uma falta é justificada ou um atestado é registrado no Caderno SEAMI,
+    localiza a chamada lançada do aluno naquela(s) data(s) e altera de Falta (F / AUSENTE)
+    para Falta Justificada (FJ / JUSTIFICADO).
+    Se a falta for desjustificada, reverte para Falta (F / AUSENTE).
+    """
+    if not instance.aluno:
+        return
+
+    data_inicio = instance.data
+    data_fim = instance.data_fim or instance.data
+
+    if data_inicio and data_fim and data_fim < data_inicio:
+        data_fim = data_inicio
+
+    registros = RegistroPresenca.objects.filter(
+        aluno=instance.aluno,
+        data__gte=data_inicio,
+        data__lte=data_fim
+    )
+
+    is_justificada = bool(instance.justificado or instance.tipo == TipoOcorrencia.ATESTADO)
+
+    if instance.tipo in [TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO]:
+        for reg in registros:
+            changed = False
+            if is_justificada:
+                if reg.status == StatusPresenca.AUSENTE:
+                    reg.status = StatusPresenca.JUSTIFICADO
+                    changed = True
+                if reg.status_matutino == StatusTurnoPresenca.AUSENTE:
+                    reg.status_matutino = StatusTurnoPresenca.JUSTIFICADO
+                    changed = True
+                if reg.status_vespertino == StatusTurnoPresenca.AUSENTE:
+                    reg.status_vespertino = StatusTurnoPresenca.JUSTIFICADO
+                    changed = True
+            else:
+                if reg.status == StatusPresenca.JUSTIFICADO:
+                    reg.status = StatusPresenca.AUSENTE
+                    changed = True
+                if reg.status_matutino == StatusTurnoPresenca.JUSTIFICADO:
+                    reg.status_matutino = StatusTurnoPresenca.AUSENTE
+                    changed = True
+                if reg.status_vespertino == StatusTurnoPresenca.JUSTIFICADO:
+                    reg.status_vespertino = StatusTurnoPresenca.AUSENTE
+                    changed = True
+
+            if changed:
+                reg.calcular_status_e_observacao(custom_obs=instance.motivo or instance.observacao)
+                reg.save(update_fields=['status', 'status_matutino', 'status_vespertino', 'observacao'])
+
+
+@receiver(post_delete, sender=OcorrenciaCaderno)
+def reverter_presenca_ao_excluir_ocorrencia(sender, instance, **kwargs):
+    """
+    Quando uma ocorrência de Falta Justificada ou Atestado for apagada/excluída,
+    o sistema localiza a chamada lançada do aluno naquelas datas e, caso não
+    haja outra justificativa cadastrada para o mesmo dia, reverte o status de
+    Falta Justificada (FJ / JUSTIFICADO) de volta para Falta comum (F / AUSENTE).
+    """
+    if not instance.aluno:
+        return
+
+    data_inicio = instance.data
+    data_fim = instance.data_fim or instance.data
+
+    if data_inicio and data_fim and data_fim < data_inicio:
+        data_fim = data_inicio
+
+    if instance.tipo not in [TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO]:
+        return
+
+    # Registros de presença desse aluno no período da ocorrência excluída
+    registros = RegistroPresenca.objects.filter(
+        aluno=instance.aluno,
+        data__gte=data_inicio,
+        data__lte=data_fim
+    )
+
+    for reg in registros:
+        # Verifica se ainda existe outra ocorrência justificada para este aluno nesta data específica
+        outra_justificativa = OcorrenciaCaderno.objects.filter(
+            aluno=instance.aluno,
+            tipo__in=[TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO]
+        ).filter(
+            Q(data=reg.data) | (Q(data__lte=reg.data) & Q(data_fim__gte=reg.data))
+        ).filter(
+            Q(justificado=True) | Q(tipo=TipoOcorrencia.ATESTADO)
+        ).exclude(id=instance.id).exists()
+
+        if not outra_justificativa:
+            changed = False
+            if reg.status == StatusPresenca.JUSTIFICADO:
+                reg.status = StatusPresenca.AUSENTE
+                changed = True
+            if reg.status_matutino == StatusTurnoPresenca.JUSTIFICADO:
+                reg.status_matutino = StatusTurnoPresenca.AUSENTE
+                changed = True
+            if reg.status_vespertino == StatusTurnoPresenca.JUSTIFICADO:
+                reg.status_vespertino = StatusTurnoPresenca.AUSENTE
+                changed = True
+
+            if changed:
+                reg.calcular_status_e_observacao()
+                reg.save(update_fields=['status', 'status_matutino', 'status_vespertino', 'observacao'])
 

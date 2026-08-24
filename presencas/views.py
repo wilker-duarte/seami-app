@@ -436,6 +436,21 @@ def salvar_chamada_lote_view(request):
                 reg.turma = aluno_turma
                 reg.registrado_por = request.user
 
+                # Verifica se há ocorrência prévia de Falta Justificada ou Atestado no Caderno SEAMI para esta data
+                ocorr_justificada = OcorrenciaCaderno.objects.filter(
+                    aluno=aluno,
+                    tipo__in=[TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO]
+                ).filter(
+                    Q(data=data_chamada) | (Q(data__lte=data_chamada) & Q(data_fim__gte=data_chamada))
+                ).filter(
+                    Q(justificado=True) | Q(tipo=TipoOcorrencia.ATESTADO)
+                ).first()
+
+                if ocorr_justificada and status == StatusPresenca.AUSENTE:
+                    status = StatusPresenca.JUSTIFICADO
+                    if not obs and ocorr_justificada.motivo:
+                        obs = ocorr_justificada.motivo
+
                 turno_aluno = (aluno.turno or 'integral').lower()
 
                 # Atualiza os status conforme o turno em que a chamada foi realizada
@@ -717,6 +732,14 @@ def lista_alunos_view(request):
             data_desligamento = datetime.strptime(data_desligamento_str, '%Y-%m-%d').date() if data_desligamento_str else None
             turma = get_object_or_404(Turma, id=turma_id)
 
+            if data_desligamento:
+                if data_desligamento <= today:
+                    ativo = False
+                else:
+                    ativo = True
+            elif not ativo and not data_desligamento:
+                data_desligamento = today
+
             if action == 'create':
                 Aluno.objects.create(
                     nome=nome,
@@ -757,7 +780,7 @@ def lista_alunos_view(request):
         elif action == 'toggle_active' and aluno_id:
             aluno = get_object_or_404(Aluno, id=aluno_id)
             deactivation_date_str = request.POST.get('deactivation_date')
-            if aluno.ativo:
+            if aluno.is_ativo_hoje or aluno.ativo:
                 aluno.ativo = False
                 if deactivation_date_str:
                     aluno.data_desligamento = datetime.strptime(deactivation_date_str, '%Y-%m-%d').date()
@@ -842,7 +865,7 @@ def lista_alunos_view(request):
             'comorbidades': aluno.comorbidades or '',
             'nome_responsavel': aluno.nome_responsavel or '',
             'telefone_responsavel': aluno.telefone_responsavel or '',
-            'ativo': aluno.ativo,
+            'ativo': aluno.is_ativo_hoje,
         })
 
     # Dicionário JSON completo para os modais de edição e visualização de ficha

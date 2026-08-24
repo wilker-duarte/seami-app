@@ -64,7 +64,7 @@ services:
       # Sincronização em tempo real do código do host com o container
       - .:/app
       - static_volume:/app/staticfiles
-      - media_volume:/app/media
+      - ./media:/app/media
     ports:
       - "8000:8000"
     depends_on:
