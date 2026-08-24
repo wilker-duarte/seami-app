@@ -136,12 +136,12 @@ def build_dashboard_context(request):
 
     # Paleta de Estilos das Salas
     cores_salas = {
-        'amizade': {'bg': '#f5f3ff', 'color': '#7c3aed', 'border': '#ddd6fe', 'emoji': '🎨', 'age': 'Maternal II', 'bg_icon': '#ede9fe', 'color_val': '#6d28d9', 'color_foot': '#7c3aed'},
-        'união': {'bg': '#fffbeb', 'color': '#d97706', 'border': '#fde68a', 'emoji': '🤝', 'age': 'Maternal I', 'bg_icon': '#fef3c7', 'color_val': '#b45309', 'color_foot': '#d97706'},
-        'uniao': {'bg': '#fffbeb', 'color': '#d97706', 'border': '#fde68a', 'emoji': '🤝', 'age': 'Maternal I', 'bg_icon': '#fef3c7', 'color_val': '#b45309', 'color_foot': '#d97706'},
-        'felicidade': {'bg': '#fdf2f8', 'color': '#db2777', 'border': '#fbcfe8', 'emoji': '✨', 'age': 'Pré-Escola', 'bg_icon': '#fce7f3', 'color_val': '#be185d', 'color_foot': '#db2777'},
-        'carinho': {'bg': '#ecfdf5', 'color': '#059669', 'border': '#a7f3d0', 'emoji': '🧸', 'age': 'Berçário II', 'bg_icon': '#d1fae5', 'color_val': '#047857', 'color_foot': '#059669'},
-        'alegria': {'bg': '#eff6ff', 'color': '#2563eb', 'border': '#bfdbfe', 'emoji': '👶', 'age': 'Berçário I', 'bg_icon': '#dbeafe', 'color_val': '#1d4ed8', 'color_foot': '#2563eb'},
+        'amizade': {'bg': '#f5f3ff', 'color': '#7c3aed', 'border': '#ddd6fe', 'emoji': '🎨', 'age': '6 a 12 meses', 'bg_icon': '#ede9fe', 'color_val': '#6d28d9', 'color_foot': '#7c3aed'},
+        'união': {'bg': '#fffbeb', 'color': '#d97706', 'border': '#fde68a', 'emoji': '🤝', 'age': '12 a 18 meses', 'bg_icon': '#fef3c7', 'color_val': '#b45309', 'color_foot': '#d97706'},
+        'uniao': {'bg': '#fffbeb', 'color': '#d97706', 'border': '#fde68a', 'emoji': '🤝', 'age': '12 a 18 meses', 'bg_icon': '#fef3c7', 'color_val': '#b45309', 'color_foot': '#d97706'},
+        'felicidade': {'bg': '#fdf2f8', 'color': '#db2777', 'border': '#fbcfe8', 'emoji': '✨', 'age': '18 a 24 meses', 'bg_icon': '#fce7f3', 'color_val': '#be185d', 'color_foot': '#db2777'},
+        'carinho': {'bg': '#ecfdf5', 'color': '#059669', 'border': '#a7f3d0', 'emoji': '🧸', 'age': '24 a 30 meses', 'bg_icon': '#d1fae5', 'color_val': '#047857', 'color_foot': '#059669'},
+        'alegria': {'bg': '#eff6ff', 'color': '#2563eb', 'border': '#bfdbfe', 'emoji': '👶', 'age': '30 a 36 meses', 'bg_icon': '#dbeafe', 'color_val': '#1d4ed8', 'color_foot': '#2563eb'},
     }
 
     salas_cards_data = []
@@ -1005,29 +1005,27 @@ def build_relatorios_context(request):
             freq_mes_ausentes.append(a_val)
             freq_mes_matriculados.append(m_val)
 
-    # Tabela diária / consolidada por turma
+    # Tabela diária consolidada Geral (sem quebrar por sala)
     freq_tabela_list = []
     for d in sorted(list(datas_chamada_distintas), reverse=True)[:30]:
-        for t in turmas_qs:
-            regs_dt = registros_periodo_all.filter(data=d, turma=t)
-            if not regs_dt.exists():
-                continue
-            pres = regs_dt.filter(status=StatusPresenca.PRESENTE).count()
-            falt = regs_dt.filter(status__in=[StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO]).count()
-            tot = pres + falt
-            taxa = round((pres / tot) * 100) if tot > 0 else 100
-            mat_t = t.alunos.ativos().count()
-            t_style = cores_salas.get(t.nome.lower().strip(), {'bg': '#f1f5f9', 'color': '#475569', 'border': '#cbd5e1', 'emoji': '🏫'})
+        regs_dt = registros_periodo_all.filter(data=d)
+        if not regs_dt.exists():
+            continue
+        pres = regs_dt.filter(status=StatusPresenca.PRESENTE).count()
+        falt = regs_dt.filter(status__in=[StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO]).count()
+        tot = pres + falt
+        taxa = round((pres / tot) * 100) if tot > 0 else 100
+        mat_d = Aluno.objects.ativos(target_date=d).count()
+        if mat_d == 0:
+            mat_d = total_matriculados_ativos
 
-            freq_tabela_list.append({
-                'data': d,
-                'turma': t,
-                'turma_style': t_style,
-                'matriculados': mat_t,
-                'presentes': pres,
-                'faltas': falt,
-                'taxa': taxa,
-            })
+        freq_tabela_list.append({
+            'data': d,
+            'matriculados': mat_d,
+            'presentes': pres,
+            'faltas': falt,
+            'taxa': taxa,
+        })
 
     # =========================================================================
     # 4. ABA MATRÍCULA / DESLIGAMENTOS
@@ -1264,11 +1262,10 @@ def relatorios_view(request):
                     row['atrasos_no_ano']
                 ])
         elif active_tab == 'frequencia':
-            writer.writerow(['Data / Mês', 'Turma / Tipo', 'Alunos Matriculados', 'Alunos Presentes', 'Faltas / Ausentes', 'Frequência (%)'])
+            writer.writerow(['Data / Mês', 'Alunos Matriculados', 'Alunos Presentes', 'Faltas / Ausentes', 'Frequência (%)'])
             for row in context['freq_tabela']:
                 writer.writerow([
                     row['data'].strftime('%d/%m/%Y'),
-                    row['turma'].nome if row.get('turma') else '',
                     row['matriculados'],
                     row['presentes'],
                     row['faltas'],
