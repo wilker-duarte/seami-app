@@ -87,12 +87,12 @@
 
         <!-- Ações em Lote e Resumo da Sala -->
         <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px;">
-            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; font-size: 13px; color: var(--text-secondary);">
-                <span>👥 Alunos: <strong style="color: var(--text-primary);">{{ total_alunos }}</strong></span>
-                <span>🟢 Presentes: <strong id="summary-presentes" style="color: var(--color-atestados);">{{ total_presentes }}</strong></span>
-                <span>🔴 Faltas: <strong id="summary-faltas" style="color: var(--color-faltas);">{{ total_faltas }}</strong></span>
-                <span>🟡 Justificadas: <strong id="summary-justificadas" style="color: var(--color-atrasos);">{{ total_justificadas }}</strong></span>
-                <span>📈 Frequência: <strong id="summary-taxa" style="color: var(--color-primary);">{{ taxa_presenca }}%</strong></span>
+            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary);">
+                <span onclick="setFiltroStatus('all')" title="Clique para ver todos os alunos" style="cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: all 0.15s; background: var(--bg-card); border: 1px solid var(--border-color);">👥 Alunos: <strong style="color: var(--text-primary);">{{ total_alunos }}</strong></span>
+                <span onclick="setFiltroStatus('PRESENTE')" title="Clique para filtrar apenas Presentes" style="cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: all 0.15s; background: #ecfdf5; border: 1px solid #a7f3d0;">🟢 Presentes: <strong id="summary-presentes" style="color: #047857;">{{ total_presentes }}</strong></span>
+                <span onclick="setFiltroStatus('AUSENTE')" title="Clique para filtrar apenas Faltas" style="cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: all 0.15s; background: #fef2f2; border: 1px solid #fecaca;">🔴 Faltas: <strong id="summary-faltas" style="color: #dc2626;">{{ total_faltas }}</strong></span>
+                <span onclick="setFiltroStatus('JUSTIFICADO')" title="Clique para filtrar apenas Justificadas" style="cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: all 0.15s; background: #fffbeb; border: 1px solid #fde68a;">🟡 Justificadas: <strong id="summary-justificadas" style="color: #b45309;">{{ total_justificadas }}</strong></span>
+                <span style="padding: 4px 8px;">📈 Frequência: <strong id="summary-taxa" style="color: var(--color-primary);">{{ taxa_presenca }}%</strong></span>
             </div>
 
             <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
@@ -191,25 +191,27 @@
 
         <!-- LISTA DE ALUNOS COM BOTÕES DE STATUS E INDICADORES -->
         <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); overflow: hidden;">
-            <div style="padding: 16px 20px; background-color: var(--bg-input); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-                <div style="display: flex; flex-direction: column; gap: 2px;">
-                    <span style="font-family: var(--font-title); font-size: 15px; font-weight: 700; color: var(--text-primary);">
-                        {% if is_all_classrooms %}
-                            Lista Geral: Todas as Salas
-                        {% else %}
-                            Alunos Matriculados &bull; Sala {{ selected_turma.nome }}
-                        {% endif %}
-                    </span>
-                    <span style="font-size: 12px; color: var(--text-light);">
-                        {{ students_list|length }} alunos listados
-                    </span>
-                </div>
+            <div style="padding: 16px 20px; background-color: var(--bg-input); border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 14px;">
+                
+                <!-- Linha Superior: Título da Turma + Indicadores de Status e Turnos -->
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <h3 style="font-family: var(--font-title); font-size: 15px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+                            <span>
+                                {% if is_all_classrooms %}
+                                    Lista Geral: Todas as Salas
+                                {% else %}
+                                    Alunos Matriculados &bull; Sala {{ selected_turma.nome }}
+                                {% endif %}
+                            </span>
+                        </h3>
+                        <span id="students-counter-label" style="font-size: 11.5px; font-weight: 700; color: var(--text-secondary); background-color: var(--bg-card); border: 1px solid var(--border-color); padding: 2px 8px; border-radius: 999px;">
+                            {{ students_list|length }} alunos listados
+                        </span>
+                    </div>
 
-                <!-- Indicadores de Status (Turnos e Geral da Turma / Todas as Salas) -->
-                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                    
-                    <!-- Indicadores por Turno -->
-                    <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                    <!-- Indicadores por Turno e Status Geral -->
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                         {% if shifts_saved_status.matutino.has_students %}
                             <span style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;
                                   {% if shifts_saved_status.matutino.is_saved %}background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;{% else %}background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a;{% endif %}">
@@ -233,29 +235,79 @@
                                 Integral: {% if shifts_saved_status.integral.is_saved %}Lançado{% else %}Pendente{% endif %}
                             </span>
                         {% endif %}
+
+                        <!-- Indicador Geral -->
+                        {% if is_all_classrooms %}
+                            <span style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 12px; font-size: 11.5px; font-weight: 700;
+                                  {% if is_attendance_saved %}background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;{% elif salas_lancadas_count > 0 %}background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;{% else %}background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a;{% endif %}">
+                                <span style="width: 6px; height: 6px; border-radius: 50%; {% if is_attendance_saved %}background-color: #10b981;{% elif salas_lancadas_count > 0 %}background-color: #3b82f6;{% else %}background-color: #f59e0b;{% endif %}; display: inline-block;"></span>
+                                {{ salas_lancadas_count }}/{{ total_salas_count }} salas
+                            </span>
+                        {% else %}
+                            <span style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 12px; font-size: 11.5px; font-weight: 700;
+                                  {% if is_attendance_saved %}background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;{% else %}background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a;{% endif %}">
+                                <span style="width: 6px; height: 6px; border-radius: 50%; {% if is_attendance_saved %}background-color: #10b981;{% else %}background-color: #f59e0b;{% endif %}; display: inline-block;"></span>
+                                {% if is_attendance_saved %}Salva{% else %}Não realizada{% endif %}
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Linha Inferior: Barra de Ferramentas (Busca e Filtro por Tipo de Presença) -->
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding-top: 10px; border-top: 1px dashed var(--border-color);">
+                    
+                    <!-- Campo de Busca por Aluno -->
+                    <div style="position: relative; width: 100%; max-width: 320px;">
+                        <i data-lucide="search" style="position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-light); pointer-events: none;"></i>
+                        <input type="text" id="student-search-input" oninput="filtrarAlunos(this.value)" placeholder="Buscar aluno por nome..."
+                               style="width: 100%; padding: 7px 30px 7px 32px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-card); color: var(--text-primary); font-size: 12.5px; font-weight: 500; outline: none; box-sizing: border-box; transition: all 0.2s;"
+                               onfocus="this.style.borderColor='var(--color-primary)'; this.style.boxShadow='0 0 0 3px rgba(99, 102, 241, 0.15)'"
+                               onblur="this.style.borderColor='var(--border-color)'; this.style.boxShadow='none'">
+                        <button type="button" id="btn-clear-search" onclick="limparBuscaAluno()" title="Limpar busca"
+                                style="display: none; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); border: none; background: #e2e8f0; color: #64748b; width: 18px; height: 18px; border-radius: 50%; cursor: pointer; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; line-height: 1;">✕</button>
                     </div>
 
-                    <!-- Indicador Geral -->
-                    {% if is_all_classrooms %}
-                        <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 12px; font-size: 11.5px; font-weight: 700;
-                              {% if is_attendance_saved %}background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;{% elif salas_lancadas_count > 0 %}background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;{% else %}background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a;{% endif %}">
-                            <span style="width: 6px; height: 6px; border-radius: 50%; {% if is_attendance_saved %}background-color: #10b981;{% elif salas_lancadas_count > 0 %}background-color: #3b82f6;{% else %}background-color: #f59e0b;{% endif %}; display: inline-block;"></span>
-                            {{ salas_lancadas_count }} de {{ total_salas_count }} salas lançadas
-                        </span>
-                    {% else %}
-                        <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 12px; font-size: 11.5px; font-weight: 700;
-                              {% if is_attendance_saved %}background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;{% else %}background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a;{% endif %}">
-                            <span style="width: 6px; height: 6px; border-radius: 50%; {% if is_attendance_saved %}background-color: #10b981;{% else %}background-color: #f59e0b;{% endif %}; display: inline-block;"></span>
-                            {% if is_attendance_saved %}Chamada Salva{% else %}Chamada não realizada{% endif %}
-                        </span>
-                    {% endif %}
+                    <!-- Filtro por Tipo de Presença -->
+                    <div style="display: inline-flex; align-items: center; background-color: var(--bg-card); padding: 3px; border-radius: 8px; border: 1px solid var(--border-color); gap: 3px;">
+                        <button type="button" id="btn-filter-status-all" onclick="setFiltroStatus('all')" title="Todos os alunos"
+                                style="padding: 5px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 700; border: none; cursor: pointer; transition: all 0.15s; background-color: var(--color-primary); color: #ffffff;">
+                            Todos
+                        </button>
+                        <button type="button" id="btn-filter-status-PRESENTE" onclick="setFiltroStatus('PRESENTE')" title="Filtrar apenas presentes"
+                                style="padding: 5px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 700; border: none; cursor: pointer; transition: all 0.15s; background-color: transparent; color: var(--text-secondary);">
+                            🟢 Presentes
+                        </button>
+                        <button type="button" id="btn-filter-status-AUSENTE" onclick="setFiltroStatus('AUSENTE')" title="Filtrar apenas faltas"
+                                style="padding: 5px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 700; border: none; cursor: pointer; transition: all 0.15s; background-color: transparent; color: var(--text-secondary);">
+                            🔴 Faltas
+                        </button>
+                        <button type="button" id="btn-filter-status-JUSTIFICADO" onclick="setFiltroStatus('JUSTIFICADO')" title="Filtrar apenas justificadas"
+                                style="padding: 5px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 700; border: none; cursor: pointer; transition: all 0.15s; background-color: transparent; color: var(--text-secondary);">
+                            🟡 Justificadas
+                        </button>
+                    </div>
                 </div>
             </div>
 
             {% if students_list %}
                 <div style="display: flex; flex-direction: column;">
+                    <!-- Mensagem quando nenhum aluno corresponder à busca -->
+                    <div id="no-search-results" style="display: none; padding: 40px 20px; text-align: center; color: var(--text-secondary);">
+                        <div style="width: 44px; height: 44px; border-radius: 50%; background-color: var(--bg-input); color: var(--text-light); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 8px;">
+                            <i data-lucide="user-x" style="width: 22px; height: 22px;"></i>
+                        </div>
+                        <div style="font-size: 14px; font-weight: 700; color: var(--text-primary);">Nenhum aluno encontrado</div>
+                        <div style="font-size: 12px; color: var(--text-light); margin-top: 2px;">Tente buscar por outro termo ou limpe o campo de busca.</div>
+                    </div>
+
                     {% for student in students_list %}
-                        <div class="student-row" id="row-{{ student.id }}" data-is-pendente="{{ student.is_pendente|yesno:'true,false' }}" style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px;">
+                        <div class="student-row" id="row-{{ student.id }}" 
+                             data-id="{{ student.id }}"
+                             data-nome="{{ student.nome }}" 
+                             data-turma="{{ student.turma_nome }}" 
+                             data-status="{{ student.status }}"
+                             data-is-pendente="{{ student.is_pendente|yesno:'true,false' }}" 
+                             style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px;">
                             
                             <!-- Identificação do Aluno -->
                             <div style="display: flex; align-items: center; gap: 14px;">
@@ -395,6 +447,10 @@
 
     function setStatus(studentId, status) {
         attendanceState[studentId] = status;
+        const row = document.getElementById(`row-${studentId}`);
+        if (row) {
+            row.setAttribute('data-status', status);
+        }
 
         ['PRESENTE', 'AUSENTE', 'JUSTIFICADO'].forEach(st => {
             const btn = document.getElementById(`btn-${studentId}-${st}`);
@@ -421,6 +477,9 @@
         });
 
         recalcSummary();
+        if (filtroStatusAtivo !== 'all') {
+            atualizarVisibilidadeAlunos();
+        }
     }
 
     function marcarTodosPresentes() {
@@ -524,33 +583,135 @@
         }
     }
 
+    // =========================================================================
+    // BUSCA DE ALUNOS & FILTROS (POR TIPO DE PRESENÇA E PENDÊNCIAS)
+    // =========================================================================
+    let termoBuscaAluno = '';
     let apenasPendentesAtivo = false;
+    let filtroStatusAtivo = 'all';
+
+    function normalizeStr(str) {
+        return (str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    }
+
+    function setFiltroStatus(status) {
+        filtroStatusAtivo = status;
+
+        ['all', 'PRESENTE', 'AUSENTE', 'JUSTIFICADO'].forEach(st => {
+            const btn = document.getElementById(`btn-filter-status-${st}`);
+            if (btn) {
+                if (st === status) {
+                    if (st === 'all') {
+                        btn.style.backgroundColor = 'var(--color-primary)';
+                        btn.style.color = '#ffffff';
+                        btn.style.border = 'none';
+                    } else if (st === 'PRESENTE') {
+                        btn.style.backgroundColor = '#ecfdf5';
+                        btn.style.color = '#047857';
+                        btn.style.border = '1px solid #a7f3d0';
+                    } else if (st === 'AUSENTE') {
+                        btn.style.backgroundColor = '#fef2f2';
+                        btn.style.color = '#dc2626';
+                        btn.style.border = '1px solid #fecaca';
+                    } else if (st === 'JUSTIFICADO') {
+                        btn.style.backgroundColor = '#fffbeb';
+                        btn.style.color = '#b45309';
+                        btn.style.border = '1px solid #fde68a';
+                    }
+                } else {
+                    btn.style.backgroundColor = 'transparent';
+                    btn.style.color = 'var(--text-secondary)';
+                    btn.style.border = 'none';
+                }
+            }
+        });
+
+        atualizarVisibilidadeAlunos();
+    }
+
+    function filtrarAlunos(query) {
+        termoBuscaAluno = normalizeStr(query);
+        const clearBtn = document.getElementById('btn-clear-search');
+        if (clearBtn) {
+            clearBtn.style.display = termoBuscaAluno ? 'flex' : 'none';
+        }
+        atualizarVisibilidadeAlunos();
+    }
+
+    function limparBuscaAluno() {
+        const input = document.getElementById('student-search-input');
+        if (input) {
+            input.value = '';
+        }
+        termoBuscaAluno = '';
+        const clearBtn = document.getElementById('btn-clear-search');
+        if (clearBtn) {
+            clearBtn.style.display = 'none';
+        }
+        atualizarVisibilidadeAlunos();
+        if (input) input.focus();
+    }
+
+    function atualizarVisibilidadeAlunos() {
+        const rows = document.querySelectorAll('.student-row');
+        let countVisiveis = 0;
+        const total = rows.length;
+
+        rows.forEach(row => {
+            const id = row.getAttribute('data-id');
+            const currentStatus = (id && attendanceState[id]) ? attendanceState[id] : row.getAttribute('data-status');
+            const nome = normalizeStr(row.getAttribute('data-nome'));
+            const turma = normalizeStr(row.getAttribute('data-turma'));
+            const isPendente = row.getAttribute('data-is-pendente') === 'true';
+
+            const matchesSearch = !termoBuscaAluno || nome.includes(termoBuscaAluno) || turma.includes(termoBuscaAluno);
+            const matchesPendente = !apenasPendentesAtivo || isPendente;
+            const matchesStatus = (filtroStatusAtivo === 'all') || (currentStatus === filtroStatusAtivo);
+
+            if (matchesSearch && matchesPendente && matchesStatus) {
+                row.style.display = 'flex';
+                countVisiveis++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        const noResults = document.getElementById('no-search-results');
+        if (noResults) {
+            noResults.style.display = (countVisiveis === 0 && total > 0) ? 'block' : 'none';
+            if (countVisiveis === 0 && total > 0 && window.lucide) {
+                lucide.createIcons();
+            }
+        }
+
+        const counterLabel = document.getElementById('students-counter-label');
+        if (counterLabel) {
+            if (termoBuscaAluno || apenasPendentesAtivo || filtroStatusAtivo !== 'all') {
+                counterLabel.innerText = `${countVisiveis} de ${total} alunos listados`;
+            } else {
+                counterLabel.innerText = `${total} alunos listados`;
+            }
+        }
+    }
+
     function toggleFiltroPendentes() {
         apenasPendentesAtivo = !apenasPendentesAtivo;
         const btn = document.getElementById('btn-toggle-pendentes');
         const btnLabel = document.getElementById('btn-toggle-pendentes-label');
-        const rows = document.querySelectorAll('.student-row');
 
         if (apenasPendentesAtivo) {
             btn.style.backgroundColor = '#fef3c7';
             btn.style.color = '#92400e';
             btn.style.borderColor = '#fde68a';
             btnLabel.innerText = 'Mostrar Todos';
-
-            rows.forEach(row => {
-                const isPendente = row.getAttribute('data-is-pendente') === 'true';
-                row.style.display = isPendente ? 'flex' : 'none';
-            });
         } else {
             btn.style.backgroundColor = 'var(--bg-card)';
             btn.style.color = 'var(--text-secondary)';
             btn.style.borderColor = 'var(--border-color)';
             btnLabel.innerText = 'Apenas Pendentes';
-
-            rows.forEach(row => {
-                row.style.display = 'flex';
-            });
         }
+
+        atualizarVisibilidadeAlunos();
     }
 </script>
 

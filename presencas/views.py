@@ -76,15 +76,29 @@ def lancar_chamada_view(request):
     next_num_days = calendar.monthrange(next_month_first_day.year, next_month_first_day.month)[1]
     next_date_str = next_month_first_day.replace(day=min(current_date.day, next_num_days)).isoformat()
 
-    # Busca no banco quais datas deste mês possuem chamadas registradas
-    chamadas_qs = RegistroPresenca.objects.filter(
+    # =========================================================================
+    # LÓGICA DO CALENDÁRIO MENSAL & DIAS COM CHAMADA 100% SALVA (SEM PENDÊNCIAS)
+    # =========================================================================
+    # Carrega alunos ativos no mês para verificar se a chamada foi totalmente concluída
+    alunos_ativos_mes = list(
+        Aluno.objects.filter(ativo=True)
+        .filter(Q(data_entrada__isnull=True) | Q(data_entrada__lte=last_day_of_month))
+        .filter(Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=first_day_of_month))
+        .select_related('turma')
+    )
+
+    # Busca todos os registros de presença deste mês agrupados por data
+    regs_month = RegistroPresenca.objects.filter(
         data__gte=first_day_of_month,
         data__lte=last_day_of_month
-    )
-    if selected_turma:
-        chamadas_qs = chamadas_qs.filter(turma=selected_turma)
-    
-    datas_com_chamada = set(chamadas_qs.values_list('data', flat=True).distinct())
+    ).values('data', 'aluno_id', 'turma_id')
+
+    saved_by_date = {}
+    for r in regs_month:
+        d_k = r['data']
+        if d_k not in saved_by_date:
+            saved_by_date[d_k] = set()
+        saved_by_date[d_k].add(r['aluno_id'])
 
     # Monta a grade de dias do calendário
     start_weekday = (first_day_of_month.weekday() + 1) % 7
@@ -96,7 +110,40 @@ def lancar_chamada_view(request):
     for day_num in range(1, num_days + 1):
         d_obj = date(year, month, day_num)
         d_iso = d_obj.isoformat()
-        has_attendance = d_obj in datas_com_chamada
+
+        # Filtra os alunos matriculados ativos exatamente no dia d_obj
+        alunos_no_d_obj = [
+            a for a in alunos_ativos_mes
+            if (not a.data_entrada or a.data_entrada <= d_obj) and
+               (not a.data_desligamento or a.data_desligamento >= d_obj)
+        ]
+
+        saved_aluno_ids = saved_by_date.get(d_obj, set())
+
+        if selected_turma:
+            # Se uma sala específica estiver selecionada, verifica se todos os alunos dela foram salvos
+            turma_alunos = [a for a in alunos_no_d_obj if a.turma_id == selected_turma.id]
+            total_esperado = len(turma_alunos)
+            has_attendance = (
+                total_esperado > 0 and 
+                len(set(a.id for a in turma_alunos).intersection(saved_aluno_ids)) == total_esperado
+            )
+        else:
+            # Em "Todas as salas", a bolinha verde só aparece quando todas as salas tiverem 100% da chamada concluída
+            total_esperado = len(alunos_no_d_obj)
+            if total_esperado == 0:
+                has_attendance = False
+            else:
+                all_salas_saved = True
+                for t in turmas:
+                    t_alunos = [a for a in alunos_no_d_obj if a.turma_id == t.id]
+                    if t_alunos:
+                        t_salvos = len(set(a.id for a in t_alunos).intersection(saved_aluno_ids))
+                        if t_salvos < len(t_alunos):
+                            all_salas_saved = False
+                            break
+                has_attendance = all_salas_saved
+
         calendar_days.append({
             'is_padding': False,
             'day': day_num,
