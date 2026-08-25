@@ -11,7 +11,8 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 from presencas.models import (
     Turma, Aluno, RegistroPresenca, StatusPresenca,
-    OcorrenciaCaderno, TipoOcorrencia, AtendimentoEnfermaria
+    OcorrenciaCaderno, TipoOcorrencia, AtendimentoEnfermaria,
+    RegistroAmamentacao
 )
 
 User = get_user_model()
@@ -170,35 +171,33 @@ with open('export_data/4_caderno_seami_ocorrencias.csv', 'w', encoding='utf-8-si
         ])
 
 print("Exportando Amamentação...")
-amamentacao = OcorrenciaCaderno.objects.filter(tipo=TipoOcorrencia.AMAMENTACAO).select_related('aluno', 'turma', 'registrado_por').order_by('-data', '-criado_em')
+amamentacao = RegistroAmamentacao.objects.select_related('registrado_por').order_by('-data')
 amamentacao_json = [
     {
-        "id": o.id,
-        "aluno_id": o.aluno_id,
-        "aluno": o.aluno.nome if o.aluno else "",
-        "turma_id": o.turma_id,
-        "turma": o.turma.nome if o.turma else "",
-        "data": o.data.strftime("%d/%m/%Y"),
-        "horario": str(o.horario) if o.horario else "",
-        "quantidade": o.quantidade,
-        "motivo": o.motivo or "Mamadeira / Leite Materno",
-        "observacao": o.observacao,
-        "registrado_por": o.registrado_por.get_full_name() or o.registrado_por.username if o.registrado_por else "",
+        "id": r.id,
+        "data": r.data.strftime("%d/%m/%Y"),
+        "quantidade": r.quantidade,
+        "ano": r.ano,
+        "mes": r.mes,
+        "observacao": r.observacao,
+        "attachment_name": r.attachment_name or "",
+        "registrado_por": r.registrado_por.get_full_name() or r.registrado_por.username if r.registrado_por else "",
+        "criado_em": timezone.localtime(r.criado_em).strftime("%d/%m/%Y %H:%M:%S") if r.criado_em else "",
     }
-    for o in amamentacao
+    for r in amamentacao
 ]
 with open('export_data/5_amamentacao_seami.json', 'w', encoding='utf-8') as f:
     json.dump(amamentacao_json, f, indent=2, ensure_ascii=False)
 
 with open('export_data/5_amamentacao_seami.csv', 'w', encoding='utf-8-sig', newline='') as f:
     w = csv.writer(f, delimiter=';')
-    w.writerow(["ID", "Data", "Aluno ID", "Nome da Criança", "Turma ID", "Turma", "Horário", "Qtd Mamadeiras", "Motivo", "Observação", "Registrado por"])
-    for o in amamentacao:
+    w.writerow(["ID", "Data", "Quantidade", "Ano", "Mês", "Observação", "Anexo", "Registrado por", "Criado em"])
+    for r in amamentacao:
         w.writerow([
-            o.id, o.data.strftime("%d/%m/%Y"), o.aluno_id or "", o.aluno.nome if o.aluno else "",
-            o.turma_id or "", o.turma.nome if o.turma else "", str(o.horario) if o.horario else "",
-            o.quantidade, o.motivo or "Mamadeira / Leite Materno", o.observacao,
-            o.registrado_por.get_full_name() or o.registrado_por.username if o.registrado_por else "",
+            r.id, r.data.strftime("%d/%m/%Y"), r.quantidade, r.ano, r.mes,
+            r.observacao, r.attachment_name or "",
+            r.registrado_por.get_full_name() or r.registrado_por.username if r.registrado_por else "",
+            timezone.localtime(r.criado_em).strftime("%d/%m/%Y %H:%M:%S") if r.criado_em else "",
         ])
 
 print("Exportando Enfermaria...")

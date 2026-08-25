@@ -7,7 +7,8 @@ from django.db import transaction
 from django.contrib.auth import get_user_model
 from presencas.models import (
     Turma, Aluno, RegistroPresenca, StatusPresenca,
-    DiarioDeClasse, OcorrenciaCaderno, TipoOcorrencia, TurnoAluno
+    DiarioDeClasse, OcorrenciaCaderno, TipoOcorrencia, TurnoAluno,
+    RegistroAmamentacao
 )
 
 User = get_user_model()
@@ -499,85 +500,57 @@ def import_ocorrencias(rows, user=None):
 
 
 def import_amamentacao(rows, user=None):
-    """Importa registros de amamentação do Caderno SEAMI."""
+    """Importa registros diários da Sala de Amamentação para a model RegistroAmamentacao."""
     created, updated = 0, 0
     with transaction.atomic():
         for r in rows:
-            data_val = parse_date_flexible(r.get('data') or r.get('Data'))
+            data_val = parse_date_flexible(
+                r.get('data') or r.get('Data') or r.get('data_inicio') or r.get('Data Início') or r.get('Data Inicio')
+            )
             if not data_val:
                 continue
 
-            aluno_nome = r.get('aluno') or r.get('Aluno') or r.get('Nome da Criança')
-            aluno_id = r.get('aluno_id') or r.get('Aluno ID')
-            aluno = None
-            if aluno_id and str(aluno_id).isdigit():
-                aluno = Aluno.objects.filter(id=int(aluno_id)).first()
-            if not aluno and aluno_nome:
-                aluno = Aluno.objects.filter(nome__iexact=str(aluno_nome).strip()).first()
-
-            turma = None
-            turma_id = r.get('turma_id') or r.get('Turma ID')
-            if turma_id and str(turma_id).isdigit():
-                turma = Turma.objects.filter(id=int(turma_id)).first()
-            if not turma and aluno:
-                turma = aluno.turma
-            if not turma:
-                turma_nome = r.get('turma') or r.get('Turma')
-                if turma_nome:
-                    turma = Turma.objects.filter(nome__iexact=str(turma_nome).strip()).first()
-
-            qtd_val = r.get('quantidade') or r.get('Quantidade') or r.get('Qtd Mamadeiras') or 1
+            qtd_val = r.get('quantidade') or r.get('Quantidade') or r.get('Qtd Mamadeiras') or r.get('qtd') or 1
             try:
                 qtd_int = int(qtd_val)
             except Exception:
                 qtd_int = 1
 
-            horario_val = r.get('horario') or r.get('Horário') or r.get('Horario') or ''
-            h_obj = None
-            if horario_val and ':' in str(horario_val):
-                try:
-                    parts = str(horario_val).strip().split(':')
-                    h_obj = datetime.strptime(f"{int(parts[0]):02d}:{int(parts[1]):02d}", "%H:%M").time()
-                except Exception:
-                    h_obj = None
+            obs = str(r.get('observacao') or r.get('Observação') or r.get('Observacao') or '').strip()
+            motivo = str(r.get('motivo') or r.get('Motivo') or '').strip()
+            if motivo and motivo not in ['Mamadeira / Leite Materno', 'Mamadeira'] and motivo not in obs:
+                obs = f"{motivo} - {obs}" if obs else motivo
 
-            motivo = r.get('motivo') or r.get('Motivo') or 'Mamadeira / Leite Materno'
-            obs = r.get('observacao') or r.get('Observação') or r.get('Observacao') or ''
+            attachment_name = str(r.get('attachment_name') or r.get('Anexo') or r.get('Nome do Arquivo Anexo') or '').strip()
 
             existing = None
             row_id = r.get('id') or r.get('ID')
             if row_id and str(row_id).isdigit():
-                existing = OcorrenciaCaderno.objects.filter(id=int(row_id), tipo=TipoOcorrencia.AMAMENTACAO).first()
+                existing = RegistroAmamentacao.objects.filter(id=int(row_id)).first()
 
             if not existing:
-                lookup = OcorrenciaCaderno.objects.filter(
-                    tipo=TipoOcorrencia.AMAMENTACAO,
-                    aluno=aluno,
-                    data=data_val,
-                )
-                if h_obj:
-                    lookup = lookup.filter(horario=h_obj)
-                existing = lookup.first()
+                existing = RegistroAmamentacao.objects.filter(data=data_val).first()
 
             if not existing:
-                OcorrenciaCaderno.objects.create(
-                    tipo=TipoOcorrencia.AMAMENTACAO,
-                    aluno=aluno,
-                    turma=turma,
+                RegistroAmamentacao.objects.create(
                     data=data_val,
                     quantidade=qtd_int,
-                    motivo=motivo,
+                    ano=data_val.year,
+                    mes=data_val.month,
                     observacao=obs,
-                    horario=h_obj,
+                    attachment_name=attachment_name,
                     registrado_por=user,
                 )
                 created += 1
             else:
-                existing.turma = turma or existing.turma
+                existing.data = data_val
                 existing.quantidade = qtd_int
-                existing.motivo = motivo
-                existing.observacao = obs
-                if h_obj: existing.horario = h_obj
+                existing.ano = data_val.year
+                existing.mes = data_val.month
+                if obs:
+                    existing.observacao = obs
+                if attachment_name:
+                    existing.attachment_name = attachment_name
                 existing.save()
                 updated += 1
 

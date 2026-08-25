@@ -12,7 +12,8 @@ from django.utils import timezone
 from django.db.models import Count, Q, Sum
 from presencas.models import (
     Turma, Aluno, RegistroPresenca, StatusPresenca,
-    DiarioDeClasse, OcorrenciaCaderno, TipoOcorrencia
+    DiarioDeClasse, OcorrenciaCaderno, TipoOcorrencia,
+    RegistroAmamentacao, AtendimentoEnfermaria
 )
 from presencas.services import (
     get_novas_matriculas_periodo,
@@ -1649,25 +1650,23 @@ def central_exportacao_view(request):
                     ])
                 return resp
 
-        # 5. ORDEM 5: REGISTROS DE AMAMENTAÇÃO (CADERNO SEAMI)
+        # 5. ORDEM 5: REGISTROS DE AMAMENTAÇÃO (SALA DE AMAMENTAÇÃO)
         elif download == 'amamentacao':
-            qs = OcorrenciaCaderno.objects.filter(tipo=TipoOcorrencia.AMAMENTACAO).select_related('aluno', 'turma', 'registrado_por').order_by('-data', '-criado_em')
+            qs = RegistroAmamentacao.objects.select_related('registrado_por').order_by('-data')
             if fmt == 'json':
                 data = [
                     {
-                        "id": o.id,
-                        "aluno_id": o.aluno_id,
-                        "aluno": o.aluno.nome if o.aluno else "",
-                        "turma_id": o.turma_id,
-                        "turma": o.turma.nome if o.turma else "",
-                        "data": o.data.strftime("%d/%m/%Y"),
-                        "horario": str(o.horario) if o.horario else "",
-                        "quantidade": o.quantidade,
-                        "motivo": o.motivo or "Mamadeira / Leite Materno",
-                        "observacao": o.observacao,
-                        "registrado_por": o.registrado_por.get_full_name() or o.registrado_por.username if o.registrado_por else "",
+                        "id": r.id,
+                        "data": r.data.strftime("%d/%m/%Y"),
+                        "quantidade": r.quantidade,
+                        "ano": r.ano,
+                        "mes": r.mes,
+                        "observacao": r.observacao,
+                        "attachment_name": r.attachment_name or "",
+                        "registrado_por": r.registrado_por.get_full_name() or r.registrado_por.username if r.registrado_por else "",
+                        "criado_em": timezone.localtime(r.criado_em).strftime("%d/%m/%Y %H:%M:%S") if r.criado_em else "",
                     }
-                    for o in qs
+                    for r in qs
                 ]
                 resp = HttpResponse(json.dumps(data, indent=2, ensure_ascii=False), content_type="application/json; charset=utf-8")
                 resp['Content-Disposition'] = f'attachment; filename="5_amamentacao_seami_{timestamp}.json"'
@@ -1676,20 +1675,18 @@ def central_exportacao_view(request):
                 resp = HttpResponse(content_type="text/csv; charset=utf-8-sig")
                 resp['Content-Disposition'] = f'attachment; filename="5_amamentacao_seami_{timestamp}.csv"'
                 w = csv.writer(resp, delimiter=";")
-                w.writerow(["ID", "Data", "Aluno ID", "Nome da Criança", "Turma ID", "Turma", "Horário", "Qtd Mamadeiras", "Motivo", "Observação", "Registrado por"])
-                for o in qs:
+                w.writerow(["ID", "Data", "Quantidade", "Ano", "Mês", "Observação", "Anexo", "Registrado por", "Criado em"])
+                for r in qs:
                     w.writerow([
-                        o.id,
-                        o.data.strftime("%d/%m/%Y"),
-                        o.aluno_id or "",
-                        o.aluno.nome if o.aluno else "",
-                        o.turma_id or "",
-                        o.turma.nome if o.turma else "",
-                        str(o.horario) if o.horario else "",
-                        o.quantidade,
-                        o.motivo or "Mamadeira / Leite Materno",
-                        o.observacao,
-                        o.registrado_por.get_full_name() or o.registrado_por.username if o.registrado_por else "",
+                        r.id,
+                        r.data.strftime("%d/%m/%Y"),
+                        r.quantidade,
+                        r.ano,
+                        r.mes,
+                        r.observacao,
+                        r.attachment_name or "",
+                        r.registrado_por.get_full_name() or r.registrado_por.username if r.registrado_por else "",
+                        timezone.localtime(r.criado_em).strftime("%d/%m/%Y %H:%M:%S") if r.criado_em else "",
                     ])
                 return resp
 
