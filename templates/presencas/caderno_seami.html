@@ -294,8 +294,7 @@
                         <td style="padding: 14px 18px;">
                             {% if item.cid %}
                             <span
-                                style="background: #f1f5f9; color: #334155; padding: 3px 8px; border-radius: 6px; font-family: monospace; font-weight: 700; font-size: 12px;">{{
-                                item.cid }}</span>
+                                style="background: #f1f5f9; color: #334155; padding: 3px 8px; border-radius: 6px; font-family: monospace; font-weight: 700; font-size: 12px;">{{ item.cid }}</span>
                             {% else %}
                             <span style="color: var(--text-light);">-</span>
                             {% endif %}
@@ -655,8 +654,8 @@
                                 <strong id="selected-student-name"
                                     style="color: #1e293b; font-size: 14.5px; display: block;">Nome do Aluno</strong>
                                 <span id="selected-student-classroom"
-                                    style="font-size: 11px; color: #3b82f6; font-weight: 700; text-transform: uppercase;">SALA
-                                    / TURMA: Sala Alegria</span>
+                                    style="font-size: 11px; color: #3b82f6; font-weight: 700; text-transform: uppercase;">
+                                    SALA / TURMA: Sala Alegria</span>
                             </div>
                         </div>
                         <button type="button" onclick="deselectModalStudent()" title="Trocar Aluno"
@@ -689,8 +688,7 @@
                                         style="width: 26px; height: 26px; border-radius: 50%; background-color: #dbeafe; color: #1e40af; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;">
                                         {{ st.nome|slice:":1" }}
                                     </div>
-                                    <span style="font-weight: 600; color: var(--text-primary); font-size: 13px;">{{
-                                        st.nome }}</span>
+                                    <span style="font-weight: 600; color: var(--text-primary); font-size: 13px;">{{ st.nome }}</span>
                                 </div>
                                 <span
                                     style="font-size: 10px; padding: 2px 8px; border-radius: 10px; background-color: #dbeafe; color: #1e40af; font-weight: 700;">
