@@ -701,6 +701,11 @@ def build_relatorios_context(request):
     year_start = date(current_year, 1, 1)
     year_end = date(current_year, 12, 31)
 
+    # Período padrão: Este Mês (idêntico ao Dashboard da página inicial)
+    num_days_this_month = calendar.monthrange(today.year, today.month)[1]
+    this_month_start = date(today.year, today.month, 1)
+    this_month_end = date(today.year, today.month, num_days_this_month)
+
     active_tab = request.GET.get('subtab', request.GET.get('tab', 'faltas')).strip()
     if active_tab == 'relatorios' or active_tab not in ['faltas', 'atrasos', 'frequencia', 'matriculas']:
         active_tab = request.GET.get('subtab', request.GET.get('tab_relatorio', 'faltas')).strip()
@@ -714,15 +719,15 @@ def build_relatorios_context(request):
     justified_filter = request.GET.get('justified', 'all').strip()
 
     if not date_start_str or not date_end_str:
-        date_start = date(current_year, 1, 1)
-        date_end = date(current_year, 12, 31)
+        date_start = this_month_start
+        date_end = this_month_end
     else:
         try:
             date_start = datetime.strptime(date_start_str, '%Y-%m-%d').date()
             date_end = datetime.strptime(date_end_str, '%Y-%m-%d').date()
         except ValueError:
-            date_start = date(current_year, 1, 1)
-            date_end = date(current_year, 12, 31)
+            date_start = this_month_start
+            date_end = this_month_end
 
     turmas_qs = Turma.objects.filter(ativo=True).order_by('nome')
     all_students_qs = Aluno.objects.all().select_related('turma').order_by('nome')
@@ -738,11 +743,11 @@ def build_relatorios_context(request):
     }
 
     # =========================================================================
-    # CÁLCULOS GERAIS DO ANO DE 2026 POR ALUNO (FALTAS E ATRASOS NO CADERNO SEAMI)
+    # CÁLCULOS GERAIS DO ANO DE 2026 POR ALUNO (FALTAS EM REGISTROPRESENCA)
     # =========================================================================
     faltas_ano_agg = (
-        OcorrenciaCaderno.objects.filter(
-            tipo=TipoOcorrencia.FALTA,
+        RegistroPresenca.objects.filter(
+            status__in=[StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO],
             data__gte=year_start,
             data__lte=year_end
         ).values('aluno_id', 'aluno__nome').annotate(total_ano=Count('id'))
@@ -758,7 +763,7 @@ def build_relatorios_context(request):
     alunos_limite_10_count = len(alunos_limite_10_list)
     alunos_limite_10_nomes = ", ".join(alunos_limite_10_list)
 
-    # Mapa de atrasos acumulados no ano por aluno
+    # Mapa de atrasos acumulados no ano por aluno (Caderno SEAMI)
     atrasos_ano_agg = (
         OcorrenciaCaderno.objects.filter(
             tipo=TipoOcorrencia.ATRASO,
@@ -770,30 +775,41 @@ def build_relatorios_context(request):
     total_atrasos_ano_geral = sum(mapa_atrasos_ano.values())
 
     # =========================================================================
-    # 1. ABA RELATÓRIO DE FALTAS (CADERNO SEAMI)
+    # 1. ABA RELATÓRIO DE FALTAS (CHAMADA DIÁRIA / REGISTROPRESENCA + CADERNO)
     # =========================================================================
-    ocorrencias_faltas_qs = OcorrenciaCaderno.objects.filter(
-        tipo=TipoOcorrencia.FALTA,
+    # Mapeia ocorrências do Caderno para enriquecer com CID/Documento/Comprovante se houver
+    ocorrencias_caderno_map = {}
+    for oc in OcorrenciaCaderno.objects.filter(
+        tipo__in=[TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO],
         data__gte=date_start,
         data__lte=date_end
-    ).select_related('aluno', 'turma')
+    ).select_related('aluno'):
+        if oc.aluno_id:
+            key = (oc.aluno_id, oc.data)
+            ocorrencias_caderno_map[key] = oc
+
+    registros_faltas_qs = RegistroPresenca.objects.filter(
+        status__in=[StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO],
+        data__gte=date_start,
+        data__lte=date_end
+    ).select_related('aluno', 'turma', 'diario_classe', 'registrado_por')
 
     classroom_clean = classroom_filter.replace('Sala', '').replace('sala', '').strip()
     if classroom_filter:
-        ocorrencias_faltas_qs = ocorrencias_faltas_qs.filter(
+        registros_faltas_qs = registros_faltas_qs.filter(
             Q(turma__nome__iexact=classroom_filter) |
             Q(turma__nome__iexact=classroom_clean) |
             Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
         )
-    if student_id_filter and student_id_filter.isdigit():
-        ocorrencias_faltas_qs = ocorrencias_faltas_qs.filter(aluno_id=int(student_id_filter))
+    if student_id_filter and str(student_id_filter).isdigit():
+        registros_faltas_qs = registros_faltas_qs.filter(aluno_id=int(student_id_filter))
 
     if justified_filter == 'sim':
-        ocorrencias_faltas_qs = ocorrencias_faltas_qs.filter(justificado=True)
+        registros_faltas_qs = registros_faltas_qs.filter(status=StatusPresenca.JUSTIFICADO)
     elif justified_filter == 'nao':
-        ocorrencias_faltas_qs = ocorrencias_faltas_qs.filter(justificado=False)
+        registros_faltas_qs = registros_faltas_qs.filter(status=StatusPresenca.AUSENTE)
 
-    ocorrencias_faltas_qs = ocorrencias_faltas_qs.order_by('-data', '-criado_em')
+    registros_faltas_qs = registros_faltas_qs.order_by('-data', 'aluno__nome')
 
     faltas_tabela_list = []
     criancas_impactadas_faltas_set = set()
@@ -801,42 +817,53 @@ def build_relatorios_context(request):
     total_justificadas_periodo = 0
     total_nao_justificadas_periodo = 0
 
-    for oc in ocorrencias_faltas_qs:
+    for reg in registros_faltas_qs:
         total_faltas_periodo += 1
-        if oc.aluno_id:
-            criancas_impactadas_faltas_set.add(oc.aluno_id)
+        if reg.aluno_id:
+            criancas_impactadas_faltas_set.add(reg.aluno_id)
 
-        is_just = bool(oc.justificado)
+        is_just = (reg.status == StatusPresenca.JUSTIFICADO)
         if is_just:
             total_justificadas_periodo += 1
         else:
             total_nao_justificadas_periodo += 1
 
-        nome_sala = oc.turma.nome.lower().strip() if oc.turma else ''
+        nome_sala = reg.turma.nome.lower().strip() if reg.turma else ''
         turma_style = cores_salas.get(nome_sala, {'bg': '#f1f5f9', 'color': '#475569', 'border': '#cbd5e1', 'emoji': '🏫'})
-        faltas_aluno_ano = mapa_faltas_ano.get(oc.aluno_id, 0)
+        faltas_aluno_ano = mapa_faltas_ano.get(reg.aluno_id, 0)
 
-        tipo_display = 'Justificada' if oc.justificado else 'Não Justificada'
+        tipo_display = 'Justificada' if is_just else 'Não Justificada'
+
+        # Busca dados adicionais do Caderno SEAMI (CID / Comprovante) se houver
+        oc_extra = ocorrencias_caderno_map.get((reg.aluno_id, reg.data))
+        motivo_text = reg.observacao.strip() if reg.observacao else ''
+        cid_val = ''
+        doc_val = None
+        if oc_extra:
+            if not motivo_text and oc_extra.motivo:
+                motivo_text = oc_extra.motivo.strip()
+            cid_val = oc_extra.cid or ''
+            doc_val = oc_extra.documento
 
         faltas_tabela_list.append({
-            'data': oc.data,
-            'data_fim': oc.data_fim,
-            'periodo_formatado': oc.periodo_formatado,
-            'aluno': oc.aluno,
-            'aluno_nome': oc.aluno.nome if oc.aluno else 'Não informado',
-            'turma': oc.turma,
-            'turma_nome': oc.turma.nome if oc.turma else 'Geral',
+            'data': reg.data,
+            'data_fim': None,
+            'periodo_formatado': reg.data.strftime('%d/%m/%Y'),
+            'aluno': reg.aluno,
+            'aluno_nome': reg.aluno.nome if reg.aluno else 'Não informado',
+            'turma': reg.turma,
+            'turma_nome': reg.turma.nome if reg.turma else 'Geral',
             'turma_style': turma_style,
             'tipo_falta': tipo_display,
             'is_justificada': is_just,
-            'cid': oc.cid,
-            'motivo': oc.motivo.strip() if oc.motivo and oc.motivo.strip() else '',
-            'responsavel': oc.aluno.nome_responsavel if oc.aluno and oc.aluno.nome_responsavel else 'Responsável familiar',
-            'telefone_responsavel': oc.aluno.telefone_responsavel if oc.aluno else '',
+            'cid': cid_val,
+            'motivo': motivo_text,
+            'responsavel': reg.aluno.nome_responsavel if reg.aluno and reg.aluno.nome_responsavel else 'Responsável familiar',
+            'telefone_responsavel': reg.aluno.telefone_responsavel if reg.aluno else '',
             'faltas_no_ano': faltas_aluno_ano,
             'is_alerta_10': faltas_aluno_ano >= 10,
-            'documento': oc.documento,
-            'comprovante': oc.documento,
+            'documento': doc_val,
+            'comprovante': doc_val,
         })
 
     # =========================================================================

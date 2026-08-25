@@ -133,11 +133,9 @@
         </form>
     </div>
 
-    <!-- ================================================================= -->
-    <!-- TABELA DE REGISTROS DO CADERNO SEAMI                              -->
-    <!-- ================================================================= -->
-
-
+    <!-- ========================================================================= -->
+    <!-- TABELA PRINCIPAL DE OCORRÊNCIAS                                           -->
+    <!-- ========================================================================= -->
     <div
         style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden;">
         <div
@@ -153,8 +151,7 @@
                 {% endif %}
                 <span id="counter-badge"
                     style="font-size: 12px; font-weight: 700; background-color: {% if active_tab_nav == 'amamentacao' %}#fdf2f8{% else %}var(--color-primary-light){% endif %}; color: {% if active_tab_nav == 'amamentacao' %}#db2777{% else %}var(--color-primary){% endif %}; padding: 2px 8px; border-radius: 999px; border: 1px solid {% if active_tab_nav == 'amamentacao' %}#fbcfe8{% else %}transparent{% endif %};">
-                    {{ total_count }} {% if active_tab_nav == 'amamentacao' %}{{ total_count|pluralize:"registro
-                    diário,registros diários" }}{% else %}{{ total_count|pluralize:"registro,registros" }}{% endif %}
+                    {{ total_count }} {% if active_tab_nav == 'amamentacao' %}{{ total_count|pluralize:"registro diário,registros diários" }}{% else %}{{ total_count|pluralize:"registro,registros" }}{% endif %}
                 </span>
             </div>
             {% if active_tab_nav == 'amamentacao' %}
@@ -431,11 +428,13 @@
                             <div style="font-size: 36px; margin-bottom: 8px;">🍼</div>
                             <div
                                 style="font-weight: 700; font-size: 15px; color: var(--text-primary); margin-bottom: 4px;">
-                                {% if active_tab_nav == 'amamentacao' %}Nenhum registro diário encontrado{% else
-                                %}Nenhum registro encontrado{% endif %}
+                                {% if active_tab_nav == 'amamentacao' %}
+                                Nenhum registro diário encontrado
+                                {% else %}
+                                Nenhum registro encontrado
+                                {% endif %}
                             </div>
-                            <div style="font-size: 13px;">Clique em "{% if active_tab_nav == 'amamentacao' %}Novo
-                                Registro Diário{% else %}Novo Registro{% endif %}" para adicionar uma ocorrência.</div>
+                            <div style="font-size: 13px;">Clique em "{% if active_tab_nav == 'amamentacao' %}Novo Registro Diário{% else %}Novo Registro{% endif %}" para adicionar uma ocorrência.</div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -493,8 +492,7 @@
                     <span>Quantitativo Mensal de Amamentação (Consolidado)</span>
                     <span
                         style="font-size: 12px; font-weight: 700; background-color: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; padding: 2px 8px; border-radius: 999px;">
-                        {{ historico_amamentacao|length }} {{ historico_amamentacao|length|pluralize:"mês
-                        contabilizado,meses contabilizados" }}
+                        {{ historico_amamentacao|length }} {{ historico_amamentacao|length|pluralize:"mês contabilizado,meses contabilizados" }}
                     </span>
                 </div>
                 <span style="font-size: 12px; color: var(--text-secondary);">
@@ -538,8 +536,7 @@
                         <td
                             style="padding: 14px 18px; text-align: center; color: #db2777; font-weight: 800; font-size: 15px;">
                             {{ hist.total_quantity }} <span
-                                style="font-size: 12px; font-weight: 600; color: #be185d;">{{
-                                hist.total_quantity|pluralize:"utilização,utilizações" }}</span>
+                                style="font-size: 12px; font-weight: 600; color: #be185d;">{{ hist.total_quantity|pluralize:"utilização,utilizações" }}</span>
                         </td>
                         <td style="padding: 14px 18px; color: var(--text-secondary);">
                             {% if hist.is_daily_sum %}
@@ -692,7 +689,8 @@
                                         style="width: 26px; height: 26px; border-radius: 50%; background-color: #dbeafe; color: #1e40af; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;">
                                         {{ st.nome|slice:":1" }}
                                     </div>
-                                    <span style="font-weight: 600; color: var(--text-primary); font-size: 13px;">{{ st.nome }}</span>
+                                    <span style="font-weight: 600; color: var(--text-primary); font-size: 13px;">{{
+                                        st.nome }}</span>
                                 </div>
                                 <span
                                     style="font-size: 10px; padding: 2px 8px; border-radius: 10px; background-color: #dbeafe; color: #1e40af; font-weight: 700;">
@@ -1133,8 +1131,11 @@
 <!-- ========================================================================= -->
 <!-- MODAL DE VISUALIZAÇÃO DE DOCUMENTO ANEXO (DOC)                            -->
 <!-- ========================================================================= -->
-<div id="modal-doc-viewer" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.6); z-index: 99999 !important; justify-content: center; align-items: center; backdrop-filter: blur(4px); padding: 20px; box-sizing: border-box;">
-    <div class="modal-card" style="max-width: 720px; width: 95%; max-height: 92vh; background: var(--bg-card); border-radius: var(--radius-lg); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); overflow: hidden; display: flex; flex-direction: column;" onclick="event.stopPropagation()">
+<div id="modal-doc-viewer" class="modal-overlay"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.6); z-index: 99999 !important; justify-content: center; align-items: center; backdrop-filter: blur(4px); padding: 20px; box-sizing: border-box;">
+    <div class="modal-card"
+        style="max-width: 720px; width: 95%; max-height: 92vh; background: var(--bg-card); border-radius: var(--radius-lg); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); overflow: hidden; display: flex; flex-direction: column;"
+        onclick="event.stopPropagation()">
         <div class="modal-header"
             style="border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 16px 20px;">
             <div style="display: flex; align-items: center; gap: 8px;">
@@ -1542,7 +1543,7 @@
                 if (downLink) downLink.href = docUrl;
                 const viewBtn = document.getElementById('btn-view-existing-doc');
                 if (viewBtn) {
-                    viewBtn.onclick = function() {
+                    viewBtn.onclick = function () {
                         viewDoc(docUrl, docName || 'Anexo Atual');
                     };
                 }
@@ -1803,152 +1804,152 @@
         doc.text(`Emissão: ${new Date().toLocaleDateString('pt-BR')}`, 12, 24);
 
         const sortedMonths = {% if meses_consolidado_json %}{{ meses_consolidado_json|safe }}{% else %}[]{% endif %};
-        if (!sortedMonths || sortedMonths.length === 0) {
-            alert('Não há dados de amamentação para exportar.');
-            return;
-        }
+    if (!sortedMonths || sortedMonths.length === 0) {
+        alert('Não há dados de amamentação para exportar.');
+        return;
+    }
 
-        const grandTotal = sortedMonths.reduce((acc, curr) => acc + (curr.total_quantity || 0), 0);
+    const grandTotal = sortedMonths.reduce((acc, curr) => acc + (curr.total_quantity || 0), 0);
 
-        let y = 40;
-        doc.setFillColor(252, 231, 243);
-        doc.rect(10, y, 190, 14, 'F');
-        doc.setDrawColor(244, 114, 182);
-        doc.rect(10, y, 190, 14, 'S');
+    let y = 40;
+    doc.setFillColor(252, 231, 243);
+    doc.rect(10, y, 190, 14, 'F');
+    doc.setDrawColor(244, 114, 182);
+    doc.rect(10, y, 190, 14, 'S');
 
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10);
-        doc.setTextColor(157, 23, 77);
-        doc.text(`TOTAL GERAL DE AMAMENTAÇÕES NO PERÍODO: ${grandTotal}`, 14, y + 9);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(157, 23, 77);
+    doc.text(`TOTAL GERAL DE AMAMENTAÇÕES NO PERÍODO: ${grandTotal}`, 14, y + 9);
 
-        y += 20;
+    y += 20;
 
-        // Gerar Gráfico de Pontos para o PDF (Evolução Mensal em Rosa)
-        const offscreenCanvas = document.createElement('canvas');
-        offscreenCanvas.width = 900;
-        offscreenCanvas.height = 320;
-        offscreenCanvas.style.display = 'none';
-        document.body.appendChild(offscreenCanvas);
-        const offscreenCtx = offscreenCanvas.getContext('2d');
+    // Gerar Gráfico de Pontos para o PDF (Evolução Mensal em Rosa)
+    const offscreenCanvas = document.createElement('canvas');
+    offscreenCanvas.width = 900;
+    offscreenCanvas.height = 320;
+    offscreenCanvas.style.display = 'none';
+    document.body.appendChild(offscreenCanvas);
+    const offscreenCtx = offscreenCanvas.getContext('2d');
 
-        const labels = sortedMonths.map(r => r.month_label);
-        const dataPoints = sortedMonths.map(r => r.total_quantity);
+    const labels = sortedMonths.map(r => r.month_label);
+    const dataPoints = sortedMonths.map(r => r.total_quantity);
 
-        const valueLabelsPlugin = {
-            id: 'valueLabels',
-            afterDatasetsDraw(chart) {
-                const { ctx } = chart;
-                ctx.save();
-                chart.data.datasets.forEach((dataset, datasetIndex) => {
-                    const meta = chart.getDatasetMeta(datasetIndex);
-                    if (meta.hidden) return;
-                    meta.data.forEach((element, index) => {
-                        const val = dataset.data[index];
-                        if (val !== undefined && val !== null && val !== 0) {
-                            ctx.fillStyle = '#9d174d';
-                            ctx.font = 'bold 11px Helvetica, Arial, sans-serif';
-                            ctx.textAlign = 'center';
-                            ctx.textBaseline = 'bottom';
-                            const position = element.tooltipPosition();
-                            ctx.fillText(String(val), position.x, position.y - 4);
-                        }
-                    });
+    const valueLabelsPlugin = {
+        id: 'valueLabels',
+        afterDatasetsDraw(chart) {
+            const { ctx } = chart;
+            ctx.save();
+            chart.data.datasets.forEach((dataset, datasetIndex) => {
+                const meta = chart.getDatasetMeta(datasetIndex);
+                if (meta.hidden) return;
+                meta.data.forEach((element, index) => {
+                    const val = dataset.data[index];
+                    if (val !== undefined && val !== null && val !== 0) {
+                        ctx.fillStyle = '#9d174d';
+                        ctx.font = 'bold 11px Helvetica, Arial, sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'bottom';
+                        const position = element.tooltipPosition();
+                        ctx.fillText(String(val), position.x, position.y - 4);
+                    }
                 });
-                ctx.restore();
-            }
-        };
-
-        const chartInst = new Chart(offscreenCtx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Total de Amamentações',
-                    data: dataPoints,
-                    borderColor: '#db2777',
-                    backgroundColor: 'rgba(219, 39, 119, 0.15)',
-                    pointBackgroundColor: '#db2777',
-                    pointBorderColor: '#ffffff',
-                    pointRadius: 6,
-                    pointHoverRadius: 9,
-                    pointBorderWidth: 2,
-                    tension: 0.35,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: false,
-                animation: false,
-                plugins: {
-                    legend: { display: true, position: 'top', labels: { font: { family: 'Helvetica', weight: 'bold' } } },
-                    title: { display: true, text: 'Evolução Mensal do Quantitativo de Amamentações', font: { family: 'Helvetica', weight: 'bold', size: 14 }, color: '#9d174d' }
-                },
-                scales: {
-                    x: { grid: { display: false }, ticks: { font: { weight: 'bold' } } },
-                    y: { grid: { color: '#fbcfe8' }, beginAtZero: true, ticks: { font: { weight: 'bold' } } }
-                }
-            },
-            plugins: [valueLabelsPlugin]
-        });
-
-        try {
-            const chartImg = offscreenCanvas.toDataURL('image/png');
-            chartInst.destroy();
-            doc.addImage(chartImg, 'PNG', 12, y, 186, 62);
-            y += 68;
-        } catch (e) {
-            console.error('Erro ao inserir gráfico de amamentação no PDF:', e);
-            chartInst.destroy();
-        } finally {
-            if (document.body.contains(offscreenCanvas)) {
-                document.body.removeChild(offscreenCanvas);
-            }
+            });
+            ctx.restore();
         }
+    };
 
-        // Tabela Mensal Consolidada (Sem detalhamento por dia)
-        if (y + 25 > 275) {
+    const chartInst = new Chart(offscreenCtx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Total de Amamentações',
+                data: dataPoints,
+                borderColor: '#db2777',
+                backgroundColor: 'rgba(219, 39, 119, 0.15)',
+                pointBackgroundColor: '#db2777',
+                pointBorderColor: '#ffffff',
+                pointRadius: 6,
+                pointHoverRadius: 9,
+                pointBorderWidth: 2,
+                tension: 0.35,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: false,
+            animation: false,
+            plugins: {
+                legend: { display: true, position: 'top', labels: { font: { family: 'Helvetica', weight: 'bold' } } },
+                title: { display: true, text: 'Evolução Mensal do Quantitativo de Amamentações', font: { family: 'Helvetica', weight: 'bold', size: 14 }, color: '#9d174d' }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { font: { weight: 'bold' } } },
+                y: { grid: { color: '#fbcfe8' }, beginAtZero: true, ticks: { font: { weight: 'bold' } } }
+            }
+        },
+        plugins: [valueLabelsPlugin]
+    });
+
+    try {
+        const chartImg = offscreenCanvas.toDataURL('image/png');
+        chartInst.destroy();
+        doc.addImage(chartImg, 'PNG', 12, y, 186, 62);
+        y += 68;
+    } catch (e) {
+        console.error('Erro ao inserir gráfico de amamentação no PDF:', e);
+        chartInst.destroy();
+    } finally {
+        if (document.body.contains(offscreenCanvas)) {
+            document.body.removeChild(offscreenCanvas);
+        }
+    }
+
+    // Tabela Mensal Consolidada (Sem detalhamento por dia)
+    if (y + 25 > 275) {
+        doc.addPage();
+        y = 20;
+    }
+
+    doc.setFillColor(241, 245, 249);
+    doc.rect(10, y - 5, 190, 8, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(9);
+    doc.text('Mês / Ano', 20, y);
+    doc.text('Quantidade Total de Amamentações no Mês', 110, y);
+    y += 8;
+
+    sortedMonths.forEach(row => {
+        if (y > 275) {
             doc.addPage();
             y = 20;
-        }
-
-        doc.setFillColor(241, 245, 249);
-        doc.rect(10, y - 5, 190, 8, 'F');
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(30, 41, 59);
-        doc.setFontSize(9);
-        doc.text('Mês / Ano', 20, y);
-        doc.text('Quantidade Total de Amamentações no Mês', 110, y);
-        y += 8;
-
-        sortedMonths.forEach(row => {
-            if (y > 275) {
-                doc.addPage();
-                y = 20;
-                doc.setFillColor(241, 245, 249);
-                doc.rect(10, y - 5, 190, 8, 'F');
-                doc.setFont('helvetica', 'bold');
-                doc.setTextColor(30, 41, 59);
-                doc.setFontSize(9);
-                doc.text('Mês / Ano', 20, y);
-                doc.text('Quantidade Total de Amamentações no Mês', 110, y);
-                y += 8;
-            }
-
+            doc.setFillColor(241, 245, 249);
+            doc.rect(10, y - 5, 190, 8, 'F');
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(30, 41, 59);
-            doc.text(row.month_label, 20, y);
-
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(219, 39, 119);
-            const suffix = row.is_daily_sum ? "" : '';
-            doc.text(`${row.total_quantity}${suffix}`, 130, y);
-
-            doc.setDrawColor(226, 232, 240);
-            doc.line(10, y + 2, 200, y + 2);
+            doc.setFontSize(9);
+            doc.text('Mês / Ano', 20, y);
+            doc.text('Quantidade Total de Amamentações no Mês', 110, y);
             y += 8;
-        });
+        }
 
-        doc.save(`Relatorio_Amamentacao_Mensal_${new Date().toISOString().split('T')[0]}.pdf`);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(30, 41, 59);
+        doc.text(row.month_label, 20, y);
+
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(219, 39, 119);
+        const suffix = row.is_daily_sum ? "" : '';
+        doc.text(`${row.total_quantity}${suffix}`, 130, y);
+
+        doc.setDrawColor(226, 232, 240);
+        doc.line(10, y + 2, 200, y + 2);
+        y += 8;
+    });
+
+    doc.save(`Relatorio_Amamentacao_Mensal_${new Date().toISOString().split('T')[0]}.pdf`);
     }
 
     {% if active_tab_nav == 'amamentacao' and chart_labels %}
@@ -1958,59 +1959,59 @@
             const labels = {{ chart_labels|safe }};
             const data = {{ chart_data|safe }};
 
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Total de Amamentações no Mês',
-                        data: data,
-                        borderColor: '#ec4899',
-                        backgroundColor: 'rgba(236, 72, 153, 0.12)',
-                        pointBackgroundColor: '#ec4899',
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 2,
-                        pointRadius: 5,
-                        pointHoverRadius: 7,
-                        tension: 0.35,
-                        borderWidth: 3,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: '#1e293b',
-                            titleFont: { size: 13, family: 'Inter', weight: 'bold' },
-                            bodyFont: { size: 12, family: 'Inter' },
-                            padding: 10,
-                            cornerRadius: 8,
-                            displayColors: false,
-                            callbacks: {
-                                label: function (context) {
-                                    const val = context.parsed.y;
-                                    return ` ${val} ${val === 1 ? 'utilização no mês' : 'utilizações no mês'}`;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: { stepSize: 1, precision: 0, color: 'var(--text-secondary, #64748b)', font: { family: 'Inter', size: 11 } },
-                            grid: { color: 'rgba(0,0,0,0.05)' },
-                            min: 0
-                        },
-                        x: {
-                            ticks: { color: 'var(--text-secondary, #64748b)', font: { family: 'Inter', size: 11 } },
-                            grid: { display: false }
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Total de Amamentações no Mês',
+                data: data,
+                borderColor: '#ec4899',
+                backgroundColor: 'rgba(236, 72, 153, 0.12)',
+                pointBackgroundColor: '#ec4899',
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 2,
+                pointRadius: 5,
+                pointHoverRadius: 7,
+                tension: 0.35,
+                borderWidth: 3,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    titleFont: { size: 13, family: 'Inter', weight: 'bold' },
+                    bodyFont: { size: 12, family: 'Inter' },
+                    padding: 10,
+                    cornerRadius: 8,
+                    displayColors: false,
+                    callbacks: {
+                        label: function (context) {
+                            const val = context.parsed.y;
+                            return ` ${val} ${val === 1 ? 'utilização no mês' : 'utilizações no mês'}`;
                         }
                     }
                 }
-            });
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1, precision: 0, color: 'var(--text-secondary, #64748b)', font: { family: 'Inter', size: 11 } },
+                    grid: { color: 'rgba(0,0,0,0.05)' },
+                    min: 0
+                },
+                x: {
+                    ticks: { color: 'var(--text-secondary, #64748b)', font: { family: 'Inter', size: 11 } },
+                    grid: { display: false }
+                }
+            }
+        }
+    });
         }
     });
     {% endif %}
