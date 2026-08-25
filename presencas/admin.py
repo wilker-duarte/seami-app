@@ -54,19 +54,58 @@ class RegistroPresencaAdmin(ExportActionMixin, admin.ModelAdmin):
 
 
 from django.utils.html import format_html
+from django.db.models import Q
+
+
+class TemAnexoFilter(admin.SimpleListFilter):
+    title = 'Possui Anexo'
+    parameter_name = 'tem_anexo'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('sim', 'Com Anexo (Documento)'),
+            ('nao', 'Sem Anexo'),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'sim':
+            return queryset.exclude(documento='').exclude(documento__isnull=True)
+        elif self.value() == 'nao':
+            return queryset.filter(Q(documento='') | Q(documento__isnull=True))
+        return queryset
+
+
+class TemAnexoAmamentacaoFilter(admin.SimpleListFilter):
+    title = 'Possui Anexo'
+    parameter_name = 'tem_anexo'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('sim', 'Com Anexo'),
+            ('nao', 'Sem Anexo'),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'sim':
+            return queryset.exclude(anexo='').exclude(anexo__isnull=True)
+        elif self.value() == 'nao':
+            return queryset.filter(Q(anexo='') | Q(anexo__isnull=True))
+        return queryset
 
 
 @admin.register(OcorrenciaCaderno)
 class OcorrenciaCadernoAdmin(ExportActionMixin, admin.ModelAdmin):
-    list_display = ('tipo', 'aluno', 'turma', 'data', 'justificado', 'ver_documento', 'registrado_por', 'criado_em')
-    list_filter = ('tipo', 'turma', 'justificado', 'data')
+    list_display = ('id', 'tipo', 'aluno', 'turma', 'data', 'justificado', 'ver_documento', 'registrado_por', 'criado_em')
+    list_filter = (TemAnexoFilter, 'tipo', 'turma', 'justificado', 'data')
     search_fields = ('aluno__nome', 'turma__nome', 'motivo', 'cid', 'observacao', 'attachment_name')
     date_hierarchy = 'data'
     readonly_fields = ('preview_documento',)
+    list_per_page = 50
 
     def ver_documento(self, obj):
         if obj.documento:
-            return format_html('<a href="{}" target="_blank" style="font-weight: 700; color: #0284c7; text-decoration: underline;">📄 Ver Anexo</a>', obj.documento.url)
+            nome = obj.attachment_name or "Ver Anexo"
+            return format_html('<a href="{}" target="_blank" style="font-weight: 700; color: #0284c7; text-decoration: underline;">📄 {}</a>', obj.documento.url, nome[:30])
         return "-"
     ver_documento.short_description = 'Anexo'
 
@@ -79,14 +118,16 @@ class OcorrenciaCadernoAdmin(ExportActionMixin, admin.ModelAdmin):
 
 @admin.register(RegistroAmamentacao)
 class RegistroAmamentacaoAdmin(ExportActionMixin, admin.ModelAdmin):
-    list_display = ('data', 'quantidade', 'ano', 'mes', 'ver_anexo', 'registrado_por', 'criado_em')
-    list_filter = ('ano', 'mes', 'data')
+    list_display = ('id', 'data', 'quantidade', 'ano', 'mes', 'ver_anexo', 'registrado_por', 'criado_em')
+    list_filter = (TemAnexoAmamentacaoFilter, 'ano', 'mes', 'data')
     search_fields = ('observacao', 'attachment_name')
     date_hierarchy = 'data'
+    list_per_page = 50
 
     def ver_anexo(self, obj):
         if obj.anexo:
-            return format_html('<a href="{}" target="_blank" style="font-weight: 700; color: #db2777; text-decoration: underline;">📄 Ver Anexo</a>', obj.anexo.url)
+            nome = obj.attachment_name or "Ver Anexo"
+            return format_html('<a href="{}" target="_blank" style="font-weight: 700; color: #db2777; text-decoration: underline;">📄 {}</a>', obj.anexo.url, nome[:30])
         return "-"
     ver_anexo.short_description = 'Anexo'
 
