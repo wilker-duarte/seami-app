@@ -107,6 +107,7 @@ desktop.ini
 # =========================================================================
 **/management/commands/*
 !**/management/commands/__init__.py
+!presencas/management/commands/sincronizar_anexos.py
 presencas/management/commands/*
 accounts/management/commands/*
 
