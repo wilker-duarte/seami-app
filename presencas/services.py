@@ -213,9 +213,47 @@ def get_historical_frequency_data():
     """
     Retorna a lista completa de registros históricos [{id, month, enrolled, present}, ...]
     consultando diretamente a model HistoricoFrequenciaMensal no banco de dados.
+    Caso a tabela esteja vazia ou com menos registros que a série histórica oficial (ex: deploy novo na VPS),
+    auto-popula a partir do arquivo JSON oficial local garantindo consistência completa (2019 até 2026).
     """
     from .models import HistoricoFrequenciaMensal
-    registros = HistoricoFrequenciaMensal.objects.all().order_by('-ano', '-mes')
+    registros_qs = HistoricoFrequenciaMensal.objects.all().order_by('-ano', '-mes')
+    count = registros_qs.count()
+
+    if count < 90:
+        file_path = get_historical_frequency_file_path()
+        if os.path.exists(file_path):
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    hist_list = json.load(f)
+
+                for item in hist_list:
+                    m_str = item.get('month', '')
+                    if m_str and '-' in m_str:
+                        parts = m_str.split('-')
+                        ano = int(parts[0])
+                        mes = int(parts[1])
+                        enr = int(item.get('enrolled', 0))
+                        pres = int(item.get('present', 0))
+                        absent = max(0, enr - pres)
+                        taxa = round((pres / enr) * 100, 1) if enr > 0 else 0.0
+
+                        HistoricoFrequenciaMensal.objects.update_or_create(
+                            mes_ano=m_str,
+                            defaults={
+                                'ano': ano,
+                                'mes': mes,
+                                'matriculados': enr,
+                                'presentes_media': pres,
+                                'ausentes_media': absent,
+                                'taxa_frequencia': taxa,
+                                'observacao': f"Série histórica oficial ({m_str})"
+                            }
+                        )
+                registros_qs = HistoricoFrequenciaMensal.objects.all().order_by('-ano', '-mes')
+            except Exception as e:
+                print(f"[Services] Erro ao carregar/popular dados históricos: {e}")
+
     return [
         {
             'id': f"hist_{r.id}",
@@ -226,7 +264,7 @@ def get_historical_frequency_data():
             'percentage': r.taxa_frequencia,
             'observacao': r.observacao,
         }
-        for r in registros
+        for r in registros_qs
     ]
 
 
