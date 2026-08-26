@@ -264,16 +264,18 @@ def build_dashboard_context(request):
     saidas_count = saidas_qs.count()
     saidas_retornos = saidas_qs.filter(retorna=True).count()
 
-    # Amamentação
-    amamentacao_qs = oc_qs.filter(tipo=TipoOcorrencia.AMAMENTACAO)
-    amamentacao_count = amamentacao_qs.count()
-    total_amam_mins = 0
-    for am in amamentacao_qs:
-        if am.horario and am.horario_retorno:
-            diff = (am.horario_retorno.hour * 60 + am.horario_retorno.minute) - (am.horario.hour * 60 + am.horario.minute)
-            if diff > 0:
-                total_amam_mins += diff
-    amamentacao_avg = round(total_amam_mins / amamentacao_count) if amamentacao_count > 0 else 0
+    # Amamentação (Tabela específica RegistroAmamentacao)
+    amam_reg_qs = RegistroAmamentacao.objects.filter(
+        data__gte=date_start,
+        data__lte=date_end
+    )
+    if student_id_filter:
+        amam_reg_qs = amam_reg_qs.none()
+
+    amamentacao_sum_qty = amam_reg_qs.aggregate(total=Sum('quantidade'))['total'] or 0
+    amamentacao_count = amamentacao_sum_qty
+    amamentacao_dias_count = amam_reg_qs.count()
+    amamentacao_avg = round(amamentacao_count / amamentacao_dias_count, 1) if amamentacao_dias_count > 0 else 0
 
 
     students_json_list = []
@@ -463,21 +465,11 @@ def build_dashboard_context(request):
     chart5_labels = [i['aluno__nome'] for i in top_oc_alunos] or ['Nenhuma ocorrência']
     chart5_data = [i['total'] for i in top_oc_alunos] or [0]
 
-    # Série Diária de Amamentação
-    amam_qs = OcorrenciaCaderno.objects.filter(
-        tipo=TipoOcorrencia.AMAMENTACAO,
-        data__gte=date_start,
-        data__lte=date_end
-    )
+    # Série Diária de Amamentação (Tabela específica RegistroAmamentacao)
     amam_by_date = {}
-    for o in amam_qs:
+    for o in amam_reg_qs:
         d_key = o.data
-        qty = 1
-        if o.quantidade:
-            try:
-                qty = int(o.quantidade.strip())
-            except ValueError:
-                qty = 1
+        qty = o.quantidade if (o.quantidade is not None and o.quantidade > 0) else 1
         amam_by_date[d_key] = amam_by_date.get(d_key, 0) + qty
 
     cur_d = date_start
@@ -662,6 +654,7 @@ def build_dashboard_context(request):
             'saidas_retornos': saidas_retornos,
             'amamentacao_count': amamentacao_count,
             'amamentacao_avg': amamentacao_avg,
+            'amamentacao_dias': amamentacao_dias_count,
         },
         'amam_total': amam_total_periodo,
         'cal_by_day_json': json.dumps(cal_by_day),
@@ -1797,7 +1790,7 @@ def central_exportacao_view(request):
         'total_alunos_ativos': Aluno.objects.filter(ativo=True).count(),
         'total_presencas': RegistroPresenca.objects.count(),
         'total_ocorrencias': OcorrenciaCaderno.objects.exclude(tipo=TipoOcorrencia.AMAMENTACAO).count(),
-        'total_amamentacao': OcorrenciaCaderno.objects.filter(tipo=TipoOcorrencia.AMAMENTACAO).count(),
+        'total_amamentacao': RegistroAmamentacao.objects.count(),
         'total_enfermaria': AtendimentoEnfermaria.objects.filter(ativo=True).count(),
         'total_usuarios': User.objects.count(),
         'total_convites': ConviteUsuario.objects.count(),

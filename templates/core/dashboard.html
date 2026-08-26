@@ -225,7 +225,7 @@
             <a class="metric-card metric-amamentacao" href="{% url 'caderno_seami' 'amamentacao' %}" style="cursor: pointer;">
                 <div class="metric-header"><span class="metric-title">Amamentação</span><div class="metric-icon-box"><i data-lucide="heart" style="width: 18px; height: 18px;"></i></div></div>
                 <div class="metric-value">{{ metrics.amamentacao_count }}</div>
-                <div class="metric-footer text-amamentacao"><span>Permanência média: {{ metrics.amamentacao_avg }} min</span></div>
+                <div class="metric-footer text-amamentacao"><span>{{ metrics.amamentacao_dias }} {{ metrics.amamentacao_dias|pluralize:"dia registrado,dias registrados" }} no período</span></div>
             </a>
         </div>
     </div>
