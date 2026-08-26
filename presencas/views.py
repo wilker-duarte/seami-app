@@ -1073,6 +1073,7 @@ def caderno_seami_view(request, aba='faltas'):
             else:
                 ocorrencia = get_object_or_404(OcorrenciaCaderno, id=ocorrencia_id)
             ocorrencia.delete()
+            messages.success(request, "Registro excluído com sucesso!")
             return redirect(request.get_full_path())
 
         elif action in ['create_historico_amamentacao', 'update_historico_amamentacao']:
@@ -1101,6 +1102,7 @@ def caderno_seami_view(request, aba='faltas'):
                     observacao=observacao,
                     registrado_por=request.user
                 )
+                messages.success(request, f"Quantitativo mensal de Amamentação ({data.strftime('%m/%Y')}) cadastrado com sucesso!")
             elif action == 'update_historico_amamentacao' and ocorrencia_id:
                 reg = get_object_or_404(RegistroAmamentacao, id=ocorrencia_id)
                 reg.data = data
@@ -1109,6 +1111,7 @@ def caderno_seami_view(request, aba='faltas'):
                 reg.quantidade = quantidade
                 reg.observacao = observacao
                 reg.save()
+                messages.success(request, "Quantitativo mensal de Amamentação atualizado com sucesso!")
 
             return redirect(request.get_full_path())
 
@@ -1136,6 +1139,7 @@ def caderno_seami_view(request, aba='faltas'):
                         attachment_type=documento.content_type if documento and hasattr(documento, 'content_type') else '',
                         registrado_por=request.user
                     )
+                    messages.success(request, f"Registro de Amamentação em {data.strftime('%d/%m/%Y')} salvo com sucesso!")
                 elif action == 'update' and ocorrencia_id:
                     reg = get_object_or_404(RegistroAmamentacao, id=ocorrencia_id)
                     reg.data = data
@@ -1148,6 +1152,7 @@ def caderno_seami_view(request, aba='faltas'):
                         reg.attachment_name = documento.name
                         reg.attachment_type = documento.content_type if hasattr(documento, 'content_type') else ''
                     reg.save()
+                    messages.success(request, "Registro de Amamentação atualizado com sucesso!")
 
                 return redirect(request.get_full_path())
 
@@ -1196,6 +1201,11 @@ def caderno_seami_view(request, aba='faltas'):
                 except ValueError:
                     pass
 
+            # Para Faltas e Atestados, data_fim é no mínimo igual a data inicial (default de 1 dia)
+            if tipo_form in [TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO]:
+                if not data_fim or data_fim < data:
+                    data_fim = data
+
             horario = None
             if horario_str:
                 try:
@@ -1212,6 +1222,129 @@ def caderno_seami_view(request, aba='faltas'):
 
             aluno = Aluno.objects.filter(id=aluno_id).first() if aluno_id else None
             turma = aluno.turma if aluno else (Turma.objects.filter(id=turma_id).first() if turma_id else None)
+
+            # =================================================================
+            # VALIDAÇÃO DE DUPLICIDADE:
+            # - Uma mesma criança não pode ter 2 faltas no mesmo dia/período.
+            # - Uma mesma criança não pode ter 2 atestados no mesmo período.
+            # - Uma mesma criança não pode ter 2 atrasos no mesmo dia.
+            # - Saídas antecipadas apenas em turnos distintos (manhã vs tarde por horário).
+            # =================================================================
+            if aluno:
+                exclude_id = int(ocorrencia_id) if (action == 'update' and ocorrencia_id) else None
+
+                if tipo_form == TipoOcorrencia.FALTA:
+                    effective_fim = data_fim or data
+                    dup_falta = OcorrenciaCaderno.objects.filter(
+                        aluno=aluno,
+                        tipo=TipoOcorrencia.FALTA,
+                        data__lte=effective_fim
+                    ).filter(
+                        Q(data_fim__gte=data) | (Q(data_fim__isnull=True) & Q(data__gte=data))
+                    )
+                    if exclude_id:
+                        dup_falta = dup_falta.exclude(id=exclude_id)
+
+                    if dup_falta.exists():
+                        f_exist = dup_falta.first()
+                        periodo_txt = f_exist.periodo_formatado
+                        messages.warning(
+                            request,
+                            f"Atenção: A criança {aluno.nome} já possui registro de Falta cadastrado para esta data ({periodo_txt}). Não é permitido lançar faltas duplicadas no mesmo dia."
+                        )
+                        return redirect(request.get_full_path())
+
+                elif tipo_form == TipoOcorrencia.ATESTADO:
+                    effective_fim = data_fim or data
+                    dup_atestado = OcorrenciaCaderno.objects.filter(
+                        aluno=aluno,
+                        tipo=TipoOcorrencia.ATESTADO,
+                        data__lte=effective_fim
+                    ).filter(
+                        Q(data_fim__gte=data) | (Q(data_fim__isnull=True) & Q(data__gte=data))
+                    )
+                    if exclude_id:
+                        dup_atestado = dup_atestado.exclude(id=exclude_id)
+
+                    if dup_atestado.exists():
+                        at_exist = dup_atestado.first()
+                        periodo_txt = at_exist.periodo_formatado
+                        messages.warning(
+                            request,
+                            f"Atenção: A criança {aluno.nome} já possui Atestado Médico registrado neste período ({periodo_txt}). Não é permitido lançar atestados sobrepostos."
+                        )
+                        return redirect(request.get_full_path())
+
+                elif tipo_form == TipoOcorrencia.ATRASO:
+                    dup_atraso = OcorrenciaCaderno.objects.filter(
+                        aluno=aluno,
+                        tipo=TipoOcorrencia.ATRASO,
+                        data=data
+                    )
+                    if exclude_id:
+                        dup_atraso = dup_atraso.exclude(id=exclude_id)
+
+                    if dup_atraso.exists():
+                        messages.warning(
+                            request,
+                            f"Atenção: A criança {aluno.nome} já possui registro de Atraso no dia {data.strftime('%d/%m/%Y')}. Não é permitido lançar mais de um atraso na mesma data."
+                        )
+                        return redirect(request.get_full_path())
+
+                elif tipo_form == TipoOcorrencia.SAIDA:
+                    # Função auxiliar para classificar turno pelo horário:
+                    # Antes das 12:30 -> Matutino (Manhã) | A partir das 12:30 -> Vespertino (Tarde)
+                    def classificar_turno(h):
+                        if not h:
+                            return None
+                        if h.hour < 12 or (h.hour == 12 and h.minute <= 30):
+                            return 'matutino'
+                        return 'vespertino'
+
+                    novo_turno = classificar_turno(horario)
+                    dup_saida = OcorrenciaCaderno.objects.filter(
+                        aluno=aluno,
+                        tipo=TipoOcorrencia.SAIDA,
+                        data=data
+                    )
+                    if exclude_id:
+                        dup_saida = dup_saida.exclude(id=exclude_id)
+
+                    if dup_saida.exists():
+                        if not novo_turno:
+                            messages.warning(
+                                request,
+                                f"Atenção: A criança {aluno.nome} já possui Saída Antecipada registrada em {data.strftime('%d/%m/%Y')}. Para registrar outra saída, informe o horário exato para verificação de turnos distintos."
+                            )
+                            return redirect(request.get_full_path())
+
+                        tem_mesmo_turno = False
+                        turnos_existentes = set()
+                        for s_exist in dup_saida:
+                            t_exist = classificar_turno(s_exist.horario)
+                            if t_exist:
+                                turnos_existentes.add(t_exist)
+                                if t_exist == novo_turno:
+                                    tem_mesmo_turno = True
+                            else:
+                                tem_mesmo_turno = True
+
+                        if tem_mesmo_turno:
+                            turno_label = "Matutino (Manhã)" if novo_turno == 'matutino' else "Vespertino (Tarde)"
+                            messages.warning(
+                                request,
+                                f"Atenção: A criança {aluno.nome} já possui Saída Antecipada no turno {turno_label} no dia {data.strftime('%d/%m/%Y')}. Saídas antecipadas são permitidas apenas em turnos distintos (Manhã e Tarde)."
+                            )
+                            return redirect(request.get_full_path())
+
+                        if len(turnos_existentes) >= 2:
+                            messages.warning(
+                                request,
+                                f"Atenção: A criança {aluno.nome} já possui saídas antecipadas registradas em ambos os turnos (Manhã e Tarde) para {data.strftime('%d/%m/%Y')}."
+                            )
+                            return redirect(request.get_full_path())
+
+            tipo_display = dict(TipoOcorrencia.choices).get(tipo_form, tipo_form.title())
 
             if action == 'create':
                 OcorrenciaCaderno.objects.create(
@@ -1232,6 +1365,8 @@ def caderno_seami_view(request, aba='faltas'):
                     documento=documento,
                     registrado_por=request.user
                 )
+                nome_aluno = aluno.nome if aluno else "Geral"
+                messages.success(request, f"Registro de {tipo_display} para {nome_aluno} realizado com sucesso!")
             elif action == 'update' and ocorrencia_id:
                 oc = get_object_or_404(OcorrenciaCaderno, id=ocorrencia_id)
                 oc.tipo = tipo_form
@@ -1251,6 +1386,7 @@ def caderno_seami_view(request, aba='faltas'):
                 if documento:
                     oc.documento = documento
                 oc.save()
+                messages.success(request, f"Registro de {tipo_display} atualizado com sucesso!")
 
             return redirect(request.get_full_path())
 

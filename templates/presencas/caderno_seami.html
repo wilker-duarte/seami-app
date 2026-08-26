@@ -13,6 +13,24 @@
 <section class="panel-section active" style="display: flex; flex-direction: column; gap: 20px;">
 
     <!-- ================================================================= -->
+    <!-- MENSAGENS E ALERTAS DO CADERNO SEAMI                              -->
+    <!-- ================================================================= -->
+    {% if messages %}
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+        {% for message in messages %}
+        <div class="alert {% if message.tags == 'warning' %}alert-warning{% elif message.tags == 'success' %}alert-success{% elif message.tags == 'error' %}alert-danger{% else %}alert-info{% endif %}"
+            style="padding: 14px 18px; border-radius: 12px; font-size: 13.5px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; {% if message.tags == 'warning' %}background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a;{% elif message.tags == 'success' %}background-color: #f0fdf4; color: #166534; border: 1px solid #bbf7d0;{% elif message.tags == 'error' %}background-color: #fef2f2; color: #b91c1c; border: 1px solid #fecaca;{% else %}background-color: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe;{% endif %}">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <i data-lucide="{% if message.tags == 'warning' %}alert-triangle{% elif message.tags == 'success' %}check-circle-2{% elif message.tags == 'error' %}alert-octagon{% else %}info{% endif %}" style="width: 20px; height: 20px; flex-shrink: 0;"></i>
+                <span>{{ message }}</span>
+            </div>
+            <button type="button" onclick="this.parentElement.remove()" style="background: none; border: none; cursor: pointer; color: inherit; font-size: 18px; font-weight: bold; line-height: 1; padding: 4px 8px; border-radius: 6px;">&times;</button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- ================================================================= -->
     <!-- NAVEGADOR DE ABAS DO CADERNO SEAMI                                -->
     <!-- ================================================================= -->
     <div
@@ -796,7 +814,7 @@
                                 Data de Início da Ausência
                             </label>
                             <input type="date" id="field-falta-inicio"
-                                onchange="document.getElementById('field-data').value = this.value;"
+                                onchange="onFaltaInicioChange(this.value)"
                                 style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fca5a5; background: white; font-size: 13px; color: #991b1b; outline: none; box-sizing: border-box;">
                         </div>
                         <div>
@@ -805,6 +823,7 @@
                                 Data de Fim da Ausência
                             </label>
                             <input type="date" name="data_fim" id="field-falta-fim"
+                                onchange="if(document.getElementById('field-data-fim-hidden')) document.getElementById('field-data-fim-hidden').value = this.value;"
                                 style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fca5a5; background: white; font-size: 13px; color: #991b1b; outline: none; box-sizing: border-box;">
                         </div>
                     </div>
@@ -1331,16 +1350,30 @@
         lucide.createIcons();
     }
 
+    function onFaltaInicioChange(val) {
+        document.getElementById('field-data').value = val;
+        const fimInput = document.getElementById('field-falta-fim');
+        const hiddenFim = document.getElementById('field-data-fim-hidden');
+        if (fimInput) {
+            if (!fimInput.value || fimInput.value < val) {
+                fimInput.value = val;
+                if (hiddenFim) hiddenFim.value = val;
+            }
+        }
+    }
+
     // Cálculo dinâmico da previsão de retorno do atestado
     function calcAtestadoReturn() {
         const startVal = document.getElementById('field-atestado-inicio').value;
         const diasVal = parseInt(document.getElementById('field-atestado-dias').value) || 0;
         const preview = document.getElementById('atestado-return-date');
         const hiddenFim = document.getElementById('field-data-fim-hidden');
+        const faltaFim = document.getElementById('field-falta-fim');
 
         if (!startVal || diasVal < 1) {
             preview.innerText = '-';
-            hiddenFim.value = '';
+            if (hiddenFim) hiddenFim.value = '';
+            if (faltaFim) faltaFim.value = '';
             return;
         }
 
@@ -1353,8 +1386,13 @@
         const returnDate = new Date(startDate);
         returnDate.setDate(startDate.getDate() + diasVal);
 
-        const endIso = endDate.toISOString().substring(0, 10);
-        hiddenFim.value = endIso;
+        const endYear = endDate.getFullYear();
+        const endMonth = String(endDate.getMonth() + 1).padStart(2, '0');
+        const endDay = String(endDate.getDate()).padStart(2, '0');
+        const endIso = `${endYear}-${endMonth}-${endDay}`;
+
+        if (hiddenFim) hiddenFim.value = endIso;
+        if (faltaFim) faltaFim.value = endIso;
 
         const dayFormatted = String(returnDate.getDate()).padStart(2, '0');
         const monthFormatted = String(returnDate.getMonth() + 1).padStart(2, '0');
@@ -1451,7 +1489,10 @@
         document.getElementById('field-justificado').value = 'nao';
         document.getElementById('field-avisado-pais').value = 'nao';
         document.getElementById('field-falta-inicio').value = '{{ today }}';
-        document.getElementById('field-falta-fim').value = '';
+        document.getElementById('field-falta-fim').value = '{{ today }}';
+        if (document.getElementById('field-data-fim-hidden')) {
+            document.getElementById('field-data-fim-hidden').value = '{{ today }}';
+        }
 
         // Reset campos Atestados
         document.getElementById('field-atestado-inicio').value = '{{ today }}';
@@ -1580,7 +1621,10 @@
         document.getElementById('field-justificado').value = justificado ? 'sim' : 'nao';
         document.getElementById('field-avisado-pais').value = avisadoPais ? 'sim' : 'nao';
         document.getElementById('field-falta-inicio').value = data || '{{ today }}';
-        document.getElementById('field-falta-fim').value = dataFim || '';
+        document.getElementById('field-falta-fim').value = dataFim || data || '{{ today }}';
+        if (document.getElementById('field-data-fim-hidden')) {
+            document.getElementById('field-data-fim-hidden').value = dataFim || data || '{{ today }}';
+        }
 
         // Atestados
         document.getElementById('field-atestado-inicio').value = data || '{{ today }}';
