@@ -1,7 +1,8 @@
+from datetime import date, timedelta
 from django.db import models, transaction
 from django.conf import settings
 from django.utils import timezone
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import pre_save, post_save, post_delete
 from django.dispatch import receiver
 from django.db.models import Count, Q
 
@@ -259,6 +260,12 @@ class RegistroPresenca(models.Model):
         verbose_name='Status Vespertino'
     )
     
+    status_chamada = models.CharField(
+        max_length=20,
+        choices=StatusPresenca.choices,
+        default=StatusPresenca.PRESENTE,
+        verbose_name='Status Base da Chamada'
+    )
     observacao = models.TextField(blank=True, verbose_name='Observação / Evidência')
     registrado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -709,128 +716,159 @@ def atualizar_cache_headcount_alunos(sender, instance, **kwargs):
         pass
 
 
+def recalcular_presenca_para_data(aluno, target_date):
+    """
+    Recalcula e sincroniza o status de RegistroPresenca para um aluno em uma data específica,
+    levando em consideração as ocorrências ativas do Caderno SEAMI e o status_chamada original.
+    """
+    if not aluno or not target_date:
+        return None
+
+    # Busca ocorrências ativas do Caderno SEAMI (Falta ou Atestado) cobrindo esta data
+    ocorrs = OcorrenciaCaderno.objects.filter(
+        aluno=aluno,
+        tipo__in=[TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO]
+    ).filter(
+        Q(data=target_date, data_fim__isnull=True) |
+        Q(data=target_date, data_fim=target_date) |
+        Q(data__lte=target_date, data_fim__gte=target_date)
+    ).order_by('-criado_em')
+
+    tem_justificada = ocorrs.filter(Q(justificado=True) | Q(tipo=TipoOcorrencia.ATESTADO)).exists()
+    tem_falta_comum = ocorrs.filter(tipo=TipoOcorrencia.FALTA, justificado=False).exists()
+
+    reg = RegistroPresenca.objects.filter(aluno=aluno, data=target_date).first()
+
+    # Se não há ocorrências e nem RegistroPresenca, nada a fazer
+    if not reg and not ocorrs.exists():
+        return None
+
+    # Se não existe RegistroPresenca mas há ocorrência no Caderno, cria
+    if not reg:
+        reg = RegistroPresenca(
+            aluno=aluno,
+            turma=aluno.turma,
+            data=target_date,
+            status_chamada=StatusPresenca.PRESENTE
+        )
+
+    turno_aluno = (aluno.turno or 'integral').lower()
+
+    if tem_justificada:
+        oc_just = ocorrs.filter(Q(justificado=True) | Q(tipo=TipoOcorrencia.ATESTADO)).first()
+        reg.status = StatusPresenca.JUSTIFICADO
+        st_turno = StatusTurnoPresenca.JUSTIFICADO
+        obs_extra = oc_just.motivo or oc_just.observacao or ('Atestado médico' if oc_just.tipo == TipoOcorrencia.ATESTADO else 'Falta Justificada')
+    elif tem_falta_comum:
+        oc_falta = ocorrs.filter(tipo=TipoOcorrencia.FALTA, justificado=False).first()
+        reg.status = StatusPresenca.AUSENTE
+        st_turno = StatusTurnoPresenca.AUSENTE
+        obs_extra = oc_falta.motivo or oc_falta.observacao or 'Falta registrada no Caderno SEAMI'
+    else:
+        # Nenhuma ocorrência ativa no Caderno SEAMI
+        # Reverte para o status_chamada original (se o professor marcou AUSENTE na chamada, mantém AUSENTE!)
+        base_chamada = reg.status_chamada or StatusPresenca.PRESENTE
+        if base_chamada == StatusPresenca.AUSENTE:
+            reg.status = StatusPresenca.AUSENTE
+            st_turno = StatusTurnoPresenca.AUSENTE
+            obs_extra = 'Falta registrada na chamada'
+        elif base_chamada == StatusPresenca.JUSTIFICADO:
+            reg.status = StatusPresenca.JUSTIFICADO
+            st_turno = StatusTurnoPresenca.JUSTIFICADO
+            obs_extra = 'Falta Justificada na chamada'
+        else:
+            reg.status = StatusPresenca.PRESENTE
+            st_turno = StatusTurnoPresenca.PRESENTE
+            obs_extra = ''
+
+    if turno_aluno == 'matutino':
+        reg.status_matutino = st_turno
+        reg.status_vespertino = StatusTurnoPresenca.NA
+    elif turno_aluno == 'vespertino':
+        reg.status_matutino = StatusTurnoPresenca.NA
+        reg.status_vespertino = st_turno
+    else:  # integral
+        reg.status_matutino = st_turno
+        reg.status_vespertino = st_turno
+
+    reg.calcular_status_e_observacao(custom_obs=obs_extra)
+    reg.save()
+    return reg
+
+
+@receiver(pre_save, sender=OcorrenciaCaderno)
+def capturar_estado_anterior_ocorrencia(sender, instance, **kwargs):
+    """
+    Captura o estado anterior de uma ocorrência para que, caso haja alteração de datas ou tipo,
+    as datas antigas possam ser recalculadas/revertidas.
+    """
+    if instance.pk:
+        try:
+            instance._old_instance = OcorrenciaCaderno.objects.get(pk=instance.pk)
+        except OcorrenciaCaderno.DoesNotExist:
+            instance._old_instance = None
+    else:
+        instance._old_instance = None
+
+
 @receiver(post_save, sender=OcorrenciaCaderno)
 def sincronizar_ocorrencia_com_presenca(sender, instance, **kwargs):
     """
-    Quando uma falta (comum ou justificada) ou um atestado é registrado no Caderno SEAMI,
-    localiza a chamada lançada do aluno naquela(s) data(s). Se a criança estiver com
-    Presença (PRESENTE/P) ou outro status, altera para Falta (F / AUSENTE) ou Falta Justificada (FJ / JUSTIFICADO).
+    Quando uma falta (comum ou justificada) ou atestado é registrado/editado no Caderno SEAMI,
+    sincroniza a chamada (RegistroPresenca) de todo o período com o status correspondente.
     """
     if not instance.aluno:
         return
 
-    data_inicio = instance.data
-    data_fim = instance.data_fim or instance.data
+    # Se for alteração de datas ou tipo, recalcula as datas antigas que deixaram de ser cobertas
+    old_inst = getattr(instance, '_old_instance', None)
+    if old_inst and old_inst.tipo in [TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO]:
+        old_inicio = old_inst.data
+        old_fim = old_inst.data_fim or old_inst.data
+        if old_fim < old_inicio:
+            old_fim = old_inicio
 
-    if data_inicio and data_fim and data_fim < data_inicio:
-        data_fim = data_inicio
+        cur_d = old_inicio
+        while cur_d <= old_fim:
+            recalcular_presenca_para_data(old_inst.aluno, cur_d)
+            cur_d += timedelta(days=1)
 
     if instance.tipo not in [TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO]:
         return
 
-    is_justificada = bool(instance.justificado or instance.tipo == TipoOcorrencia.ATESTADO)
-    novo_status = StatusPresenca.JUSTIFICADO if is_justificada else StatusPresenca.AUSENTE
-    novo_status_turno = StatusTurnoPresenca.JUSTIFICADO if is_justificada else StatusTurnoPresenca.AUSENTE
+    data_inicio = instance.data
+    data_fim = instance.data_fim or instance.data
+    if data_fim < data_inicio:
+        data_fim = data_inicio
 
-    # Registros de presença desse aluno no período
-    registros = RegistroPresenca.objects.filter(
-        aluno=instance.aluno,
-        data__gte=data_inicio,
-        data__lte=data_fim
-    )
-
-    turno_aluno = (instance.aluno.turno or 'integral').lower()
-
-    for reg in registros:
-        reg.status = novo_status
-        if turno_aluno == 'matutino':
-            reg.status_matutino = novo_status_turno
-            reg.status_vespertino = StatusTurnoPresenca.NA
-        elif turno_aluno == 'vespertino':
-            reg.status_matutino = StatusTurnoPresenca.NA
-            reg.status_vespertino = novo_status_turno
-        else:  # integral
-            reg.status_matutino = novo_status_turno
-            reg.status_vespertino = novo_status_turno
-
-        reg.calcular_status_e_observacao(custom_obs=instance.motivo or instance.observacao)
-        reg.save(update_fields=['status', 'status_matutino', 'status_vespertino', 'observacao'])
+    cur_d = data_inicio
+    while cur_d <= data_fim:
+        recalcular_presenca_para_data(instance.aluno, cur_d)
+        cur_d += timedelta(days=1)
 
 
 @receiver(post_delete, sender=OcorrenciaCaderno)
 def reverter_presenca_ao_excluir_ocorrencia(sender, instance, **kwargs):
     """
     Quando uma ocorrência de Falta ou Atestado for apagada/excluída,
-    o sistema localiza a chamada lançada do aluno naquelas datas e:
-    1. Se houver outra ocorrência justificada restante na mesma data -> mantém Falta Justificada (FJ).
-    2. Se houver outra falta comum restante na mesma data -> mantém Falta (F).
-    3. Se não houver mais nenhuma falta/atestado para o dia -> reverte o status da chamada de volta para Presente (P).
+    recalcula a chamada do aluno naquelas datas:
+    1. Se houver outra ocorrência justificada restante -> Falta Justificada (FJ).
+    2. Se houver outra falta comum restante -> Falta (F).
+    3. Se não houver mais nenhuma ocorrência -> Reverte para o status_chamada original
+       (FALTA se a chamada original era Falta, ou PRESENTE se a chamada era Presente).
     """
-    if not instance.aluno:
+    if not instance.aluno or instance.tipo not in [TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO]:
         return
 
     data_inicio = instance.data
     data_fim = instance.data_fim or instance.data
-
-    if data_inicio and data_fim and data_fim < data_inicio:
+    if data_fim < data_inicio:
         data_fim = data_inicio
 
-    if instance.tipo not in [TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO]:
-        return
-
-    # Registros de presença desse aluno no período da ocorrência excluída
-    registros = RegistroPresenca.objects.filter(
-        aluno=instance.aluno,
-        data__gte=data_inicio,
-        data__lte=data_fim
-    )
-
-    turno_aluno = (instance.aluno.turno or 'integral').lower()
-
-    for reg in registros:
-        # Busca outras ocorrências ativas do tipo Falta ou Atestado para o mesmo aluno nesta data
-        outras_ocorrs = OcorrenciaCaderno.objects.filter(
-            aluno=instance.aluno,
-            tipo__in=[TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO]
-        ).filter(
-            Q(data=reg.data) | (Q(data__lte=reg.data) & Q(data_fim__gte=reg.data))
-        ).exclude(id=instance.id)
-
-        tem_justificada = outras_ocorrs.filter(
-            Q(justificado=True) | Q(tipo=TipoOcorrencia.ATESTADO)
-        ).exists()
-
-        tem_falta_comum = outras_ocorrs.filter(
-            tipo=TipoOcorrencia.FALTA,
-            justificado=False
-        ).exists()
-
-        if tem_justificada:
-            reg.status = StatusPresenca.JUSTIFICADO
-            st_turno = StatusTurnoPresenca.JUSTIFICADO
-        elif tem_falta_comum:
-            reg.status = StatusPresenca.AUSENTE
-            st_turno = StatusTurnoPresenca.AUSENTE
-        else:
-            # Reverte para PRESENTE (Chamada normal restabelecida)
-            reg.status = StatusPresenca.PRESENTE
-            st_turno = StatusTurnoPresenca.PRESENTE
-
-        if turno_aluno == 'matutino':
-            reg.status_matutino = st_turno
-            reg.status_vespertino = StatusTurnoPresenca.NA
-        elif turno_aluno == 'vespertino':
-            reg.status_matutino = StatusTurnoPresenca.NA
-            reg.status_vespertino = st_turno
-        else:  # integral
-            reg.status_matutino = st_turno
-            reg.status_vespertino = st_turno
-
-        # Recalcula texto da evidência / observação
-        outra_oc = outras_ocorrs.first()
-        obs_extra = (outra_oc.motivo or outra_oc.observacao) if outra_oc else ''
-        reg.calcular_status_e_observacao(custom_obs=obs_extra)
-        reg.save(update_fields=['status', 'status_matutino', 'status_vespertino', 'observacao'])
+    cur_d = data_inicio
+    while cur_d <= data_fim:
+        recalcular_presenca_para_data(instance.aluno, cur_d)
+        cur_d += timedelta(days=1)
 
 
 @receiver(post_delete, sender=AtendimentoEnfermaria)

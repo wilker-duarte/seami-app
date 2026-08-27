@@ -449,7 +449,9 @@ def salvar_chamada_lote_view(request):
             salvos = 0
             for item in items:
                 aluno_id = item.get('student_id')
-                status = item.get('status', StatusPresenca.PRESENTE)
+                # Status original enviado pelo professor na chamada
+                status_chamada_raw = item.get('status', StatusPresenca.PRESENTE)
+                status = status_chamada_raw
                 obs = item.get('obs', '')
 
                 aluno = Aluno.objects.filter(id=aluno_id).select_related('turma').first()
@@ -475,28 +477,44 @@ def salvar_chamada_lote_view(request):
                     defaults={
                         'diario_classe': diario,
                         'turma': aluno_turma,
-                        'registrado_por': request.user
+                        'registrado_por': request.user,
+                        'status_chamada': status_chamada_raw
                     }
                 )
 
                 reg.diario_classe = diario
                 reg.turma = aluno_turma
                 reg.registrado_por = request.user
+                reg.status_chamada = status_chamada_raw
 
-                # Verifica se há ocorrência prévia de Falta Justificada ou Atestado no Caderno SEAMI para esta data
-                ocorr_justificada = OcorrenciaCaderno.objects.filter(
-                    aluno=aluno,
-                    tipo__in=[TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO]
-                ).filter(
-                    Q(data=data_chamada) | (Q(data__lte=data_chamada) & Q(data_fim__gte=data_chamada))
-                ).filter(
-                    Q(justificado=True) | Q(tipo=TipoOcorrencia.ATESTADO)
-                ).first()
+                # Se na chamada o status for JUSTIFICADO, garante que exista registro no Caderno SEAMI
+                if status_chamada_raw == StatusPresenca.JUSTIFICADO:
+                    OcorrenciaCaderno.objects.update_or_create(
+                        aluno=aluno,
+                        data=data_chamada,
+                        tipo=TipoOcorrencia.FALTA,
+                        defaults={
+                            'turma': aluno_turma,
+                            'justificado': True,
+                            'motivo': obs or 'Falta Justificada registrada na chamada',
+                            'registrado_por': request.user
+                        }
+                    )
+                elif status_chamada_raw == StatusPresenca.AUSENTE:
+                    # Verifica se há ocorrência prévia de Falta Justificada ou Atestado no Caderno SEAMI para esta data
+                    ocorr_justificada = OcorrenciaCaderno.objects.filter(
+                        aluno=aluno,
+                        tipo__in=[TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO]
+                    ).filter(
+                        Q(data=data_chamada) | (Q(data__lte=data_chamada) & Q(data_fim__gte=data_chamada))
+                    ).filter(
+                        Q(justificado=True) | Q(tipo=TipoOcorrencia.ATESTADO)
+                    ).first()
 
-                if ocorr_justificada and status == StatusPresenca.AUSENTE:
-                    status = StatusPresenca.JUSTIFICADO
-                    if not obs and ocorr_justificada.motivo:
-                        obs = ocorr_justificada.motivo
+                    if ocorr_justificada:
+                        status = StatusPresenca.JUSTIFICADO
+                        if not obs and ocorr_justificada.motivo:
+                            obs = ocorr_justificada.motivo
 
                 turno_aluno = (aluno.turno or 'integral').lower()
 
@@ -1205,6 +1223,8 @@ def caderno_seami_view(request, aba='faltas'):
             if tipo_form in [TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO]:
                 if not data_fim or data_fim < data:
                     data_fim = data
+                if tipo_form == TipoOcorrencia.ATESTADO:
+                    justificado = True
 
             horario = None
             if horario_str:
