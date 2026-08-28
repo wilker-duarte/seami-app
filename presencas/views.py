@@ -275,10 +275,10 @@ def lancar_chamada_view(request):
             obs = reg.observacao
         elif oc_aluno and oc_aluno.tipo == TipoOcorrencia.ATESTADO:
             current_status = StatusPresenca.JUSTIFICADO
-            obs = oc_aluno.motivo or oc_aluno.observacao or oc_aluno.cid or 'Atestado médico no Caderno SEAMI'
+            obs = oc_aluno.motivo or oc_aluno.observacao or oc_aluno.cid
         elif oc_aluno and oc_aluno.tipo == TipoOcorrencia.FALTA:
             current_status = StatusPresenca.JUSTIFICADO if oc_aluno.justificado else StatusPresenca.AUSENTE
-            obs = oc_aluno.motivo or oc_aluno.observacao or 'Falta registrada no Caderno SEAMI'
+            obs = oc_aluno.motivo or oc_aluno.observacao
         else:
             current_status = StatusPresenca.PRESENTE
             obs = ''
@@ -496,7 +496,7 @@ def salvar_chamada_lote_view(request):
                         defaults={
                             'turma': aluno_turma,
                             'justificado': True,
-                            'motivo': obs or 'Falta Justificada registrada na chamada',
+                            'motivo': obs,
                             'registrado_por': request.user
                         }
                     )
