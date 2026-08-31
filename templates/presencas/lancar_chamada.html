@@ -373,7 +373,7 @@
                                                         {% endif %}
                                                     </span>
                                                 {% elif student.ausencia_programada.is_atraso %}
-                                                    <span style="font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 6px; background-color: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; display: inline-flex; align-items: center; gap: 5px;">
+                                                    <span style="font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 6px; {% if student.ausencia_programada.is_justificado %}background-color: #f0fdf4; color: #166534; border: 1px solid #bbf7d0;{% else %}background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a;{% endif %} display: inline-flex; align-items: center; gap: 5px;">
                                                         <span>⏰</span>
                                                         <span>{{ student.ausencia_programada.titulo }}</span>
                                                         {% if student.ausencia_programada.motivo %}

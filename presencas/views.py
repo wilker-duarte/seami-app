@@ -245,14 +245,16 @@ def lancar_chamada_view(request):
                     'motivo': oc_aluno.motivo or oc_aluno.observacao,
                 }
             elif oc_aluno.tipo == TipoOcorrencia.ATRASO:
+                titulo_tipo = "Atraso Justificado" if oc_aluno.justificado else "Atraso"
                 ocorrencia_info = {
                     'tipo': oc_aluno.tipo,
                     'is_ausencia': False,
                     'is_atestado': False,
                     'is_falta': False,
                     'is_atraso': True,
+                    'is_justificado': oc_aluno.justificado,
                     'is_saida': False,
-                    'titulo': f"Registro Informativo: Atraso{horario_str}",
+                    'titulo': f"Registro Informativo: {titulo_tipo}{horario_str}",
                     'motivo': oc_aluno.motivo or oc_aluno.observacao,
                 }
             elif oc_aluno.tipo == TipoOcorrencia.SAIDA:
@@ -1185,8 +1187,24 @@ def caderno_seami_view(request, aba='faltas'):
             horario_str = request.POST.get('horario')
             horario_retorno_str = request.POST.get('horario_retorno')
             retorna = request.POST.get('retorna') in ['on', 'sim', 'true', 'True']
-            justificado = request.POST.get('justificado') in ['on', 'sim', 'true', 'True']
-            avisado_pais = request.POST.get('avisado_pais') in ['on', 'sim', 'true', 'True']
+
+            if tipo_form == TipoOcorrencia.ATRASO:
+                val_just = request.POST.get('justificado_atraso')
+                if val_just is None:
+                    val_just = request.POST.get('justificado')
+                justificado = str(val_just).strip().lower() in ['on', 'sim', 'true', '1']
+
+                val_avis = request.POST.get('avisado_atraso')
+                if val_avis is None:
+                    val_avis = request.POST.get('avisado_pais')
+                avisado_pais = str(val_avis).strip().lower() in ['on', 'sim', 'true', '1']
+            elif tipo_form == TipoOcorrencia.ATESTADO:
+                justificado = True
+                avisado_pais = str(request.POST.get('avisado_pais', '')).strip().lower() in ['on', 'sim', 'true', '1']
+            else:
+                justificado = str(request.POST.get('justificado', '')).strip().lower() in ['on', 'sim', 'true', '1']
+                avisado_pais = str(request.POST.get('avisado_pais', '')).strip().lower() in ['on', 'sim', 'true', '1']
+
             cid = request.POST.get('cid', '').strip()
             motivo = request.POST.get('motivo', '').strip()
             quantidade = request.POST.get('quantidade', '').strip()
@@ -1194,7 +1212,7 @@ def caderno_seami_view(request, aba='faltas'):
             documento = request.FILES.get('documento')
 
             resp_fam = request.POST.get('responsavel_familiar', '').strip()
-            resp_staff = request.POST.get('responsavel_staff', '').strip()
+            resp_staff = (request.POST.get('staff_auxiliar') or request.POST.get('responsavel_staff') or '').strip()
             if resp_fam or resp_staff:
                 extras = []
                 if resp_fam:
