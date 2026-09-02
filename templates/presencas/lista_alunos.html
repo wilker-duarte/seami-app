@@ -323,18 +323,23 @@
                         Possui Acompanhamento Especial (Saúde / Pedagógico)
                     </label>
                 </div>
-                <div id="acomp-obs-wrapper" style="display: none; display: flex; flex-direction: column; gap: 10px;">
+                <div id="acomp-obs-wrapper" style="display: none; display: flex; flex-direction: column; gap: 12px;">
                     <input type="text" name="acompanhamento_obs" id="field-acomp-obs" placeholder="Descreva os detalhes ou cuidados específicos..."
                            style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13px; color: var(--text-primary); outline: none; box-sizing: border-box;">
-                    <!-- Dias da semana de acompanhamento -->
+                    <!-- Dias da semana e horários de acompanhamento -->
                     <div>
-                        <label style="display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px;">Dias da semana do acompanhamento (opcional)</label>
-                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                        <label style="display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px;">
+                            📅 Dias e Horários de Acompanhamento (ex: Ter 15:00, Qui 16:00)
+                        </label>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px;">
                             {% for dia_val, dia_label in dias_semana %}
-                            <label style="display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-body); cursor: pointer; font-size: 12.5px; font-weight: 600; color: var(--text-secondary); transition: all 0.15s; user-select: none;">
-                                <input type="checkbox" name="acompanhamento_dias" value="{{ dia_val }}" class="dia-semana-check" style="accent-color: var(--color-primary); width: 14px; height: 14px;">
-                                {{ dia_label }}
-                            </label>
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-body);">
+                                <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12.5px; font-weight: 700; color: var(--text-primary); user-select: none; margin: 0;">
+                                    <input type="checkbox" name="acompanhamento_dias" value="{{ dia_val }}" id="check-dia-{{ dia_val }}" class="dia-semana-check" onchange="toggleDiaHora('{{ dia_val }}', this.checked)" style="accent-color: var(--color-primary); width: 15px; height: 15px; cursor: pointer;">
+                                    <span>{{ dia_label }}</span>
+                                </label>
+                                <input type="time" name="acompanhamento_hora_{{ dia_val }}" id="acomp-hora-{{ dia_val }}" class="dia-hora-input" disabled placeholder="Horário" style="padding: 3px 6px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); font-size: 12px; color: var(--text-primary); outline: none; width: 85px; opacity: 0.5;">
+                            </div>
                             {% endfor %}
                         </div>
                     </div>
@@ -632,6 +637,17 @@
         }
     }
 
+    function toggleDiaHora(diaVal, isChecked) {
+        const inputHora = document.getElementById(`acomp-hora-${diaVal}`);
+        if (inputHora) {
+            inputHora.disabled = !isChecked;
+            inputHora.style.opacity = isChecked ? '1' : '0.5';
+            if (!isChecked) {
+                inputHora.value = '';
+            }
+        }
+    }
+
     function openStudentModal() {
         document.getElementById('modal-student-title').innerText = 'Novo Aluno';
         document.getElementById('form-action').value = 'create';
@@ -642,7 +658,15 @@
         document.getElementById('field-data-desligamento').value = '';
         document.getElementById('field-has-acompanhamento').checked = false;
         document.getElementById('field-acomp-obs').value = '';
-        document.querySelectorAll('.dia-semana-check').forEach(cb => cb.checked = false);
+        document.querySelectorAll('.dia-semana-check').forEach(cb => {
+            cb.checked = false;
+            toggleDiaHora(cb.value, false);
+        });
+        document.querySelectorAll('.dia-hora-input').forEach(inp => {
+            inp.value = '';
+            inp.disabled = true;
+            inp.style.opacity = '0.5';
+        });
         
         // Desmarcar e fechar as caixas de saúde
         document.getElementById('field-has-alergias').checked = false;
@@ -687,11 +711,37 @@
         document.getElementById('field-has-acompanhamento').checked = st.has_acompanhamento;
         document.getElementById('field-acomp-obs').value = st.acompanhamento_obs || '';
         
-        // Marcar os dias da semana
-        const diasAtivos = st.acompanhamento_dias ? st.acompanhamento_dias.toLowerCase().split(',').map(s => s.trim()) : [];
+        // Marcar os dias da semana e preencher os horários (ex: "Ter 15:00, Qui 16:00")
         document.querySelectorAll('.dia-semana-check').forEach(cb => {
-            cb.checked = diasAtivos.includes(cb.value.toLowerCase());
+            cb.checked = false;
+            toggleDiaHora(cb.value, false);
         });
+
+        if (st.acompanhamento_dias) {
+            const rawParts = st.acompanhamento_dias.split(',');
+            rawParts.forEach(p => {
+                const trimmed = p.trim();
+                if (!trimmed) return;
+                const matchDia = trimmed.match(/(seg|ter|qua|qui|sex)/i);
+                if (matchDia) {
+                    const diaKey = matchDia[1].toLowerCase();
+                    const cb = document.getElementById(`check-dia-${diaKey}`);
+                    if (cb) {
+                        cb.checked = true;
+                        toggleDiaHora(diaKey, true);
+                        const matchHora = trimmed.match(/(\d{1,2})[:h](\d{2})?/i);
+                        if (matchHora) {
+                            const hh = matchHora[1].padStart(2, '0');
+                            const mm = (matchHora[2] || '00').padStart(2, '0');
+                            const inputHora = document.getElementById(`acomp-hora-${diaKey}`);
+                            if (inputHora) {
+                                inputHora.value = `${hh}:${mm}`;
+                            }
+                        }
+                    }
+                }
+            });
+        }
 
         // 1. Processar Alergias
         const listAlergias = st.alergias ? st.alergias.split(',').map(s => s.trim()).filter(Boolean) : [];
@@ -826,7 +876,7 @@
         let acompHtml = st.has_acompanhamento
             ? `<div style="background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 8px; padding: 10px 14px; font-size: 12.5px; color: #0369a1;">
                 <strong>Possui Acompanhamento Especial:</strong><br>
-                ${st.acompanhamento_dias ? `<div>📅 Dias: <strong>${st.acompanhamento_dias.toUpperCase()}</strong></div>` : ''}
+                ${st.acompanhamento_dias ? `<div>📅 Dias e Horários: <strong>${st.acompanhamento_dias}</strong></div>` : ''}
                 ${st.acompanhamento_obs ? `<div style="margin-top: 3px;">📝 <em>${st.acompanhamento_obs}</em></div>` : ''}
                </div>`
             : `<span style="color: var(--text-light); font-style: italic; font-size: 12.5px;">Não necessita de acompanhamento especial</span>`;

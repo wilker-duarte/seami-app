@@ -507,23 +507,39 @@ def build_dashboard_context(request):
 
     if '2026' not in hist_by_year:
         hist_by_year['2026'] = {m: {'present': 0, 'absent': 0, 'enrolled': 0} for m in range(1, 13)}
-    available_years.add(2026)
-
     # Sobrescreve ano 2026 com as médias calculadas reais de chamada
     for m in range(1, 13):
-        m_regs = RegistroPresenca.objects.filter(data__year=2026, data__month=m)
+        import calendar as _cal
+        _last_day = _cal.monthrange(2026, m)[1]
+        start_m = date(2026, m, 1)
+        end_m = date(2026, m, _last_day)
+
+        # Total Geral de Matriculados no mês (pertencem quem entrou e quem saiu no mês)
+        alunos_m_qs = Aluno.objects.filter(
+            Q(data_entrada__isnull=True) | Q(data_entrada__lte=end_m)
+        ).filter(
+            Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=start_m)
+        )
+        if classroom_filter:
+            alunos_m_qs = alunos_m_qs.filter(Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None))
+        if student_id_filter:
+            alunos_m_qs = alunos_m_qs.filter(id=student_id_filter)
+        total_enrolled_m = alunos_m_qs.count()
+
+        # Apenas dias úteis (Segunda a Sexta)
+        m_regs = RegistroPresenca.objects.filter(data__year=2026, data__month=m, data__week_day__in=[2, 3, 4, 5, 6])
         if classroom_filter:
             m_regs = m_regs.filter(Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None))
         if student_id_filter:
             m_regs = m_regs.filter(aluno_id=student_id_filter)
 
-        dias_m = len(set(m_regs.values_list('data', flat=True)))
-        if dias_m > 0:
+        dias_uteis_com_chamada = len(set(m_regs.values_list('data', flat=True)))
+        if dias_uteis_com_chamada > 0:
             p_count = m_regs.filter(status=StatusPresenca.PRESENTE).count()
-            f_count = m_regs.filter(Q(status=StatusPresenca.AUSENTE) | Q(status=StatusPresenca.JUSTIFICADO)).count()
-            avg_p = round(p_count / dias_m, 1)
-            avg_f = round(f_count / dias_m, 1)
-            hist_by_year['2026'][m] = {'present': avg_p, 'absent': avg_f, 'enrolled': round(avg_p + avg_f, 1)}
+            avg_p = round(p_count / dias_uteis_com_chamada, 1)
+            enr_val = total_enrolled_m
+            avg_f = max(0.0, round(enr_val - avg_p, 1))
+            hist_by_year['2026'][m] = {'present': avg_p, 'absent': avg_f, 'enrolled': enr_val}
 
     sorted_years = sorted(list(available_years))
     year_charts_data = {}
@@ -969,9 +985,11 @@ def build_relatorios_context(request):
 
     available_years = sorted(list(available_years_set), reverse=True)
 
+    # Considera estritamente dias úteis (Segunda a Sexta)
     registros_periodo_all = RegistroPresenca.objects.filter(
         data__gte=date_start,
-        data__lte=date_end
+        data__lte=date_end,
+        data__week_day__in=[2, 3, 4, 5, 6]
     ).select_related('turma', 'aluno')
 
     if classroom_filter:
@@ -979,16 +997,20 @@ def build_relatorios_context(request):
             Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
         )
 
-    datas_chamada_distintas = set(registros_periodo_all.values_list('data', flat=True))
-    dias_com_chamada_count = len(datas_chamada_distintas) or 22
-    total_matriculados_ativos = Aluno.objects.ativos().count()
+    datas_chamada_distintas = set(d for d in registros_periodo_all.values_list('data', flat=True) if d.weekday() < 5)
+    dias_com_chamada_count = len(datas_chamada_distintas) or 1
+    total_matriculados_ativos = Aluno.objects.filter(
+        Q(data_entrada__isnull=True) | Q(data_entrada__lte=date_end)
+    ).filter(
+        Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=date_start)
+    ).count()
 
     total_pres_p = registros_periodo_all.filter(status=StatusPresenca.PRESENTE).count()
     total_falt_p = registros_periodo_all.filter(status__in=[StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO]).count()
     total_reg_p = total_pres_p + total_falt_p
 
-    media_presentes_dia = round(total_pres_p / max(dias_com_chamada_count, 1)) if dias_com_chamada_count > 0 else 110
-    frequencia_media_taxa = round((total_pres_p / total_reg_p) * 100) if total_reg_p > 0 else 92
+    media_presentes_dia = round(total_pres_p / max(dias_com_chamada_count, 1)) if dias_com_chamada_count > 0 else 0
+    frequencia_media_taxa = round((total_pres_p / total_reg_p) * 100) if total_reg_p > 0 else 100
 
     # Monta os dados para o gráfico consolidado mês a mês do ano atual (2026) combinando histórico + tempo real
     # Mapeia Jan a Ago de 2026
@@ -998,7 +1020,7 @@ def build_relatorios_context(request):
     freq_mes_matriculados = []
 
     for m_i in range(1, 9):
-        m_k = f"{current_year}-{String(m_i).padStart(2, '0')}" if 'String' in dir() else f"{current_year}-{m_i:02d}"
+        m_k = f"{current_year}-{m_i:02d}"
         h_found = next((h for h in historical_formatted_list if h['month'] == m_k), None)
         if h_found:
             freq_mes_presentes.append(h_found['present'])
@@ -1007,28 +1029,45 @@ def build_relatorios_context(request):
         else:
             import calendar as _cal
             _last_day = _cal.monthrange(current_year, m_i)[1]
-            mat_ativos = Aluno.objects.filter(data_entrada__lte=f"{current_year}-{m_i:02d}-{_last_day:02d}", ativo=True).count()
-            regs_mes = RegistroPresenca.objects.filter(data__year=current_year, data__month=m_i)
-            dias_chamada_mes = regs_mes.values('data').distinct().count()
-            
+            start_m_i = date(current_year, m_i, 1)
+            end_m_i = date(current_year, m_i, _last_day)
+
+            # Total Geral de Matriculados no mês (pertencem quem entrou e quem saiu no mês)
+            mat_mes_qs = Aluno.objects.filter(
+                Q(data_entrada__isnull=True) | Q(data_entrada__lte=end_m_i)
+            ).filter(
+                Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=start_m_i)
+            )
+            if classroom_filter:
+                mat_mes_qs = mat_mes_qs.filter(Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None))
+            m_val = mat_mes_qs.count()
+
+            # Chamadas do mês estritamente em dias úteis (Segunda a Sexta)
+            regs_mes = RegistroPresenca.objects.filter(
+                data__year=current_year,
+                data__month=m_i,
+                data__week_day__in=[2, 3, 4, 5, 6]
+            )
+            if classroom_filter:
+                regs_mes = regs_mes.filter(Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None))
+
+            dias_chamada_mes = len(set(regs_mes.values_list('data', flat=True)))
             p_val = 0
             if dias_chamada_mes > 0:
                 pres_mes = regs_mes.filter(status=StatusPresenca.PRESENTE).count()
                 p_val = pres_mes // dias_chamada_mes
-                
-            m_val = mat_ativos
-            if m_val == 0: 
-                m_val = total_matriculados_ativos
-                
+
             a_val = max(m_val - p_val, 0)
-            
+
             freq_mes_presentes.append(p_val)
             freq_mes_ausentes.append(a_val)
             freq_mes_matriculados.append(m_val)
 
-    # Tabela diária consolidada Geral (sem quebrar por sala)
+    # Tabela diária consolidada Geral (sem quebrar por sala, apenas dias úteis)
     freq_tabela_list = []
     for d in sorted(list(datas_chamada_distintas), reverse=True)[:30]:
+        if d.weekday() >= 5:
+            continue
         regs_dt = registros_periodo_all.filter(data=d)
         if not regs_dt.exists():
             continue
@@ -1036,9 +1075,14 @@ def build_relatorios_context(request):
         falt = regs_dt.filter(status__in=[StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO]).count()
         tot = pres + falt
         taxa = round((pres / tot) * 100) if tot > 0 else 100
-        mat_d = Aluno.objects.ativos(target_date=d).count()
-        if mat_d == 0:
-            mat_d = total_matriculados_ativos
+        mat_d_qs = Aluno.objects.filter(
+            Q(data_entrada__isnull=True) | Q(data_entrada__lte=d)
+        ).filter(
+            Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=d)
+        )
+        if classroom_filter:
+            mat_d_qs = mat_d_qs.filter(Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None))
+        mat_d = mat_d_qs.count() or total_matriculados_ativos
 
         freq_tabela_list.append({
             'data': d,

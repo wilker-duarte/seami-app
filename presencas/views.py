@@ -270,17 +270,17 @@ def lancar_chamada_view(request):
                 }
 
         # Definição do status inicial:
-        # Atrasos e Saídas NÃO configuram falta. A criança esteve presente.
         # Apenas Atestado Médico (Falta Justificada) e Falta (Ausente/Justificada) configuram ausência.
-        if reg:
-            current_status = reg.status
-            obs = reg.observacao
-        elif oc_aluno and oc_aluno.tipo == TipoOcorrencia.ATESTADO:
+        # Ocorrências ativas do Caderno SEAMI têm prioridade sobre status de chamada legado
+        if oc_aluno and oc_aluno.tipo == TipoOcorrencia.ATESTADO:
             current_status = StatusPresenca.JUSTIFICADO
-            obs = oc_aluno.motivo or oc_aluno.observacao or oc_aluno.cid
+            obs = reg.observacao if (reg and reg.observacao) else (oc_aluno.motivo or oc_aluno.observacao or oc_aluno.cid)
         elif oc_aluno and oc_aluno.tipo == TipoOcorrencia.FALTA:
             current_status = StatusPresenca.JUSTIFICADO if oc_aluno.justificado else StatusPresenca.AUSENTE
-            obs = oc_aluno.motivo or oc_aluno.observacao
+            obs = reg.observacao if (reg and reg.observacao) else (oc_aluno.motivo or oc_aluno.observacao)
+        elif reg:
+            current_status = reg.status
+            obs = reg.observacao
         else:
             current_status = StatusPresenca.PRESENTE
             obs = ''
@@ -311,6 +311,7 @@ def lancar_chamada_view(request):
             'turno_raw': aluno.turno,
             'has_acompanhamento': aluno.has_acompanhamento,
             'acompanhamento_obs': aluno.acompanhamento_obs,
+            'acompanhamento_dias': aluno.acompanhamento_dias,
             'ausencia_programada': ocorrencia_info,
             'status': current_status,
             'status_matutino': status_m,
@@ -487,7 +488,15 @@ def salvar_chamada_lote_view(request):
                 reg.diario_classe = diario
                 reg.turma = aluno_turma
                 reg.registrado_por = request.user
-                reg.status_chamada = status_chamada_raw
+                # Busca se há ocorrência prévia ativa no Caderno SEAMI para esta data
+                ocorr_justificada = OcorrenciaCaderno.objects.filter(
+                    aluno=aluno,
+                    tipo__in=[TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO]
+                ).filter(
+                    Q(data=data_chamada) | (Q(data__lte=data_chamada) & Q(data_fim__gte=data_chamada))
+                ).filter(
+                    Q(justificado=True) | Q(tipo=TipoOcorrencia.ATESTADO)
+                ).first()
 
                 # Se na chamada o status for JUSTIFICADO, garante que exista registro no Caderno SEAMI
                 if status_chamada_raw == StatusPresenca.JUSTIFICADO:
@@ -498,21 +507,18 @@ def salvar_chamada_lote_view(request):
                         defaults={
                             'turma': aluno_turma,
                             'justificado': True,
-                            'motivo': obs,
+                            'motivo': obs or 'Falta Justificada na chamada',
                             'registrado_por': request.user
                         }
                     )
+                    status = StatusPresenca.JUSTIFICADO
                 elif status_chamada_raw == StatusPresenca.AUSENTE:
-                    # Verifica se há ocorrência prévia de Falta Justificada ou Atestado no Caderno SEAMI para esta data
-                    ocorr_justificada = OcorrenciaCaderno.objects.filter(
-                        aluno=aluno,
-                        tipo__in=[TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO]
-                    ).filter(
-                        Q(data=data_chamada) | (Q(data__lte=data_chamada) & Q(data_fim__gte=data_chamada))
-                    ).filter(
-                        Q(justificado=True) | Q(tipo=TipoOcorrencia.ATESTADO)
-                    ).first()
-
+                    if ocorr_justificada:
+                        status = StatusPresenca.JUSTIFICADO
+                        if not obs and ocorr_justificada.motivo:
+                            obs = ocorr_justificada.motivo
+                elif status_chamada_raw == StatusPresenca.PRESENTE:
+                    # Se há justificativa/atestado ativo legalmente registrado no Caderno SEAMI, preserva o status Justificado
                     if ocorr_justificada:
                         status = StatusPresenca.JUSTIFICADO
                         if not obs and ocorr_justificada.motivo:
@@ -766,9 +772,19 @@ def lista_alunos_view(request):
             data_desligamento_str = request.POST.get('data_desligamento')
             has_acompanhamento = request.POST.get('has_acompanhamento') == 'on'
             acompanhamento_obs = request.POST.get('acompanhamento_obs', '').strip()
-            # Dias da semana: checkboxes múltiplos (seg, ter, qua, qui, sex)
+            # Dias da semana e horários: checkboxes múltiplos com horários por dia (ex: Ter 15:00, Qui 16:00)
+            dias_labels_map = {'seg': 'Seg', 'ter': 'Ter', 'qua': 'Qua', 'qui': 'Qui', 'sex': 'Sex'}
             acompanhamento_dias_list = request.POST.getlist('acompanhamento_dias')
-            acompanhamento_dias = ','.join(acompanhamento_dias_list)
+            dias_formatados = []
+            for d_val in ['seg', 'ter', 'qua', 'qui', 'sex']:
+                if d_val in acompanhamento_dias_list:
+                    h_val = request.POST.get(f'acompanhamento_hora_{d_val}', '').strip()
+                    d_lbl = dias_labels_map.get(d_val, d_val.capitalize())
+                    if h_val:
+                        dias_formatados.append(f"{d_lbl} {h_val}")
+                    else:
+                        dias_formatados.append(d_lbl)
+            acompanhamento_dias = ', '.join(dias_formatados)
 
             # Alergias (Múltipla seleção + Outros)
             alergias_list = [x.strip() for x in request.POST.getlist('alergias') if x.strip() and x != 'Outros']

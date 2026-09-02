@@ -93,11 +93,11 @@ class Aluno(models.Model):
     has_acompanhamento = models.BooleanField(default=False, verbose_name='Possui Acompanhamento Especial')
     acompanhamento_obs = models.TextField(blank=True, verbose_name='Observações de Acompanhamento')
     acompanhamento_dias = models.CharField(
-        max_length=50,
+        max_length=255,
         blank=True,
         default='',
-        verbose_name='Dias de Acompanhamento',
-        help_text='Dias da semana separados por vírgula. Ex: seg,qua,sex'
+        verbose_name='Dias e Horários de Acompanhamento',
+        help_text='Dias e horários de acompanhamento. Ex: Ter 15:00, Qui 16:00'
     )
     alergias = models.TextField(blank=True, default='', verbose_name='Alergias')
     restricoes_alimentares = models.TextField(blank=True, default='', verbose_name='Restrições Alimentares')
@@ -415,32 +415,63 @@ def auto_popular_presencas_diario(sender, instance, created, **kwargs):
             ).values_list('aluno_id', flat=True)
         )
 
+        # Busca ocorrências ativas no Caderno SEAMI para esta data
+        ocorrs_map = {}
+        for oc in OcorrenciaCaderno.objects.filter(
+            tipo__in=[TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO]
+        ).filter(
+            Q(data=instance.data, data_fim__isnull=True) |
+            Q(data=instance.data, data_fim=instance.data) |
+            Q(data__lte=instance.data, data_fim__gte=instance.data)
+        ):
+            if oc.aluno_id:
+                if oc.aluno_id not in ocorrs_map:
+                    ocorrs_map[oc.aluno_id] = oc
+                elif oc.tipo == TipoOcorrencia.ATESTADO or oc.justificado:
+                    ocorrs_map[oc.aluno_id] = oc
+
         novos_registros = []
         for aluno in alunos_qs:
             if aluno.id in alunos_existentes_ids:
                 continue
+
+            oc = ocorrs_map.get(aluno.id)
+            if oc and (oc.justificado or oc.tipo == TipoOcorrencia.ATESTADO):
+                st_base = StatusPresenca.JUSTIFICADO
+                st_turno_base = StatusTurnoPresenca.JUSTIFICADO
+                obs_extra = oc.motivo or oc.observacao or ('Atestado médico' if oc.tipo == TipoOcorrencia.ATESTADO else 'Falta Justificada')
+            elif oc and oc.tipo == TipoOcorrencia.FALTA:
+                st_base = StatusPresenca.AUSENTE
+                st_turno_base = StatusTurnoPresenca.AUSENTE
+                obs_extra = oc.motivo or oc.observacao or 'Falta'
+            else:
+                st_base = StatusPresenca.PRESENTE
+                st_turno_base = StatusTurnoPresenca.PRESENTE
+                obs_extra = None
+
             turno_aluno = (aluno.turno or 'integral').lower()
             if turno_aluno == 'matutino':
-                sm = StatusTurnoPresenca.PRESENTE
+                sm = st_turno_base
                 sv = StatusTurnoPresenca.NA
             elif turno_aluno == 'vespertino':
                 sm = StatusTurnoPresenca.NA
-                sv = StatusTurnoPresenca.PRESENTE
+                sv = st_turno_base
             else:
-                sm = StatusTurnoPresenca.PRESENTE
-                sv = StatusTurnoPresenca.PRESENTE
+                sm = st_turno_base
+                sv = st_turno_base
 
             reg = RegistroPresenca(
                 diario_classe=instance,
                 turma=instance.turma,
                 aluno=aluno,
                 data=instance.data,
-                status=StatusPresenca.PRESENTE,
+                status=st_base,
                 status_matutino=sm,
                 status_vespertino=sv,
+                status_chamada=st_base,
                 registrado_por=instance.registrado_por
             )
-            reg.calcular_status_e_observacao()
+            reg.calcular_status_e_observacao(custom_obs=obs_extra)
             novos_registros.append(reg)
 
         if novos_registros:
@@ -830,7 +861,8 @@ def sincronizar_ocorrencia_com_presenca(sender, instance, **kwargs):
 
         cur_d = old_inicio
         while cur_d <= old_fim:
-            recalcular_presenca_para_data(old_inst.aluno, cur_d)
+            if cur_d.weekday() < 5:
+                recalcular_presenca_para_data(old_inst.aluno, cur_d)
             cur_d += timedelta(days=1)
 
     if instance.tipo not in [TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO]:
@@ -843,7 +875,8 @@ def sincronizar_ocorrencia_com_presenca(sender, instance, **kwargs):
 
     cur_d = data_inicio
     while cur_d <= data_fim:
-        recalcular_presenca_para_data(instance.aluno, cur_d)
+        if cur_d.weekday() < 5:
+            recalcular_presenca_para_data(instance.aluno, cur_d)
         cur_d += timedelta(days=1)
 
 
@@ -867,7 +900,8 @@ def reverter_presenca_ao_excluir_ocorrencia(sender, instance, **kwargs):
 
     cur_d = data_inicio
     while cur_d <= data_fim:
-        recalcular_presenca_para_data(instance.aluno, cur_d)
+        if cur_d.weekday() < 5:
+            recalcular_presenca_para_data(instance.aluno, cur_d)
         cur_d += timedelta(days=1)
 
 
