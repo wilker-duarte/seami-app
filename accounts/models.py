@@ -75,7 +75,7 @@ class User(AbstractUser):
 
     @property
     def is_professor(self):
-        return self.role == UserRole.PROFESSOR
+        return self.role == UserRole.PROFESSOR and not self.is_superuser and self.role != UserRole.MASTER_ADMIN
 
     @property
     def is_auxiliar(self):

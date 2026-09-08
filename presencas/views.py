@@ -329,14 +329,48 @@ def lancar_chamada_view(request):
             elif status_geral == StatusPresenca.JUSTIFICADO:
                 total_justificadas += 1
 
+        turma_aluno = aluno.turma
+        turma_nome_str = turma_aluno.nome if turma_aluno else ''
+        turma_style = cores_salas.get(turma_nome_str.lower().strip(), {'bg': '#f1f5f9', 'color': '#475569', 'border': '#cbd5e1', 'emoji': '🏫'})
+
+        motivo_pend = ''
+        if is_pendente:
+            if aluno_shift == 'matutino':
+                motivo_pend = 'Pendente Matutino'
+            elif aluno_shift == 'vespertino':
+                motivo_pend = 'Pendente Vespertino'
+            else:
+                mat_pend = status_matutino not in [StatusTurnoPresenca.PRESENTE, StatusTurnoPresenca.AUSENTE, StatusTurnoPresenca.JUSTIFICADO]
+                vesp_pend = status_vespertino not in [StatusTurnoPresenca.PRESENTE, StatusTurnoPresenca.AUSENTE, StatusTurnoPresenca.JUSTIFICADO]
+                if mat_pend and vesp_pend:
+                    motivo_pend = 'Pendente Geral'
+                elif mat_pend:
+                    motivo_pend = 'Pendente Matutino'
+                elif vesp_pend:
+                    motivo_pend = 'Pendente Vespertino'
+                else:
+                    motivo_pend = 'Pendente'
+
         students_list.append({
             'aluno': aluno,
             'registro': reg,
+            'id': aluno.id,
+            'nome': aluno.nome,
+            'turma_nome': turma_nome_str,
+            'turma_style': turma_style,
+            'turno': (aluno.turno or 'Integral').capitalize(),
+            'status': status_geral,
             'status_matutino': status_matutino,
             'status_vespertino': status_vespertino,
             'status_geral': status_geral,
             'observacao': observacao,
+            'obs': observacao,
+            'has_acompanhamento': getattr(aluno, 'has_acompanhamento', False),
+            'acompanhamento_obs': getattr(aluno, 'acompanhamento_obs', ''),
+            'acompanhamento_dias': getattr(aluno, 'acompanhamento_dias', ''),
+            'ausencia_programada': ocorrencia_info,
             'ocorrencia_info': ocorrencia_info,
+            'motivo_pendencia': motivo_pend,
             'is_saved': is_saved,
             'is_pendente': is_pendente,
         })
