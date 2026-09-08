@@ -629,13 +629,31 @@ def consulta_chamada_view(request):
         alunos_todos = Aluno.objects.filter(ativo=True).select_related('turma').order_by('nome')
 
     # Dados da aba 1: Consulta / Histórico de Presenças
-    filter_type = request.GET.get('filter_type', 'month')  # 'custom' | 'month'
-    month_ref = request.GET.get('month_ref', f"{today.year}-{today.month:02d}")
-    turma_id = request.GET.get('classroom', '')
-    status_filter = request.GET.get('status', '')
-    search_query = request.GET.get('q', '').strip()
+    filter_type = request.GET.get('filter_type')
+    if not filter_type:
+        if 'date_start' in request.GET or 'date_end' in request.GET:
+            filter_type = 'custom'
+        else:
+            filter_type = 'month'
 
-    if filter_type == 'month':
+    month_ref = request.GET.get('month_ref', f"{today.year}-{today.month:02d}")
+    turma_id = request.GET.get('classroom', '').strip()
+    status_filter = request.GET.get('status', '').strip()
+    search_query = request.GET.get('q', '').strip()
+    student_id_param = request.GET.get('student_id', '').strip()
+
+    if filter_type == 'custom':
+        date_start_str = request.GET.get('date_start', (today.replace(day=1)).isoformat())
+        date_end_str = request.GET.get('date_end', today.isoformat())
+        try:
+            start_date = datetime.strptime(date_start_str, '%Y-%m-%d').date()
+        except ValueError:
+            start_date = today.replace(day=1)
+        try:
+            end_date = datetime.strptime(date_end_str, '%Y-%m-%d').date()
+        except ValueError:
+            end_date = today
+    else:
         try:
             y, m = map(int, month_ref.split('-'))
             start_date = date(y, m, 1)
@@ -647,15 +665,6 @@ def consulta_chamada_view(request):
             month_ref = f"{today.year}-{today.month:02d}"
         date_start_str = start_date.isoformat()
         date_end_str = end_date.isoformat()
-    else:
-        date_start_str = request.GET.get('date_start', (today.replace(day=1)).isoformat())
-        date_end_str = request.GET.get('date_end', today.isoformat())
-        try:
-            start_date = datetime.strptime(date_start_str, '%Y-%m-%d').date()
-            end_date = datetime.strptime(date_end_str, '%Y-%m-%d').date()
-        except ValueError:
-            start_date = today.replace(day=1)
-            end_date = today
 
     registros = RegistroPresenca.objects.filter(
         data__gte=start_date,
@@ -666,11 +675,18 @@ def consulta_chamada_view(request):
         registros = registros.filter(turma__in=turmas)
 
     if turma_id:
-        registros = registros.filter(
-            Q(turma_id=turma_id if turma_id.isdigit() else None) | Q(turma__nome__iexact=turma_id)
-        )
+        if turma_id.isdigit():
+            registros = registros.filter(Q(turma_id=int(turma_id)) | Q(turma__nome__iexact=turma_id))
+        else:
+            clean_turma = turma_id.replace('Sala ', '').strip()
+            registros = registros.filter(Q(turma__nome__iexact=turma_id) | Q(turma__nome__iexact=clean_turma))
+
     if status_filter:
         registros = registros.filter(status=status_filter)
+
+    if student_id_param and student_id_param.isdigit():
+        registros = registros.filter(aluno_id=int(student_id_param))
+
     if search_query:
         registros = registros.filter(
             Q(aluno__nome__icontains=search_query) |
@@ -799,7 +815,8 @@ def consulta_chamada_view(request):
         'weekly_room': weekly_room,
         'monthly_stats_list': monthly_stats_list,
         'individual_stats': individual_stats,
-        'selected_student_id': int(selected_student_id) if selected_student_id and selected_student_id.isdigit() else None,
+        'selected_student_id': int(selected_student_id) if selected_student_id and selected_student_id.isdigit() else (int(student_id_param) if student_id_param and student_id_param.isdigit() else None),
+        'student_id': student_id_param,
         'active_tab': 'attendance',
         'active_module': 'relatorios' if frequency_tab == 'relatorios' else 'consulta',
     }

@@ -829,7 +829,13 @@ def recalcular_presenca_para_data(aluno, target_date):
         obs_extra = oc_falta.motivo or oc_falta.observacao or ''
     else:
         # Nenhuma ocorrência ativa no Caderno SEAMI
-        # Reverte para o status_chamada original (se o professor marcou AUSENTE na chamada, mantém AUSENTE!)
+        if not reg.diario_classe_id and target_date > timezone.localdate():
+            # Se o registro de presença é para data futura e não possui diário de chamada oficial do professor
+            # (foi gerado antecipadamente por ocorrência do caderno agora inexistente), remove o registro órfão
+            reg.delete()
+            return None
+
+        # Reverte para o status_chamada original registrado pelo professor no diário de classe
         base_chamada = reg.status_chamada or StatusPresenca.PRESENTE
         if base_chamada == StatusPresenca.AUSENTE:
             reg.status = StatusPresenca.AUSENTE
