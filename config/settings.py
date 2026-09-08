@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'core.apps.CoreConfig',
     'presencas.apps.PresencasConfig',
     'consulta.apps.ConsultaConfig',
+    'papelaria.apps.PapelariaConfig',
 ]
 
 MIDDLEWARE = [

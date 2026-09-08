@@ -326,54 +326,33 @@ def sincronizar_automacoes_enfermaria(atendimento, user=None):
             oc_saida.observacao = observacoes_medicas or ''
             oc_saida.save()
 
-    # 2. Automação de Falta Justificada nos dias seguintes até a data de retorno
+    # 2. Automação de Falta Justificada como registro único de período até a data de retorno
     if saida_imediata and not retornara_dia_seguinte and data_retorno_prevista:
         start_date = data_atendimento + timedelta(days=1)
         end_date = data_retorno_prevista - timedelta(days=1)
 
-        cur_date = start_date
-        while cur_date <= end_date:
-            # Apenas dias úteis (Segunda a Sexta)
-            if cur_date.weekday() < 5:
-                motivo_falta = f"Afastamento Médico / Enfermagem: {motivo}"
-                if cid:
-                    motivo_falta += f" (CID: {cid})"
+        if start_date <= end_date:
+            motivo_falta = f"Afastamento Médico / Enfermagem: {motivo}"
+            if cid:
+                motivo_falta += f" (CID: {cid})"
 
-                OcorrenciaCaderno.objects.update_or_create(
-                    tipo=TipoOcorrencia.FALTA,
-                    aluno=aluno,
-                    data=cur_date,
-                    defaults={
-                        'turma': aluno.turma,
-                        'motivo': motivo_falta,
-                        'justificado': True,
-                        'cid': cid or '',
-                        'observacao': observacoes_medicas or f"Afastamento de Enfermagem com retorno previsto em {data_retorno_prevista.strftime('%d/%m/%Y')}",
-                        'registrado_por': registrado_por
-                    }
-                )
-
-                reg, _ = RegistroPresenca.objects.get_or_create(
-                    aluno=aluno,
-                    data=cur_date,
-                    defaults={
-                        'turma': aluno.turma,
-                        'status': StatusPresenca.JUSTIFICADO,
-                        'status_matutino': StatusTurnoPresenca.JUSTIFICADO,
-                        'status_vespertino': StatusTurnoPresenca.JUSTIFICADO,
-                        'observacao': f"[Falta Justificada - Afastamento Enfermagem (CID {cid or 'N/A'})]",
-                        'registrado_por': registrado_por
-                    }
-                )
-                reg.status = StatusPresenca.JUSTIFICADO
-                if reg.status_matutino != StatusTurnoPresenca.NA:
-                    reg.status_matutino = StatusTurnoPresenca.JUSTIFICADO
-                if reg.status_vespertino != StatusTurnoPresenca.NA:
-                    reg.status_vespertino = StatusTurnoPresenca.JUSTIFICADO
-                reg.calcular_status_e_observacao(custom_obs=f"Afastamento Enfermagem (CID {cid or 'N/A'})")
-                reg.save()
-
-            cur_date += timedelta(days=1)
+            # Cria um único registro de Falta Justificada com período (início e fim)
+            OcorrenciaCaderno.objects.update_or_create(
+                tipo=TipoOcorrencia.FALTA,
+                aluno=aluno,
+                data=start_date,
+                defaults={
+                    'data_fim': end_date,
+                    'turma': aluno.turma,
+                    'motivo': motivo_falta,
+                    'justificado': True,
+                    'cid': cid or '',
+                    'observacao': observacoes_medicas or f"Afastamento de Enfermagem com retorno previsto em {data_retorno_prevista.strftime('%d/%m/%Y')}",
+                    'registrado_por': registrado_por
+                }
+            )
+            # A sincronização com RegistroPresenca para todos os dias úteis do período
+            # ocorre automaticamente via signal post_save (sincronizar_ocorrencia_com_presenca)
 
 
 def reverter_automacoes_enfermaria(atendimento):
@@ -408,9 +387,11 @@ def reverter_automacoes_enfermaria(atendimento):
         if start_date <= end_date:
             ocorrs_afastamento = OcorrenciaCaderno.objects.filter(
                 aluno=aluno,
-                data__gte=start_date,
-                data__lte=end_date,
                 tipo=TipoOcorrencia.FALTA
+            ).filter(
+                Q(data=start_date) |
+                (Q(data__gte=start_date) & Q(data__lte=end_date)) |
+                (Q(data__lte=start_date) & Q(data_fim__gte=end_date))
             ).filter(
                 Q(motivo__icontains='Enfermagem') | Q(motivo__icontains='Enfermaria') | Q(motivo__icontains='Afastamento')
             )

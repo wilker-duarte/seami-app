@@ -195,6 +195,9 @@
                         <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Justificado?</th>
                         <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Avisado pelos pais?</th>
                         <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Doc</th>
+                        {% if user.is_master_admin or user.is_superuser %}
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: left;">Auditoria (Criação / Modificação)</th>
+                        {% endif %}
                         <th style="padding: 14px 18px; font-weight: 700; text-align: right;">Ações</th>
 
                         {% elif active_tab_nav == 'atestados' %}
@@ -204,6 +207,9 @@
                         <th style="padding: 14px 18px; font-weight: 700;">Período Afastamento</th>
                         <th style="padding: 14px 18px; font-weight: 700;">CID</th>
                         <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Atestado</th>
+                        {% if user.is_master_admin or user.is_superuser %}
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: left;">Auditoria (Criação / Modificação)</th>
+                        {% endif %}
                         <th style="padding: 14px 18px; font-weight: 700; text-align: right;">Ações</th>
 
                         {% elif active_tab_nav == 'atrasos' %}
@@ -215,6 +221,9 @@
                         <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Justificado?</th>
                         <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Avisado pelos pais?</th>
                         <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Doc</th>
+                        {% if user.is_master_admin or user.is_superuser %}
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: left;">Auditoria (Criação / Modificação)</th>
+                        {% endif %}
                         <th style="padding: 14px 18px; font-weight: 700; text-align: right;">Ações</th>
 
                         {% elif active_tab_nav == 'saidas' %}
@@ -225,6 +234,9 @@
                         <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Retorna?</th>
                         <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Retorno</th>
                         <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Doc</th>
+                        {% if user.is_master_admin or user.is_superuser %}
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: left;">Auditoria (Criação / Modificação)</th>
+                        {% endif %}
                         <th style="padding: 14px 18px; font-weight: 700; text-align: right;">Ações</th>
 
                         {% elif active_tab_nav == 'amamentacao' %}
@@ -232,6 +244,9 @@
                         <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Quantidade / Sessões</th>
                         <th style="padding: 14px 18px; font-weight: 700;">Observação</th>
                         <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Doc</th>
+                        {% if user.is_master_admin or user.is_superuser %}
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: left;">Auditoria (Criação / Modificação)</th>
+                        {% endif %}
                         <th style="padding: 14px 18px; font-weight: 700; text-align: right;">Ações</th>
                         {% endif %}
 
@@ -338,7 +353,7 @@
                         </td>
                         <!-- Motivo Declarado -->
                         <td style="padding: 14px 18px; font-size: 13px; color: var(--text-secondary);">
-                            {{ item.motivo|default:"Não informado" }}
+                            {{ item.motivo|default:"-" }}
                         </td>
                         <!-- Justificado? -->
                         <td style="padding: 14px 18px; text-align: center;">
@@ -420,11 +435,33 @@
                             {% endif %}
                         </td>
 
+                        {% if user.is_master_admin or user.is_superuser %}
+                        <!-- Coluna Auditoria (Acesso Master) -->
+                        <td style="padding: 12px 18px; font-size: 11.5px; color: var(--text-secondary); line-height: 1.4; border-left: 1px dashed var(--border-color);">
+                            <div>
+                                <span style="font-weight: 700; color: var(--text-primary);">Criado:</span>
+                                {{ item.registrado_por_display }}
+                                <span style="color: #64748b; font-size: 11px;">({{ item.criado_em|date:"d/m/Y H:i" }})</span>
+                            </div>
+                            {% if item.modificado_por_display %}
+                            <div style="margin-top: 3px;">
+                                <span style="font-weight: 700; color: #4f46e5;">Modificado:</span>
+                                {{ item.modificado_por_display }}
+                                <span style="color: #64748b; font-size: 11px;">({{ item.atualizado_em|date:"d/m/Y H:i" }})</span>
+                            </div>
+                            {% else %}
+                            <div style="margin-top: 3px; color: #94a3b8; font-size: 11px;">
+                                <em>Sem modificações</em>
+                            </div>
+                            {% endif %}
+                        </td>
+                        {% endif %}
+
                         <!-- Coluna Ações (Editar em Modal e Excluir com Confirmação) -->
                         <td style="padding: 14px 18px; text-align: right;">
                             <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
                                 <button type="button"
-                                    onclick="openEditModal({{ item.id }}, '{{ item.aluno.id|default:'' }}', '{{ item.turma.id|default:'' }}', '{{ item.data|date:'Y-m-d' }}', '{{ item.data_fim|date:'Y-m-d'|default:'' }}', '{{ item.horario|default:'' }}', '{{ item.horario_retorno|default:'' }}', {{ item.retorna|yesno:'true,false' }}, {{ item.justificado|yesno:'true,false' }}, {{ item.avisado_pais|yesno:'true,false' }}, '{{ item.cid|default:''|escapejs }}', '{{ item.motivo|default:''|escapejs }}', '{{ item.quantidade|default:'1'|escapejs }}', '{{ item.observacao|default:''|escapejs }}', '{% if item.documento %}{{ item.documento.url }}{% elif item.anexo %}{{ item.anexo.url }}{% endif %}', '{% if item.documento %}{{ item.documento.name|escapejs }}{% elif item.anexo %}{{ item.anexo.name|escapejs }}{% endif %}')"
+                                    onclick="openEditModal({{ item.id }}, '{{ item.aluno.id|default:'' }}', '{{ item.turma.id|default:'' }}', '{{ item.data|date:'Y-m-d' }}', '{{ item.data_fim|date:'Y-m-d'|default:'' }}', '{{ item.horario|default:'' }}', '{{ item.horario_retorno|default:'' }}', {{ item.retorna|yesno:'true,false' }}, {{ item.justificado|yesno:'true,false' }}, {{ item.avisado_pais|yesno:'true,false' }}, '{{ item.cid|default:''|escapejs }}', '{{ item.motivo|default:''|escapejs }}', '{{ item.quantidade|default:'1'|escapejs }}', '{{ item.observacao|default:''|escapejs }}', '{% if item.documento %}{{ item.documento.url }}{% elif item.anexo %}{{ item.anexo.url }}{% endif %}', '{% if item.documento %}{{ item.documento.name|escapejs }}{% elif item.anexo %}{{ item.anexo.name|escapejs }}{% endif %}', '{{ item.registrado_por_display|escapejs }}', '{{ item.criado_em|date:'d/m/Y H:i' }}', '{{ item.modificado_por_display|escapejs }}', '{{ item.atualizado_em|date:'d/m/Y H:i' }}')"
                                     title="Editar Registro"
                                     style="padding: 6px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--color-primary); cursor: pointer; display: inline-flex;">
                                     <i data-lucide="edit-2" style="width: 14px; height: 14px;"></i>
@@ -441,7 +478,7 @@
                     </tr>
                     {% empty %}
                     <tr id="empty-row">
-                        <td colspan="10" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                        <td colspan="{% if user.is_master_admin or user.is_superuser %}11{% else %}10{% endif %}" style="text-align: center; padding: 40px; color: var(--text-secondary);">
                             <div style="font-size: 36px; margin-bottom: 8px;">🍼</div>
                             <div
                                 style="font-weight: 700; font-size: 15px; color: var(--text-primary); margin-bottom: 4px;">
@@ -822,8 +859,8 @@
                                 style="display: block; font-size: 12px; font-weight: 700; color: #b91c1c; margin-bottom: 6px;">
                                 Data de Fim da Ausência
                             </label>
-                            <input type="date" name="data_fim" id="field-falta-fim"
-                                onchange="if(document.getElementById('field-data-fim-hidden')) document.getElementById('field-data-fim-hidden').value = this.value;"
+                            <input type="date" id="field-falta-fim"
+                                onchange="onFaltaFimChange(this.value)"
                                 style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fca5a5; background: white; font-size: 13px; color: #991b1b; outline: none; box-sizing: border-box;">
                         </div>
                     </div>
@@ -1040,6 +1077,21 @@
                         accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.msg,.eml" onchange="handleModalFileSelect(this)"
                         style="display: none;">
                 </div>
+
+                {% if user.is_master_admin or user.is_superuser %}
+                <!-- Controle de Auditoria (Visível apenas para Master Admin na edição) -->
+                <div id="modal-audit-box"
+                    style="display: none; padding: 12px 16px; background-color: #f8fafc; border: 1px solid var(--border-color); border-radius: 10px; font-size: 12px; color: var(--text-secondary);">
+                    <div style="display: flex; align-items: center; gap: 6px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">
+                        <i data-lucide="shield-check" style="width: 15px; height: 15px; color: var(--color-primary);"></i>
+                        Auditoria do Registro (Acesso Master)
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <div><strong style="color: var(--text-primary);">Criado inicialmente por:</strong> <span id="audit-criado-por">-</span></div>
+                        <div><strong style="color: #4f46e5;">Última modificação por:</strong> <span id="audit-modificado-por">-</span></div>
+                    </div>
+                </div>
+                {% endif %}
 
             </div>
 
@@ -1358,8 +1410,15 @@
             if (!fimInput.value || fimInput.value < val) {
                 fimInput.value = val;
                 if (hiddenFim) hiddenFim.value = val;
+            } else if (hiddenFim) {
+                hiddenFim.value = fimInput.value;
             }
         }
+    }
+
+    function onFaltaFimChange(val) {
+        const hiddenFim = document.getElementById('field-data-fim-hidden');
+        if (hiddenFim) hiddenFim.value = val;
     }
 
     // Cálculo dinâmico da previsão de retorno do atestado
@@ -1427,8 +1486,23 @@
         document.getElementById('attachment-drop-zone').style.display = 'block';
     }
 
-    // Setup Drag & Drop
+    // Setup Drag & Drop e Sincronização de Datas
     document.addEventListener("DOMContentLoaded", function () {
+        const fieldData = document.getElementById('field-data');
+        if (fieldData) {
+            fieldData.addEventListener('change', function (e) {
+                const val = e.target.value;
+                const faltaInicio = document.getElementById('field-falta-inicio');
+                if (faltaInicio) faltaInicio.value = val;
+                const atestInicio = document.getElementById('field-atestado-inicio');
+                if (atestInicio) {
+                    atestInicio.value = val;
+                    calcAtestadoReturn();
+                }
+                onFaltaInicioChange(val);
+            });
+        }
+
         const dropZone = document.getElementById('attachment-drop-zone');
         if (dropZone) {
             ['dragenter', 'dragover'].forEach(eventName => {
@@ -1464,6 +1538,9 @@
     function openCreateModal(defaultType) {
         document.getElementById('form-caderno-action').value = 'create';
         document.getElementById('form-caderno-id').value = '';
+
+        const auditBox = document.getElementById('modal-audit-box');
+        if (auditBox) auditBox.style.display = 'none';
 
         deselectModalStudent();
         clearModalAttachment();
@@ -1566,10 +1643,23 @@
     }
 
     // Abrir Modal de Edição com dados preenchidos
-    function openEditModal(id, alunoId, turmaId, data, dataFim, horario, horarioRetorno, retorna, justificado, avisadoPais, cid, motivo, quantidade, observacao, docUrl, docName) {
+    function openEditModal(id, alunoId, turmaId, data, dataFim, horario, horarioRetorno, retorna, justificado, avisadoPais, cid, motivo, quantidade, observacao, docUrl, docName, criadoPor, criadoEm, modificadoPor, modificadoEm) {
         document.getElementById('form-caderno-action').value = 'update';
         document.getElementById('form-caderno-id').value = id;
         clearModalAttachment();
+
+        const auditBox = document.getElementById('modal-audit-box');
+        if (auditBox) {
+            auditBox.style.display = 'block';
+            const criadoEl = document.getElementById('audit-criado-por');
+            const modificadoEl = document.getElementById('audit-modificado-por');
+            if (criadoEl) criadoEl.innerText = `${criadoPor || 'Sistema'} em ${criadoEm || '-'}`;
+            if (modificadoEl) {
+                modificadoEl.innerText = (modificadoPor && modificadoPor !== '-' && modificadoPor !== 'None') 
+                    ? `${modificadoPor} em ${modificadoEm || '-'}` 
+                    : 'Sem modificações posteriores';
+            }
+        }
 
         // Configuração de anexo existente
         const existingCard = document.getElementById('existing-attachment-card');

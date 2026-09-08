@@ -214,6 +214,7 @@ a {
 
 .logo-emoji {
     font-size: 28px;
+    display: inline-block;
     animation: wiggle 3s infinite ease-in-out;
     transform-origin: bottom center;
 }

@@ -1,0 +1,864 @@
+{% extends 'base.html' %}
+
+{% block title %}Papelaria & Controle de Estoque | SEAMI{% endblock %}
+
+{% block content %}
+<div style="display: flex; flex-direction: column; gap: 24px; padding-bottom: 40px;">
+
+    <!-- Topo Institucional / Hero -->
+    <div style="display: flex; justify-content: space-between; align-items: center; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 22px 26px; box-shadow: var(--shadow-sm); flex-wrap: wrap; gap: 16px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <div style="width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); color: #2563eb; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1px #bfdbfe;">
+                <i data-lucide="package" style="width: 26px; height: 26px;"></i>
+            </div>
+            <div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <h2 style="font-family: var(--font-title); font-size: 20px; font-weight: 700; color: var(--text-primary); margin: 0;">
+                        Papelaria & Controle de Estoque
+                    </h2>
+                    <span style="font-size: 11px; font-weight: 700; background-color: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 999px; border: 1px solid #cbd5e1;">
+                        Módulo IV
+                    </span>
+                </div>
+                <p style="font-size: 13px; color: var(--text-secondary); margin-top: 3px; margin-bottom: 0;">
+                    Gestão centralizada de insumos pedagógicos com unidades padronizadas, controle de entradas/saídas e relatório para os pais.
+                </p>
+            </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <a href="{% url 'papelaria:relatorio_pais' %}" class="secondary-btn"
+                style="padding: 10px 16px; border-radius: var(--radius-sm); border: 1.5px solid #fed7aa; background-color: #fff7ed; color: #c2410c; font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; transition: all 0.2s; box-shadow: var(--shadow-sm);">
+                <i data-lucide="file-text" style="width: 17px; height: 17px;"></i>
+                <span>Lista para os Pais (Relatório)</span>
+            </a>
+
+            {% if can_manage %}
+            <button type="button" onclick="openCreateItemModal()" class="primary-btn"
+                style="padding: 10px 18px; border-radius: var(--radius-sm); background-color: var(--color-primary); color: white; border: none; font-weight: 700; font-size: 13.5px; cursor: pointer; display: flex; align-items: center; gap: 7px; box-shadow: var(--shadow-sm); transition: transform 0.15s ease;">
+                <i data-lucide="plus-circle" style="width: 17px; height: 17px;"></i>
+                <span>Novo Item de Papelaria</span>
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Cards de Indicadores do Estoque -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+        <!-- Card 1: Total Itens -->
+        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px 20px; display: flex; align-items: center; gap: 16px; box-shadow: var(--shadow-sm);">
+            <div style="width: 44px; height: 44px; border-radius: 10px; background-color: #eff6ff; color: #3b82f6; display: flex; align-items: center; justify-content: center;">
+                <i data-lucide="boxes" style="width: 22px; height: 22px;"></i>
+            </div>
+            <div>
+                <span style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Total Cadastrado</span>
+                <div style="font-size: 24px; font-weight: 800; color: var(--text-primary); line-height: 1.2;">{{ total_itens }}</div>
+                <span style="font-size: 11px; color: var(--text-light);">itens ativos no catálogo</span>
+            </div>
+        </div>
+
+        <!-- Card 2: Estoque Baixo -->
+        <div style="background-color: var(--bg-card); border: 1px solid {% if total_baixos > 0 %}#fcd34d{% else %}var(--border-color){% endif %}; border-radius: var(--radius-md); padding: 18px 20px; display: flex; align-items: center; gap: 16px; box-shadow: var(--shadow-sm);">
+            <div style="width: 44px; height: 44px; border-radius: 10px; background-color: #fef3c7; color: #d97706; display: flex; align-items: center; justify-content: center;">
+                <i data-lucide="alert-triangle" style="width: 22px; height: 22px;"></i>
+            </div>
+            <div>
+                <span style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Estoque Baixo</span>
+                <div style="font-size: 24px; font-weight: 800; color: {% if total_baixos > 0 %}#d97706{% else %}var(--text-primary){% endif %}; line-height: 1.2;">
+                    {{ total_baixos }}
+                </div>
+                <span style="font-size: 11px; color: var(--text-light);">necessitam reposição</span>
+            </div>
+        </div>
+
+        <!-- Card 3: Estoque Zerado -->
+        <div style="background-color: var(--bg-card); border: 1px solid {% if total_zerados > 0 %}#fca5a5{% else %}var(--border-color){% endif %}; border-radius: var(--radius-md); padding: 18px 20px; display: flex; align-items: center; gap: 16px; box-shadow: var(--shadow-sm);">
+            <div style="width: 44px; height: 44px; border-radius: 10px; background-color: #fee2e2; color: #dc2626; display: flex; align-items: center; justify-content: center;">
+                <i data-lucide="alert-octagon" style="width: 22px; height: 22px;"></i>
+            </div>
+            <div>
+                <span style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Estoque Zerado</span>
+                <div style="font-size: 24px; font-weight: 800; color: {% if total_zerados > 0 %}#dc2626{% else %}var(--text-primary){% endif %}; line-height: 1.2;">
+                    {{ total_zerados }}
+                </div>
+                <span style="font-size: 11px; color: var(--text-light);">saldo esgotado</span>
+            </div>
+        </div>
+
+        <!-- Card 4: Lista dos Pais -->
+        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px 20px; display: flex; align-items: center; gap: 16px; box-shadow: var(--shadow-sm);">
+            <div style="width: 44px; height: 44px; border-radius: 10px; background-color: #f5f3ff; color: #7c3aed; display: flex; align-items: center; justify-content: center;">
+                <i data-lucide="clipboard-list" style="width: 22px; height: 22px;"></i>
+            </div>
+            <div>
+                <span style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Na Lista dos Pais</span>
+                <div style="font-size: 24px; font-weight: 800; color: var(--text-primary); line-height: 1.2;">{{ total_lista_pais }}</div>
+                <span style="font-size: 11px; color: var(--text-light);">itens solicitados às famílias</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barra de Filtros e Busca -->
+    <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px 20px; box-shadow: var(--shadow-sm);">
+        <form method="GET" action="{% url 'papelaria:estoque' %}" style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+            
+            <!-- Campo Busca -->
+            <div style="flex: 2; min-width: 220px; position: relative;">
+                <i data-lucide="search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-secondary);"></i>
+                <input type="text" name="search" value="{{ search }}" placeholder="Buscar por nome do item ou especificação..."
+                    style="width: 100%; padding: 9px 12px 9px 36px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background-color: var(--bg-input); color: var(--text-primary); font-size: 13px;">
+            </div>
+
+            <!-- Filtro Categoria -->
+            <div style="flex: 1; min-width: 170px;">
+                <select name="categoria" onchange="this.form.submit()"
+                    style="width: 100%; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background-color: var(--bg-input); color: var(--text-primary); font-size: 13px; font-weight: 600;">
+                    <option value="">Todas as Categorias</option>
+                    {% for val, label in categorias %}
+                        <option value="{{ val }}" {% if selected_categoria == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Filtro Situação do Estoque -->
+            <div style="flex: 1; min-width: 160px;">
+                <select name="status" onchange="this.form.submit()"
+                    style="width: 100%; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background-color: var(--bg-input); color: var(--text-primary); font-size: 13px; font-weight: 600;">
+                    <option value="">Situação do Estoque</option>
+                    <option value="normal" {% if selected_status == 'normal' %}selected{% endif %}>Estoque Normal</option>
+                    <option value="baixo" {% if selected_status == 'baixo' %}selected{% endif %}>⚠️ Estoque Baixo</option>
+                    <option value="zerado" {% if selected_status == 'zerado' %}selected{% endif %}>🚫 Zerado</option>
+                </select>
+            </div>
+
+            <!-- Filtro Lista dos Pais -->
+            <div style="flex: 1; min-width: 160px;">
+                <select name="lista_pais" onchange="this.form.submit()"
+                    style="width: 100%; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background-color: var(--bg-input); color: var(--text-primary); font-size: 13px; font-weight: 600;">
+                    <option value="">Lista dos Pais</option>
+                    <option value="sim" {% if selected_lista_pais == 'sim' %}selected{% endif %}>Apenas da Lista</option>
+                    <option value="nao" {% if selected_lista_pais == 'nao' %}selected{% endif %}>Fora da Lista</option>
+                </select>
+            </div>
+
+            <!-- Botão Filtrar / Limpar -->
+            <div style="display: flex; gap: 8px;">
+                <button type="submit" class="primary-btn" style="padding: 9px 16px; border-radius: var(--radius-sm); background-color: var(--color-primary); color: white; border: none; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                    <i data-lucide="filter" style="width: 14px; height: 14px;"></i>
+                    <span>Filtrar</span>
+                </button>
+                {% if search or selected_categoria or selected_status or selected_lista_pais %}
+                <a href="{% url 'papelaria:estoque' %}" class="secondary-btn" style="padding: 9px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-body); color: var(--text-secondary); text-decoration: none; font-size: 13px; display: inline-flex; align-items: center;">
+                    Limpar
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- Tabela Principal de Itens do Estoque -->
+    <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); overflow: hidden;">
+        <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background-color: var(--bg-card);">
+            <div>
+                <h3 style="font-family: var(--font-title); font-size: 16px; font-weight: 700; color: var(--text-primary); margin: 0;">
+                    Itens Cadastrados & Saldo em Estoque
+                </h3>
+                <span style="font-size: 12px; color: var(--text-secondary);">
+                    {{ itens|length }} item(ns) encontrado(s)
+                </span>
+            </div>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                <thead>
+                    <tr style="background-color: var(--bg-body); color: var(--text-secondary); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border-color);">
+                        <th style="padding: 14px 18px; font-weight: 700;">Item / Descrição</th>
+                        <th style="padding: 14px 18px; font-weight: 700;">Categoria</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Unidade de Medida</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Saldo em Estoque</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Estoque Mínimo</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Lista dos Pais</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: right;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in itens %}
+                    <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.15s ease;"
+                        onmouseenter="this.style.backgroundColor='var(--bg-input)'"
+                        onmouseleave="this.style.backgroundColor='transparent'">
+                        
+                        <!-- Item / Nome e Especificação -->
+                        <td style="padding: 14px 18px; max-width: 320px;">
+                            <div style="font-weight: 700; color: var(--text-primary); font-size: 14px; margin-bottom: 2px;">
+                                {{ item.nome }}
+                            </div>
+                            {% if item.especificacao %}
+                            <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.35;">
+                                {{ item.especificacao }}
+                            </div>
+                            {% else %}
+                            <div style="font-size: 11.5px; color: var(--text-light); font-style: italic;">
+                                Sem especificação adicional
+                            </div>
+                            {% endif %}
+                        </td>
+
+                        <!-- Categoria -->
+                        <td style="padding: 14px 18px;">
+                            <span style="font-size: 11.5px; font-weight: 600; padding: 3px 8px; border-radius: 6px; background-color: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; display: inline-block;">
+                                {{ item.get_categoria_display }}
+                            </span>
+                        </td>
+
+                        <!-- Unidade de Medida -->
+                        <td style="padding: 14px 18px; text-align: center;">
+                            <span style="font-size: 12px; font-weight: 700; color: #4338ca; background-color: #eef2ff; border: 1px solid #c7d2fe; padding: 3px 8px; border-radius: 6px;">
+                                📏 {{ item.get_unidade_medida_display }}
+                            </span>
+                        </td>
+
+                        <!-- Saldo em Estoque -->
+                        <td style="padding: 14px 18px; text-align: center;">
+                            <div style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 8px; font-size: 13px; font-weight: 800; background-color: {{ item.status_estoque_badge.bg }}; color: {{ item.status_estoque_badge.color }}; border: 1px solid {{ item.status_estoque_badge.border }};">
+                                <span>{{ item.quantidade_estoque|floatformat:"-2" }}</span>
+                                <span style="font-size: 11px; font-weight: 600;">{{ item.get_unidade_medida_display }}</span>
+                            </div>
+                        </td>
+
+                        <!-- Estoque Mínimo -->
+                        <td style="padding: 14px 18px; text-align: center; color: var(--text-secondary); font-weight: 600;">
+                            {{ item.estoque_minimo|floatformat:"-2" }}
+                        </td>
+
+                        <!-- Lista dos Pais -->
+                        <td style="padding: 14px 18px; text-align: center;">
+                            {% if item.solicitar_pais %}
+                            <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                                <span style="font-size: 11px; font-weight: 700; background-color: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; padding: 2px 7px; border-radius: 999px;">
+                                    ✓ Solicitado
+                                </span>
+                                {% if item.quantidade_sugerida_pais %}
+                                <span style="font-size: 11px; color: var(--text-secondary); font-weight: 600;">
+                                    {{ item.quantidade_sugerida_pais }}
+                                </span>
+                                {% endif %}
+                                {% if item.observacao_pais_tipo == 'sugestao_marca' %}
+                                <span style="font-size: 10px; color: #d97706; font-weight: 700;">(*) Sugestão marca</span>
+                                {% elif item.observacao_pais_tipo == 'higiene_enfermagem' %}
+                                <span style="font-size: 10px; color: #2563eb; font-weight: 700;">(**) Higiene/Enfermagem</span>
+                                {% endif %}
+                            </div>
+                            {% else %}
+                            <span style="font-size: 11px; color: var(--text-light); font-weight: 600;">
+                                Não
+                            </span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Ações -->
+                        <td style="padding: 14px 18px; text-align: right;">
+                            <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                                
+                                <!-- Botão Movimentar Estoque (Entrada / Saída) -->
+                                <button type="button"
+                                    onclick="openMovimentarModal({{ item.id }}, '{{ item.nome|escapejs }}', '{{ item.get_unidade_medida_display|escapejs }}', '{{ item.quantidade_estoque|floatformat:"-2" }}')"
+                                    title="Registrar Entrada ou Saída de Estoque"
+                                    style="padding: 6px 9px; border-radius: 6px; border: 1px solid #bfdbfe; background-color: #eff6ff; color: #2563eb; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700;">
+                                    <i data-lucide="arrow-left-right" style="width: 14px; height: 14px;"></i>
+                                    <span>Movimentar</span>
+                                </button>
+
+                                <!-- Botão Histórico -->
+                                <button type="button"
+                                    onclick="openHistoricoModal({{ item.id }}, '{{ item.nome|escapejs }}')"
+                                    title="Histórico de Movimentações"
+                                    style="padding: 6px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--text-secondary); cursor: pointer; display: inline-flex;">
+                                    <i data-lucide="history" style="width: 14px; height: 14px;"></i>
+                                </button>
+
+                                {% if can_manage %}
+                                <!-- Botão Editar Item -->
+                                <button type="button"
+                                    onclick="openEditItemModal({{ item.id }}, '{{ item.nome|escapejs }}', '{{ item.especificacao|escapejs }}', '{{ item.categoria }}', '{{ item.unidade_medida }}', '{{ item.estoque_minimo|floatformat:"-2" }}', {{ item.solicitar_pais|yesno:'true,false' }}, '{{ item.quantidade_sugerida_pais|escapejs }}', '{{ item.observacao_pais_tipo }}')"
+                                    title="Editar Item"
+                                    style="padding: 6px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--color-primary); cursor: pointer; display: inline-flex;">
+                                    <i data-lucide="edit-2" style="width: 14px; height: 14px;"></i>
+                                </button>
+
+                                <!-- Botão Excluir Item -->
+                                <form method="POST" action="{% url 'papelaria:estoque' %}" style="display: inline;" onsubmit="return confirm('Tem certeza que deseja excluir o item \'{{ item.nome|escapejs }}\' e todo o histórico do estoque?');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="delete_item">
+                                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                                    <button type="submit" title="Excluir Item"
+                                        style="padding: 6px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-body); color: #dc2626; cursor: pointer; display: inline-flex;">
+                                        <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+
+                            </div>
+                        </td>
+
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 48px; color: var(--text-secondary);">
+                            <div style="font-size: 32px; margin-bottom: 10px;">📦</div>
+                            <div style="font-weight: 700; font-size: 15px; color: var(--text-primary); margin-bottom: 4px;">
+                                Nenhum item encontrado
+                            </div>
+                            <div style="font-size: 13px;">
+                                Modifique os filtros de busca ou cadastre um novo item de papelaria.
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Registro de Movimentações Recentes (Log de Auditoria de Consumo) -->
+    {% if recent_movimentacoes %}
+    <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); overflow: hidden;">
+        <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="activity" style="width: 18px; height: 18px; color: #2563eb;"></i>
+                <h3 style="font-family: var(--font-title); font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 0;">
+                    Últimas Movimentações no Estoque
+                </h3>
+            </div>
+            <span style="font-size: 12px; color: var(--text-secondary);">Histórico recente de entradas e saídas</span>
+        </div>
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 12.5px;">
+                <thead>
+                    <tr style="background-color: var(--bg-body); color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border-color);">
+                        <th style="padding: 10px 16px; font-weight: 700;">Data</th>
+                        <th style="padding: 10px 16px; font-weight: 700;">Tipo</th>
+                        <th style="padding: 10px 16px; font-weight: 700;">Item</th>
+                        <th style="padding: 10px 16px; font-weight: 700; text-align: center;">Quantidade</th>
+                        <th style="padding: 10px 16px; font-weight: 700; text-align: center;">Saldo Pós</th>
+                        <th style="padding: 10px 16px; font-weight: 700;">Destino / Doador</th>
+                        <th style="padding: 10px 16px; font-weight: 700;">Motivo / Observação</th>
+                        <th style="padding: 10px 16px; font-weight: 700;">Responsável</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in recent_movimentacoes %}
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 10px 16px; font-weight: 600;">{{ m.data|date:"d/m/Y" }}</td>
+                        <td style="padding: 10px 16px;">
+                            {% if m.tipo == 'ENTRADA' %}
+                            <span style="background: #dcfce7; color: #15803d; border: 1px solid #86efac; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 11px;">Entrada</span>
+                            {% elif m.tipo == 'SAIDA' %}
+                            <span style="background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 11px;">Saída</span>
+                            {% else %}
+                            <span style="background: #fef3c7; color: #b45309; border: 1px solid #fcd34d; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 11px;">Ajuste</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 10px 16px; font-weight: 700; color: var(--text-primary);">{{ m.item.nome }}</td>
+                        <td style="padding: 10px 16px; text-align: center; font-weight: 700;">
+                            {% if m.tipo == 'ENTRADA' %}+{% elif m.tipo == 'SAIDA' %}-{% endif %}{{ m.quantidade|floatformat:"-2" }} {{ m.item.get_unidade_medida_display }}
+                        </td>
+                        <td style="padding: 10px 16px; text-align: center; color: var(--text-secondary);">
+                            {{ m.saldo_posterior|floatformat:"-2" }}
+                        </td>
+                        <td style="padding: 10px 16px;">
+                            {% if m.turma %}
+                            <span style="background-color: #f1f5f9; color: #334155; padding: 2px 6px; border-radius: 4px; font-weight: 600;">🏫 Sala {{ m.turma.nome }}</span>
+                            {% elif m.aluno %}
+                            <span style="color: var(--text-primary); font-weight: 600;">👶 {{ m.aluno.nome }}</span>
+                            {% else %}-{% endif %}
+                        </td>
+                        <td style="padding: 10px 16px; color: var(--text-secondary); max-width: 250px;">{{ m.motivo|default:"-" }}</td>
+                        <td style="padding: 10px 16px; color: var(--text-light); font-size: 11.5px;">
+                            {{ m.responsavel.get_full_name|default:m.responsavel.username|default:"Sistema" }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL 1: CADASTRAR OU EDITAR ITEM DE PAPELARIA (Exclusivo Master Admin)     -->
+<!-- ========================================================================= -->
+<div id="modal-item-papelaria" style="display: none; position: fixed; inset: 0; z-index: 1050; align-items: center; justify-content: center; background-color: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); padding: 16px;">
+    <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); width: 100%; max-width: 650px; box-shadow: var(--shadow-lg); overflow: hidden; display: flex; flex-direction: column; max-height: 90vh;">
+        
+        <!-- Cabeçalho da Modal -->
+        <div style="padding: 18px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 36px; height: 36px; border-radius: 8px; background-color: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center;">
+                    <i data-lucide="package-plus" style="width: 20px; height: 20px;"></i>
+                </div>
+                <h3 id="modal-item-title" style="font-family: var(--font-title); font-size: 17px; font-weight: 700; color: var(--text-primary); margin: 0;">
+                    Novo Item de Papelaria
+                </h3>
+            </div>
+            <button type="button" onclick="closeItemModal()" style="background: transparent; border: none; color: var(--text-secondary); cursor: pointer; padding: 4px;">
+                <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+            </button>
+        </div>
+
+        <!-- Formulário da Modal -->
+        <form method="POST" action="{% url 'papelaria:estoque' %}" style="padding: 22px 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;">
+            {% csrf_token %}
+            <input type="hidden" name="action" id="form-item-action" value="create_item">
+            <input type="hidden" name="item_id" id="form-item-id" value="">
+
+            <div style="display: grid; grid-template-columns: 2fr 1.2fr; gap: 14px;">
+                <!-- Nome do Item -->
+                <div>
+                    <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--text-primary);">
+                        Nome do Item *
+                    </label>
+                    <input type="text" name="nome" id="field-item-nome" required placeholder="Ex: EVA glitter, Balões, Caneta..."
+                        style="width: 100%; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background-color: var(--bg-input); color: var(--text-primary); font-size: 13px;">
+                </div>
+
+                <!-- Categoria -->
+                <div>
+                    <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--text-primary);">
+                        Categoria *
+                    </label>
+                    <select name="categoria" id="field-item-categoria" required
+                        style="width: 100%; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background-color: var(--bg-input); color: var(--text-primary); font-size: 13px; font-weight: 600;">
+                        {% for val, label in categorias %}
+                            <option value="{{ val }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Especificação Técnica / Marca -->
+            <div>
+                <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--text-primary);">
+                    Especificação / Detalhes / Sugestão de Marca
+                </label>
+                <textarea name="especificacao" id="field-item-especificacao" rows="2" placeholder="Ex: São Roque* N°9 liso cor dourada e prata com 50 unidades, Tek Bond 100g..."
+                    style="width: 100%; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background-color: var(--bg-input); color: var(--text-primary); font-size: 13px; resize: vertical;"></textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 14px;">
+                <!-- Unidade de Medida -->
+                <div>
+                    <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--text-primary);">
+                        Unidade de Medida *
+                    </label>
+                    <select name="unidade_medida" id="field-item-unidade" required
+                        style="width: 100%; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background-color: var(--bg-input); color: var(--text-primary); font-size: 13px; font-weight: 600;">
+                        {% for val, label in unidades_medida %}
+                            <option value="{{ val }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Saldo Inicial (Apenas no Create) -->
+                <div id="box-saldo-inicial">
+                    <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--text-primary);">
+                        Saldo Inicial
+                    </label>
+                    <input type="number" step="0.01" name="quantidade_estoque" id="field-item-saldo-inicial" value="0"
+                        style="width: 100%; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background-color: var(--bg-input); color: var(--text-primary); font-size: 13px;">
+                </div>
+
+                <!-- Estoque Mínimo (Alerta) -->
+                <div>
+                    <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--text-primary);">
+                        Estoque Mínimo *
+                    </label>
+                    <input type="number" step="0.01" name="estoque_minimo" id="field-item-estoque-minimo" value="5" required
+                        style="width: 100%; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background-color: var(--bg-input); color: var(--text-primary); font-size: 13px;">
+                </div>
+            </div>
+
+            <!-- Caixa de Configuração para a Lista dos Pais -->
+            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 700; color: #1e293b;">
+                        <input type="checkbox" name="solicitar_pais" id="field-item-solicitar-pais" checked style="width: 16px; height: 16px; accent-color: var(--color-primary);">
+                        <span>Incluir na Lista de Material para os Pais/Responsáveis</span>
+                    </label>
+                    <span style="font-size: 11px; color: #64748b;">Aparecerá no Relatório Oficial</span>
+                </div>
+
+                <div id="box-campos-pais" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 4px;">
+                    <div>
+                        <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #475569;">
+                            Quantidade Solicitada aos Pais
+                        </label>
+                        <input type="text" name="quantidade_sugerida_pais" id="field-item-qtd-pais" placeholder="Ex: 01 unidade, 02 caixas, 04 de cada cor..."
+                            style="width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; background-color: white; font-size: 12.5px;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #475569;">
+                            Nota de Rodapé no Relatório
+                        </label>
+                        <select name="observacao_pais_tipo" id="field-item-obs-pais-tipo"
+                            style="width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; background-color: white; font-size: 12px; font-weight: 600;">
+                            {% for val, label in observacoes_pais_tipos %}
+                                <option value="{{ val }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botões de Ação -->
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                <button type="button" onclick="closeItemModal()" class="secondary-btn"
+                    style="padding: 9px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-body); color: var(--text-secondary); cursor: pointer; font-weight: 600; font-size: 13px;">
+                    Cancelar
+                </button>
+                <button type="submit" class="primary-btn"
+                    style="padding: 9px 20px; border-radius: var(--radius-sm); background-color: var(--color-primary); color: white; border: none; font-weight: 700; font-size: 13px; cursor: pointer;">
+                    Salvar Item
+                </button>
+            </div>
+        </form>
+
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL 2: MOVIMENTAÇÃO DE ESTOQUE (Entrada, Saída, Ajuste)                  -->
+<!-- ========================================================================= -->
+<div id="modal-movimentacao" style="display: none; position: fixed; inset: 0; z-index: 1050; align-items: center; justify-content: center; background-color: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); padding: 16px;">
+    <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); width: 100%; max-width: 520px; box-shadow: var(--shadow-lg); overflow: hidden; display: flex; flex-direction: column;">
+        
+        <!-- Topo da Modal -->
+        <div style="padding: 18px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 36px; height: 36px; border-radius: 8px; background-color: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center;">
+                    <i data-lucide="arrow-left-right" style="width: 20px; height: 20px;"></i>
+                </div>
+                <div>
+                    <h3 style="font-family: var(--font-title); font-size: 17px; font-weight: 700; color: var(--text-primary); margin: 0;">
+                        Movimentar Estoque
+                    </h3>
+                    <span id="mov-item-nome" style="font-size: 12.5px; font-weight: 700; color: #2563eb;"></span>
+                </div>
+            </div>
+            <button type="button" onclick="closeMovimentarModal()" style="background: transparent; border: none; color: var(--text-secondary); cursor: pointer; padding: 4px;">
+                <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+            </button>
+        </div>
+
+        <form method="POST" action="{% url 'papelaria:estoque' %}" style="padding: 22px 24px; display: flex; flex-direction: column; gap: 16px;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="movimentar_estoque">
+            <input type="hidden" name="item_id" id="mov-item-id" value="">
+
+            <!-- Informação de Saldo Atual -->
+            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 12.5px; color: #64748b; font-weight: 600;">Saldo Atual Disponível:</span>
+                <span id="mov-saldo-atual" style="font-size: 15px; font-weight: 800; color: #0f172a;"></span>
+            </div>
+
+            <!-- Tipo de Movimentação -->
+            <div>
+                <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 6px; color: var(--text-primary);">
+                    Tipo de Movimentação *
+                </label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                    <label style="display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; border: 1.5px solid #86efac; background-color: #f0fdf4; color: #15803d; border-radius: 8px; font-size: 12.5px; font-weight: 700; cursor: pointer;">
+                        <input type="radio" name="tipo_movimentacao" value="ENTRADA" checked onchange="onMovTipoChange(this.value)" style="accent-color: #15803d;">
+                        <span>Entrada</span>
+                    </label>
+                    <label style="display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; border: 1.5px solid #fca5a5; background-color: #fef2f2; color: #b91c1c; border-radius: 8px; font-size: 12.5px; font-weight: 700; cursor: pointer;">
+                        <input type="radio" name="tipo_movimentacao" value="SAIDA" onchange="onMovTipoChange(this.value)" style="accent-color: #b91c1c;">
+                        <span>Saída</span>
+                    </label>
+                    <label style="display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; border: 1.5px solid #fcd34d; background-color: #fffbeb; color: #b45309; border-radius: 8px; font-size: 12.5px; font-weight: 700; cursor: pointer;">
+                        <input type="radio" name="tipo_movimentacao" value="AJUSTE" onchange="onMovTipoChange(this.value)" style="accent-color: #b45309;">
+                        <span>Ajuste</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Quantidade & Data -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                <div>
+                    <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--text-primary);">
+                        Quantidade (<span id="mov-unidade-label">un</span>) *
+                    </label>
+                    <input type="number" step="0.01" min="0.01" name="quantidade" id="mov-quantidade" required placeholder="0.00"
+                        style="width: 100%; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background-color: var(--bg-input); color: var(--text-primary); font-size: 14px; font-weight: 700;">
+                </div>
+                <div>
+                    <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--text-primary);">
+                        Data da Movimentação *
+                    </label>
+                    <input type="date" name="data_movimentacao" value="{{ today }}" required
+                        style="width: 100%; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background-color: var(--bg-input); color: var(--text-primary); font-size: 13px;">
+                </div>
+            </div>
+
+            <!-- Destino / Sala (para Saída) -->
+            <div id="box-mov-turma" style="display: none;">
+                <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--text-primary);">
+                    Turma / Sala de Destino
+                </label>
+                <select name="turma_id" style="width: 100%; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background-color: var(--bg-input); color: var(--text-primary); font-size: 13px; font-weight: 600;">
+                    <option value="">Não especificado (Uso geral / SEAMI)</option>
+                    {% for turma in turmas %}
+                        <option value="{{ turma.id }}">Sala {{ turma.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Aluno Doador (para Entrada de doação) -->
+            <div id="box-mov-aluno" style="display: block;">
+                <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--text-primary);">
+                    Aluno Doador / Família (Opcional)
+                </label>
+                <select name="aluno_id" style="width: 100%; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background-color: var(--bg-input); color: var(--text-primary); font-size: 13px;">
+                    <option value="">Compra direta da instituição / Doação sem aluno vinculado</option>
+                    {% for a in alunos %}
+                        <option value="{{ a.id }}">{{ a.nome }} (Sala {{ a.turma.nome }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Motivo / Observação -->
+            <div>
+                <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--text-primary);">
+                    Motivo / Observação
+                </label>
+                <input type="text" name="motivo" placeholder="Ex: Atividade de pintura da Sala Alegria, doação do kit escolar..."
+                    style="width: 100%; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background-color: var(--bg-input); color: var(--text-primary); font-size: 13px;">
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                <button type="button" onclick="closeMovimentarModal()" class="secondary-btn"
+                    style="padding: 9px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-body); color: var(--text-secondary); cursor: pointer; font-weight: 600; font-size: 13px;">
+                    Cancelar
+                </button>
+                <button type="submit" class="primary-btn"
+                    style="padding: 9px 20px; border-radius: var(--radius-sm); background-color: var(--color-primary); color: white; border: none; font-weight: 700; font-size: 13px; cursor: pointer;">
+                    Confirmar Movimentação
+                </button>
+            </div>
+        </form>
+
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL 3: HISTÓRICO DE MOVIMENTAÇÕES DO ITEM                               -->
+<!-- ========================================================================= -->
+<div id="modal-historico" style="display: none; position: fixed; inset: 0; z-index: 1050; align-items: center; justify-content: center; background-color: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); padding: 16px;">
+    <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); width: 100%; max-width: 780px; box-shadow: var(--shadow-lg); overflow: hidden; display: flex; flex-direction: column; max-height: 85vh;">
+        
+        <div style="padding: 18px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 36px; height: 36px; border-radius: 8px; background-color: #f1f5f9; color: #475569; display: flex; align-items: center; justify-content: center;">
+                    <i data-lucide="history" style="width: 20px; height: 20px;"></i>
+                </div>
+                <div>
+                    <h3 style="font-family: var(--font-title); font-size: 17px; font-weight: 700; color: var(--text-primary); margin: 0;">
+                        Histórico do Item
+                    </h3>
+                    <span id="hist-item-nome" style="font-size: 13px; font-weight: 700; color: #2563eb;"></span>
+                </div>
+            </div>
+            <button type="button" onclick="closeHistoricoModal()" style="background: transparent; border: none; color: var(--text-secondary); cursor: pointer; padding: 4px;">
+                <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+            </button>
+        </div>
+
+        <div style="padding: 16px 24px; overflow-y: auto; flex: 1;">
+            <div id="hist-loading" style="text-align: center; padding: 30px; color: var(--text-secondary);">
+                <i data-lucide="loader-2" style="width: 24px; height: 24px; animation: spin 1s linear infinite;"></i>
+                <div style="margin-top: 8px; font-size: 13px;">Carregando histórico...</div>
+            </div>
+
+            <div id="hist-content" style="display: none;">
+                <div style="display: flex; gap: 16px; margin-bottom: 14px; background: #f8fafc; padding: 10px 14px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 12.5px;">
+                    <div><span style="color: #64748b;">Saldo Atual:</span> <strong id="hist-saldo-atual"></strong></div>
+                    <div><span style="color: #64748b;">Estoque Mínimo:</span> <strong id="hist-estoque-minimo"></strong></div>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-secondary); font-size: 11px; text-transform: uppercase;">
+                                <th style="padding: 8px;">Data</th>
+                                <th style="padding: 8px;">Tipo</th>
+                                <th style="padding: 8px; text-align: center;">Qtd</th>
+                                <th style="padding: 8px; text-align: center;">Saldo Pós</th>
+                                <th style="padding: 8px;">Turma/Aluno</th>
+                                <th style="padding: 8px;">Motivo</th>
+                                <th style="padding: 8px;">Responsável</th>
+                            </tr>
+                        </thead>
+                        <tbody id="hist-table-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div style="padding: 14px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end;">
+            <button type="button" onclick="closeHistoricoModal()" class="secondary-btn"
+                style="padding: 8px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-body); color: var(--text-secondary); cursor: pointer; font-weight: 600; font-size: 13px;">
+                Fechar
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // Gerenciamento da Modal de Item
+    function openCreateItemModal() {
+        document.getElementById('form-item-action').value = 'create_item';
+        document.getElementById('form-item-id').value = '';
+        document.getElementById('modal-item-title').innerText = 'Novo Item de Papelaria';
+        document.getElementById('field-item-nome').value = '';
+        document.getElementById('field-item-especificacao').value = '';
+        document.getElementById('field-item-categoria').value = 'diversos';
+        document.getElementById('field-item-unidade').value = 'unidade';
+        document.getElementById('field-item-saldo-inicial').value = '0';
+        document.getElementById('field-item-estoque-minimo').value = '5';
+        document.getElementById('field-item-solicitar-pais').checked = true;
+        document.getElementById('field-item-qtd-pais').value = '';
+        document.getElementById('field-item-obs-pais-tipo').value = '';
+        document.getElementById('box-saldo-inicial').style.display = 'block';
+
+        const modal = document.getElementById('modal-item-papelaria');
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function openEditItemModal(id, nome, especificacao, categoria, unidade, estoqueMinimo, solicitarPais, qtdPais, obsPaisTipo) {
+        document.getElementById('form-item-action').value = 'update_item';
+        document.getElementById('form-item-id').value = id;
+        document.getElementById('modal-item-title').innerText = `Editar Item: ${nome}`;
+        document.getElementById('field-item-nome').value = nome;
+        document.getElementById('field-item-especificacao').value = especificacao;
+        document.getElementById('field-item-categoria').value = categoria;
+        document.getElementById('field-item-unidade').value = unidade;
+        document.getElementById('field-item-estoque-minimo').value = estoqueMinimo;
+        document.getElementById('field-item-solicitar-pais').checked = solicitarPais;
+        document.getElementById('field-item-qtd-pais').value = qtdPais;
+        document.getElementById('field-item-obs-pais-tipo').value = obsPaisTipo;
+        document.getElementById('box-saldo-inicial').style.display = 'none';
+
+        const modal = document.getElementById('modal-item-papelaria');
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function closeItemModal() {
+        document.getElementById('modal-item-papelaria').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    // Gerenciamento da Modal de Movimentação
+    function openMovimentarModal(id, nome, unidade, saldoAtual) {
+        document.getElementById('mov-item-id').value = id;
+        document.getElementById('mov-item-nome').innerText = nome;
+        document.getElementById('mov-unidade-label').innerText = unidade;
+        document.getElementById('mov-saldo-atual').innerText = `${saldoAtual} ${unidade}`;
+        document.getElementById('mov-quantidade').value = '';
+
+        // Reset radio para ENTRADA
+        const radios = document.getElementsByName('tipo_movimentacao');
+        for (let r of radios) {
+            if (r.value === 'ENTRADA') r.checked = true;
+        }
+        onMovTipoChange('ENTRADA');
+
+        document.getElementById('modal-movimentacao').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function closeMovimentarModal() {
+        document.getElementById('modal-movimentacao').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    function onMovTipoChange(tipo) {
+        const boxTurma = document.getElementById('box-mov-turma');
+        const boxAluno = document.getElementById('box-mov-aluno');
+        if (tipo === 'SAIDA') {
+            boxTurma.style.display = 'block';
+            boxAluno.style.display = 'none';
+        } else if (tipo === 'ENTRADA') {
+            boxTurma.style.display = 'none';
+            boxAluno.style.display = 'block';
+        } else {
+            boxTurma.style.display = 'none';
+            boxAluno.style.display = 'none';
+        }
+    }
+
+    // Gerenciamento da Modal de Histórico (AJAX JSON)
+    function openHistoricoModal(itemId, itemNome) {
+        document.getElementById('hist-item-nome').innerText = itemNome;
+        document.getElementById('hist-loading').style.display = 'block';
+        document.getElementById('hist-content').style.display = 'none';
+        document.getElementById('modal-historico').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        if (window.lucide) lucide.createIcons();
+
+        fetch(`/papelaria/item/${itemId}/historico/`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('hist-loading').style.display = 'none';
+                document.getElementById('hist-content').style.display = 'block';
+                document.getElementById('hist-saldo-atual').innerText = `${data.saldo_atual} ${data.unidade}`;
+                document.getElementById('hist-estoque-minimo').innerText = `${data.estoque_minimo} ${data.unidade}`;
+
+                const tbody = document.getElementById('hist-table-body');
+                tbody.innerHTML = '';
+
+                if (!data.movimentacoes || data.movimentacoes.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 18px; color: #94a3b8;">Nenhuma movimentação registrada.</td></tr>`;
+                    return;
+                }
+
+                data.movimentacoes.forEach(m => {
+                    let badge = '';
+                    if (m.tipo === 'ENTRADA') badge = '<span style="background: #dcfce7; color: #15803d; padding: 2px 6px; border-radius: 4px; font-weight: 700;">Entrada</span>';
+                    else if (m.tipo === 'SAIDA') badge = '<span style="background: #fee2e2; color: #b91c1c; padding: 2px 6px; border-radius: 4px; font-weight: 700;">Saída</span>';
+                    else badge = '<span style="background: #fef3c7; color: #b45309; padding: 2px 6px; border-radius: 4px; font-weight: 700;">Ajuste</span>';
+
+                    let destino = m.turma ? `Sala ${m.turma}` : (m.aluno ? m.aluno : '-');
+
+                    tbody.innerHTML += `
+                        <tr style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 8px; font-weight: 600;">${m.data}</td>
+                            <td style="padding: 8px;">${badge}</td>
+                            <td style="padding: 8px; text-align: center; font-weight: 700;">${m.tipo === 'ENTRADA' ? '+' : (m.tipo === 'SAIDA' ? '-' : '')}${m.quantidade}</td>
+                            <td style="padding: 8px; text-align: center; color: #64748b;">${m.saldo_posterior}</td>
+                            <td style="padding: 8px; color: #334155;">${destino}</td>
+                            <td style="padding: 8px; color: #64748b;">${m.motivo}</td>
+                            <td style="padding: 8px; color: #94a3b8; font-size: 11px;">${m.responsavel}</td>
+                        </tr>
+                    `;
+                });
+            })
+            .catch(err => {
+                document.getElementById('hist-loading').innerHTML = `<span style="color: #dc2626;">Erro ao carregar histórico.</span>`;
+            });
+    }
+
+    function closeHistoricoModal() {
+        document.getElementById('modal-historico').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+</script>
+{% endblock %}

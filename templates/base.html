@@ -157,6 +157,23 @@
                     <span>Enfermagem</span>
                 </a>
 
+                <!-- MÓDULO IV: PAPELARIA -->
+                <div class="menu-section" style="margin-top: 14px; margin-bottom: 6px;">
+                    <span class="menu-section-title" title="Gestão de estoque de itens de papelaria, controle de insumos e lista de materiais para os pais.">
+                        Módulo IV: Papelaria
+                    </span>
+                </div>
+
+                <a href="{% url 'papelaria:estoque' %}" class="menu-item {% if active_tab == 'papelaria' and active_module == 'estoque' %}active{% endif %}" title="Gestão do Estoque de Papelaria e Insumos Pedagógicos">
+                    <i data-lucide="package"></i>
+                    <span>Estoque de Papelaria</span>
+                </a>
+
+                <a href="{% url 'papelaria:relatorio_pais' %}" class="menu-item {% if active_tab == 'papelaria' and active_module == 'relatorio_pais' %}active{% endif %}" title="Relatório Oficial da Lista de Material Escolar para os Pais">
+                    <i data-lucide="file-text"></i>
+                    <span>Lista para os Pais</span>
+                </a>
+
                 {% if user.is_authenticated and user.is_diretor or user.is_master_admin or user.is_superuser %}
                 <!-- SESSÃO ADMINISTRATIVA (DIRETORES E MASTER ADMIN) -->
                 <div class="menu-section" style="margin-top: 14px; margin-bottom: 6px;">

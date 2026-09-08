@@ -17,10 +17,10 @@ class RegistroPresencaInline(admin.TabularInline):
 
 @admin.register(Turma)
 class TurmaAdmin(ExportActionMixin, admin.ModelAdmin):
-    list_display = ('nome', 'faixa_etaria', 'get_total_alunos', 'ativo', 'criado_em')
+    list_display = ('nome', 'faixa_etaria', 'get_total_alunos', 'get_professores_display', 'get_auxiliares_display', 'ativo', 'criado_em')
     list_filter = ('ativo',)
     search_fields = ('nome', 'faixa_etaria')
-    filter_horizontal = ('professores',)
+    filter_horizontal = ('professores', 'auxiliares')
 
     def get_total_alunos(self, obj):
         return obj.alunos.count()
@@ -95,7 +95,7 @@ class TemAnexoAmamentacaoFilter(admin.SimpleListFilter):
 
 @admin.register(OcorrenciaCaderno)
 class OcorrenciaCadernoAdmin(ExportActionMixin, admin.ModelAdmin):
-    list_display = ('id', 'tipo', 'aluno', 'turma', 'data', 'justificado', 'ver_documento', 'registrado_por', 'criado_em')
+    list_display = ('id', 'tipo', 'aluno', 'turma', 'data', 'data_fim', 'justificado', 'ver_documento', 'registrado_por', 'criado_em', 'modificado_por', 'atualizado_em')
     list_filter = (TemAnexoFilter, 'tipo', 'turma', 'justificado', 'data')
     search_fields = ('aluno__nome', 'turma__nome', 'motivo', 'cid', 'observacao', 'attachment_name')
     date_hierarchy = 'data'
@@ -118,7 +118,7 @@ class OcorrenciaCadernoAdmin(ExportActionMixin, admin.ModelAdmin):
 
 @admin.register(RegistroAmamentacao)
 class RegistroAmamentacaoAdmin(ExportActionMixin, admin.ModelAdmin):
-    list_display = ('id', 'data', 'quantidade', 'ano', 'mes', 'ver_anexo', 'registrado_por', 'criado_em')
+    list_display = ('id', 'data', 'quantidade', 'ano', 'mes', 'ver_anexo', 'registrado_por', 'criado_em', 'modificado_por', 'atualizado_em')
     list_filter = (TemAnexoAmamentacaoFilter, 'ano', 'mes', 'data')
     search_fields = ('observacao', 'attachment_name')
     date_hierarchy = 'data'

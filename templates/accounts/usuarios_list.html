@@ -91,6 +91,7 @@
                         <th style="padding: 14px 20px;">Usuário / Nome</th>
                         <th style="padding: 14px 20px;">E-mail</th>
                         <th style="padding: 14px 20px;">Perfil de Acesso</th>
+                        <th style="padding: 14px 20px;">Turmas Vinculadas</th>
                         <th style="padding: 14px 20px;">Contato</th>
                         <th style="padding: 14px 20px;">Status</th>
                         <th style="padding: 14px 20px;">Cadastrado em</th>
@@ -145,6 +146,32 @@
                                     </span>
                                 {% endif %}
                             </td>
+                            <!-- Turmas Vinculadas -->
+                            <td style="padding: 14px 20px;">
+                                {% if u.role == 'PROFESSOR' %}
+                                    <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                        {% for t in u.turmas_como_professor.all %}
+                                            <span style="background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 11px; padding: 2px 7px; border-radius: 6px; font-weight: 600;">
+                                                🏫 {{ t.nome }}
+                                            </span>
+                                        {% empty %}
+                                            <span style="color: var(--text-secondary); font-size: 12px; font-style: italic;">Sem turma vinculada</span>
+                                        {% endfor %}
+                                    </div>
+                                {% elif u.role == 'AUXILIAR' %}
+                                    <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                        {% for t in u.turmas_como_auxiliar.all %}
+                                            <span style="background-color: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; font-size: 11px; padding: 2px 7px; border-radius: 6px; font-weight: 600;">
+                                                🤝 {{ t.nome }}
+                                            </span>
+                                        {% empty %}
+                                            <span style="color: var(--text-secondary); font-size: 12px; font-style: italic;">Sem turma vinculada</span>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <span style="color: var(--text-secondary); font-size: 12px;">—</span>
+                                {% endif %}
+                            </td>
                             <td style="padding: 14px 20px; color: var(--text-secondary);">
                                 {{ u.telefone|default:"—" }}
                             </td>
@@ -169,7 +196,7 @@
                                 <div style="display: inline-flex; align-items: center; gap: 6px;">
                                     <!-- Botão Editar -->
                                     <button type="button" 
-                                            onclick="openEditarUsuarioModal('{{ u.id }}', '{{ u.first_name|escapejs }}', '{{ u.email|escapejs }}', '{{ u.role }}', '{{ u.telefone|default:''|escapejs }}', {{ u.is_active|yesno:'true,false' }})"
+                                            onclick="openEditarUsuarioModal('{{ u.id }}', '{{ u.first_name|escapejs }}', '{{ u.email|escapejs }}', '{{ u.role }}', '{{ u.telefone|default:''|escapejs }}', {{ u.is_active|yesno:'true,false' }}, [{% if u.role == 'PROFESSOR' %}{% for t in u.turmas_como_professor.all %}{{ t.id }}{% if not forloop.last %},{% endif %}{% endfor %}{% elif u.role == 'AUXILIAR' %}{% for t in u.turmas_como_auxiliar.all %}{{ t.id }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}])"
                                             title="Editar Usuário"
                                             style="padding: 6px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background-color: var(--bg-card); color: var(--color-primary); cursor: pointer; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
                                         <i data-lucide="edit-2" style="width: 14px; height: 14px;"></i>
@@ -386,6 +413,28 @@
                 </div>
             </div>
 
+            {% if request.user.is_master_admin or request.user.is_superuser %}
+            <div id="edit-turmas-wrapper" style="border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 12px; background: rgba(0,0,0,0.015);">
+                <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">
+                    <span id="edit-turmas-label">🏫 Turmas Vinculadas</span>
+                </label>
+                <div id="edit-turmas-container" style="max-height: 140px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; background-color: var(--bg-card); display: flex; flex-direction: column; gap: 6px;">
+                    {% for t in turmas_disponiveis %}
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-primary); cursor: pointer; padding: 4px 6px; border-radius: 4px; transition: background 0.15s;" onmouseover="this.style.backgroundColor='var(--bg-input, rgba(0,0,0,0.03))'" onmouseout="this.style.backgroundColor='transparent'">
+                            <input type="checkbox" name="turmas" value="{{ t.id }}" class="edit-turma-cb" style="width: 16px; height: 16px; accent-color: var(--color-primary); cursor: pointer; margin: 0;">
+                            <span style="font-weight: 500;">Sala {{ t.nome }}</span>
+                            <span style="font-size: 11px; color: var(--text-secondary); margin-left: auto;">{{ t.faixa_etaria|default:'Educação Infantil' }}</span>
+                        </label>
+                    {% empty %}
+                        <span style="font-size: 12px; color: var(--text-secondary); font-style: italic;">Nenhuma turma cadastrada</span>
+                    {% endfor %}
+                </div>
+                <span style="font-size: 11.5px; color: var(--text-secondary); margin-top: 4px; display: block;">
+                    * Determina quais turmas o professor ou auxiliar terá permissão para visualizar e atuar.
+                </span>
+            </div>
+            {% endif %}
+
             <!-- Rodapé / Botões da Modal -->
             <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--border-color);">
                 <button type="button" onclick="closeEditarUsuarioModal()" style="padding: 10px 16px; border-radius: var(--radius-sm); border: 1.5px solid var(--border-color); background-color: transparent; color: var(--text-primary); font-size: 13.5px; font-weight: 600; cursor: pointer;">
@@ -456,7 +505,7 @@
     }
 
     // Modal de Editar Usuário
-    function openEditarUsuarioModal(id, nome, email, role, telefone, isActive) {
+    function openEditarUsuarioModal(id, nome, email, role, telefone, isActive, turmaIds) {
         const modal = document.getElementById('editar-usuario-modal');
         const form = document.getElementById('form-editar-usuario');
         if (modal && form) {
@@ -467,6 +516,11 @@
             document.getElementById('edit-telefone').value = telefone;
             document.getElementById('edit-is-active').value = isActive ? '1' : '0';
             document.getElementById('edit-nova-senha').value = '';
+
+            turmaIds = (turmaIds || []).map(x => parseInt(x));
+            document.querySelectorAll('.edit-turma-cb').forEach(cb => {
+                cb.checked = turmaIds.includes(parseInt(cb.value));
+            });
 
             modal.style.display = 'flex';
             lucide.createIcons();

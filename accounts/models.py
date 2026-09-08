@@ -81,6 +81,23 @@ class User(AbstractUser):
     def is_auxiliar(self):
         return self.role == UserRole.AUXILIAR
 
+    @property
+    def turmas(self):
+        """Compatibilidade de acesso às turmas do professor."""
+        if hasattr(self, 'turmas_como_professor'):
+            return self.turmas_como_professor
+        return None
+
+    @property
+    def turmas_vinculadas(self):
+        """Retorna o QuerySet de turmas ativas vinculadas a este usuário (seja como professor ou auxiliar)."""
+        from presencas.models import Turma
+        if self.is_professor:
+            return self.turmas_como_professor.filter(ativo=True)
+        elif self.is_auxiliar:
+            return self.turmas_como_auxiliar.filter(ativo=True)
+        return Turma.objects.filter(ativo=True)
+
 
 class ConviteUsuario(models.Model):
     """

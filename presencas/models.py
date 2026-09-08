@@ -42,9 +42,15 @@ class Turma(models.Model):
     faixa_etaria = models.CharField(max_length=50, blank=True, verbose_name='Faixa Etária')
     professores = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
-        related_name='turmas',
+        related_name='turmas_como_professor',
         blank=True,
         verbose_name='Professores Responsáveis'
+    )
+    auxiliares = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='turmas_como_auxiliar',
+        blank=True,
+        verbose_name='Auxiliares da Turma'
     )
     ativo = models.BooleanField(default=True, verbose_name='Ativo')
     criado_em = models.DateTimeField(auto_now_add=True)
@@ -57,6 +63,14 @@ class Turma(models.Model):
 
     def __str__(self):
         return self.nome
+
+    def get_professores_display(self):
+        profs = [p.get_full_name() or p.username for p in self.professores.all()]
+        return ", ".join(profs) if profs else "Nenhum professor vinculado"
+
+    def get_auxiliares_display(self):
+        auxs = [a.get_full_name() or a.username for a in self.auxiliares.all()]
+        return ", ".join(auxs) if auxs else "Nenhum auxiliar vinculado"
 
 
 class AlunoQuerySet(models.QuerySet):
@@ -539,7 +553,16 @@ class OcorrenciaCaderno(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
+        related_name='ocorrencias_caderno_registradas',
         verbose_name='Registrado por'
+    )
+    modificado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ocorrencias_caderno_modificadas',
+        verbose_name='Última modificação por'
     )
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
@@ -586,7 +609,16 @@ class RegistroAmamentacao(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
+        related_name='amamentacoes_registradas',
         verbose_name='Registrado por'
+    )
+    modificado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='amamentacoes_modificadas',
+        verbose_name='Última modificação por'
     )
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
@@ -789,12 +821,12 @@ def recalcular_presenca_para_data(aluno, target_date):
         oc_just = ocorrs.filter(Q(justificado=True) | Q(tipo=TipoOcorrencia.ATESTADO)).first()
         reg.status = StatusPresenca.JUSTIFICADO
         st_turno = StatusTurnoPresenca.JUSTIFICADO
-        obs_extra = oc_just.motivo or oc_just.observacao or ('Atestado médico' if oc_just.tipo == TipoOcorrencia.ATESTADO else 'Falta Justificada')
+        obs_extra = oc_just.motivo or oc_just.observacao or ''
     elif tem_falta_comum:
         oc_falta = ocorrs.filter(tipo=TipoOcorrencia.FALTA, justificado=False).first()
         reg.status = StatusPresenca.AUSENTE
         st_turno = StatusTurnoPresenca.AUSENTE
-        obs_extra = oc_falta.motivo or oc_falta.observacao or 'Falta registrada no Caderno SEAMI'
+        obs_extra = oc_falta.motivo or oc_falta.observacao or ''
     else:
         # Nenhuma ocorrência ativa no Caderno SEAMI
         # Reverte para o status_chamada original (se o professor marcou AUSENTE na chamada, mantém AUSENTE!)
@@ -802,11 +834,11 @@ def recalcular_presenca_para_data(aluno, target_date):
         if base_chamada == StatusPresenca.AUSENTE:
             reg.status = StatusPresenca.AUSENTE
             st_turno = StatusTurnoPresenca.AUSENTE
-            obs_extra = 'Falta registrada na chamada'
+            obs_extra = ''
         elif base_chamada == StatusPresenca.JUSTIFICADO:
             reg.status = StatusPresenca.JUSTIFICADO
             st_turno = StatusTurnoPresenca.JUSTIFICADO
-            obs_extra = 'Falta Justificada na chamada'
+            obs_extra = ''
         else:
             reg.status = StatusPresenca.PRESENTE
             st_turno = StatusTurnoPresenca.PRESENTE

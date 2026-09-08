@@ -110,8 +110,24 @@ def build_dashboard_context(request):
     else:
         preset = 'custom'
 
-    turmas_qs = Turma.objects.filter(ativo=True).order_by('nome')
-    all_active_students = Aluno.objects.ativos().select_related('turma').order_by('nome')
+    # Sincroniza alunos cujo desligamento já ocorreu para ativo=False
+    Aluno.objects.filter(ativo=True, data_desligamento__lte=today).update(ativo=False)
+
+    is_professor = request.user.is_authenticated and getattr(request.user, 'is_professor', False)
+    if is_professor:
+        turmas_qs = request.user.turmas_como_professor.filter(ativo=True).prefetch_related('professores', 'auxiliares').order_by('nome')
+        sem_turma_vinculada = not turmas_qs.exists()
+        all_active_students = Aluno.objects.ativos().filter(turma__in=turmas_qs).select_related('turma').order_by('nome')
+        # Sanitiza classroom_filter para o professor
+        valid_salas = [t.nome.lower() for t in turmas_qs]
+        valid_ids = [str(t.id) for t in turmas_qs]
+        if classroom_filter and classroom_filter.lower() not in valid_salas and classroom_filter not in valid_ids:
+            classroom_filter = ''
+    else:
+        turmas_qs = Turma.objects.filter(ativo=True).prefetch_related('professores', 'auxiliares').order_by('nome')
+        sem_turma_vinculada = False
+        all_active_students = Aluno.objects.ativos().select_related('turma').order_by('nome')
+
     total_alunos_ativos = all_active_students.count()
 
     # =========================================================================
@@ -120,6 +136,8 @@ def build_dashboard_context(request):
     novas_matriculas_qs = Aluno.objects.filter(
         data_entrada__range=(date_start, date_end)
     ).select_related('turma').order_by('-data_entrada')
+    if is_professor:
+        novas_matriculas_qs = novas_matriculas_qs.filter(turma__in=turmas_qs)
     if classroom_filter:
         novas_matriculas_qs = novas_matriculas_qs.filter(
             Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
@@ -129,6 +147,8 @@ def build_dashboard_context(request):
     desligamentos_qs = Aluno.objects.filter(
         data_desligamento__range=(date_start, date_end)
     ).select_related('turma').order_by('-data_desligamento')
+    if is_professor:
+        desligamentos_qs = desligamentos_qs.filter(turma__in=turmas_qs)
     if classroom_filter:
         desligamentos_qs = desligamentos_qs.filter(
             Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
@@ -153,7 +173,7 @@ def build_dashboard_context(request):
             'emoji': '🏫', 'age': t.faixa_etaria, 'bg_icon': '#f1f5f9',
             'color_val': '#334155', 'color_foot': '#64748b'
         })
-        alunos_turma = t.alunos.filter(ativo=True)
+        alunos_turma = t.alunos.ativos()
         count_turma = alunos_turma.count()
         deslig_turma = desligamentos_qs.filter(turma=t).count()
 
@@ -173,6 +193,10 @@ def build_dashboard_context(request):
             'total_alunos': count_turma,
             'desligamentos_count': deslig_turma,
             'alunos_list': alunos_turma,
+            'professores_display': t.get_professores_display() or 'Nenhum professor vinculado',
+            'auxiliares_display': t.get_auxiliares_display() or 'Nenhum auxiliar vinculado',
+            'professores_list': [p.get_full_name() or p.username for p in t.professores.all()],
+            'auxiliares_list': [a.get_full_name() or a.username for a in t.auxiliares.all()],
         })
 
     # Ordenação estrita das salas conforme solicitado: Amizade, União, Felicidade, Carinho, Alegria
@@ -193,6 +217,8 @@ def build_dashboard_context(request):
         data__gte=date_start,
         data__lte=date_end
     )
+    if is_professor:
+        registros_qs = registros_qs.filter(turma__in=turmas_qs)
     if classroom_filter:
         registros_qs = registros_qs.filter(
             Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
@@ -218,6 +244,8 @@ def build_dashboard_context(request):
         data__gte=date_start,
         data__lte=date_end
     )
+    if is_professor:
+        oc_qs = oc_qs.filter(turma__in=turmas_qs)
     if classroom_filter:
         oc_qs = oc_qs.filter(
             Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
@@ -234,6 +262,8 @@ def build_dashboard_context(request):
     # Atestados Médicos no Caderno SEAMI
     atestados_count = oc_qs.filter(tipo=TipoOcorrencia.ATESTADO).count()
     atest_qs_all = OcorrenciaCaderno.objects.filter(tipo=TipoOcorrencia.ATESTADO)
+    if is_professor:
+        atest_qs_all = atest_qs_all.filter(turma__in=turmas_qs)
     if classroom_filter:
         atest_qs_all = atest_qs_all.filter(
             Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
@@ -269,7 +299,7 @@ def build_dashboard_context(request):
         data__gte=date_start,
         data__lte=date_end
     )
-    if student_id_filter:
+    if is_professor or student_id_filter or classroom_filter:
         amam_reg_qs = amam_reg_qs.none()
 
     amamentacao_sum_qty = amam_reg_qs.aggregate(total=Sum('quantidade'))['total'] or 0
@@ -304,7 +334,10 @@ def build_dashboard_context(request):
     # 3. GRÁFICOS DO MÓDULO I: CONTROLE DE FREQUÊNCIA
     # =========================================================================
     # 1. Taxa de Assiduidade por Sala (Bar)
-    classrooms_list = ['Alegria', 'Carinho', 'União', 'Amizade', 'Felicidade']
+    if is_professor:
+        classrooms_list = [t.nome for t in turmas_qs]
+    else:
+        classrooms_list = ['Alegria', 'Carinho', 'União', 'Amizade', 'Felicidade']
     chart1_labels = classrooms_list
     chart1_data = []
     for c_name in classrooms_list:
@@ -440,6 +473,8 @@ def build_dashboard_context(request):
             data__year=y_calc,
             data__month=m_calc
         )
+        if is_professor:
+            m_delays = m_delays.filter(turma__in=turmas_qs)
         if classroom_filter:
             m_delays = m_delays.filter(Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None))
         if student_id_filter:
@@ -520,6 +555,8 @@ def build_dashboard_context(request):
         ).filter(
             Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=start_m)
         )
+        if is_professor:
+            alunos_m_qs = alunos_m_qs.filter(turma__in=turmas_qs)
         if classroom_filter:
             alunos_m_qs = alunos_m_qs.filter(Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None))
         if student_id_filter:
@@ -528,6 +565,8 @@ def build_dashboard_context(request):
 
         # Apenas dias úteis (Segunda a Sexta)
         m_regs = RegistroPresenca.objects.filter(data__year=2026, data__month=m, data__week_day__in=[2, 3, 4, 5, 6])
+        if is_professor:
+            m_regs = m_regs.filter(turma__in=turmas_qs)
         if classroom_filter:
             m_regs = m_regs.filter(Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None))
         if student_id_filter:
@@ -540,6 +579,10 @@ def build_dashboard_context(request):
             enr_val = total_enrolled_m
             avg_f = max(0.0, round(enr_val - avg_p, 1))
             hist_by_year['2026'][m] = {'present': avg_p, 'absent': avg_f, 'enrolled': enr_val}
+
+    if is_professor:
+        hist_by_year = {'2026': hist_by_year.get('2026', {m: {'present': 0, 'absent': 0, 'enrolled': 0} for m in range(1, 13)})}
+        available_years = {2026}
 
     sorted_years = sorted(list(available_years))
     year_charts_data = {}
@@ -581,6 +624,8 @@ def build_dashboard_context(request):
     cal_year = date_start.year
     cal_month = date_start.month
     cal_regs = RegistroPresenca.objects.filter(data__year=cal_year, data__month=cal_month)
+    if is_professor:
+        cal_regs = cal_regs.filter(turma__in=turmas_qs)
     if classroom_filter:
         cal_regs = cal_regs.filter(Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None))
     if student_id_filter:
@@ -611,23 +656,48 @@ def build_dashboard_context(request):
         m_str = f"{y_calc}-{str(m_calc).zfill(2)}"
         matriculados_labels.append(f"{MONTHS_PT[m_calc - 1]}/{str(y_calc)[-2:]}")
 
-        if m_str in hist_map:
+        if not is_professor and m_str in hist_map and not classroom_filter and not student_id_filter:
             m_count = hist_map[m_str]
         else:
             last_d = calendar.monthrange(y_calc, m_calc)[1]
             end_of_month = date(y_calc, m_calc, last_d)
             start_of_month = date(y_calc, m_calc, 1)
 
-            m_count = Aluno.objects.filter(
+            qs_mat = Aluno.objects.filter(
                 Q(data_entrada__isnull=True) | Q(data_entrada__lte=end_of_month)
             ).filter(
                 Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=start_of_month)
-            ).count()
+            )
+            if is_professor:
+                qs_mat = qs_mat.filter(turma__in=turmas_qs)
+            if classroom_filter:
+                qs_mat = qs_mat.filter(Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None))
+            m_count = qs_mat.count()
         matriculados_data.append(m_count)
 
-    radar_risco = get_radar_alunos_em_risco(limite_faltas=3)
+    if is_professor:
+        prof_turma_ids = set(turmas_qs.values_list('id', flat=True))
+        prof_turma_names = set(turmas_qs.values_list('nome', flat=True))
+        radar_risco = [
+            r for r in get_radar_alunos_em_risco(limite_faltas=3)
+            if r.get('turma_id') in prof_turma_ids or r.get('turma') in prof_turma_names
+        ]
+    else:
+        radar_risco = get_radar_alunos_em_risco(limite_faltas=3)
+
+    turmas_equipe_data = {}
+    for s in salas_cards_data:
+        turmas_equipe_data[s['nome'].lower().strip()] = {
+            'nome': s['nome'],
+            'professores': s['professores_display'],
+            'auxiliares': s['auxiliares_display'],
+            'professores_list': s['professores_list'],
+            'auxiliares_list': s['auxiliares_list'],
+        }
 
     context = {
+        'is_professor': is_professor,
+        'sem_turma_vinculada': sem_turma_vinculada,
         'today': today.isoformat(),
         'date_start': date_start.isoformat(),
         'date_end': date_end.isoformat(),
@@ -641,6 +711,7 @@ def build_dashboard_context(request):
         'current_year': current_year,
         'all_active_students': all_active_students,
         'salas_cards_data': salas_cards_data,
+        'turmas_equipe_json': json.dumps(turmas_equipe_data),
         'novas_matriculas': novas_matriculas_qs,
         'novas_matriculas_count': novas_matriculas_count,
         'desligamentos': desligamentos_qs,

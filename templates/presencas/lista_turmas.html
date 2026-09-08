@@ -33,12 +33,12 @@
                     Quadro de Salas & Turmas
                 </h2>
                 <p style="font-size: 13px; color: var(--text-secondary); margin-top: 2px; margin-bottom: 0;">
-                    Cadastre novas turmas, edite salas existentes e associe os professores responsáveis.
+                    Cadastre novas turmas, edite salas existentes e associe os professores e auxiliares responsáveis.
                 </p>
             </div>
         </div>
 
-        {% if user.is_diretor or user.is_master_admin or user.is_superuser %}
+        {% if user.is_master_admin or user.is_superuser %}
             <button type="button" onclick="openCreateTurmaModal()" class="primary-btn" style="padding: 10px 18px; border-radius: var(--radius-sm); background-color: var(--color-primary); color: white; border: none; font-weight: 600; font-size: 13.5px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow-sm);">
                 <i data-lucide="plus-circle" style="width: 18px; height: 18px;"></i>
                 <span>Nova Turma / Sala</span>
@@ -54,29 +54,28 @@
                     
                     <div>
                         <!-- Cabeçalho do Card -->
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
                             <div style="display: flex; align-items: center; gap: 10px;">
-                                <div style="width: 36px; height: 36px; border-radius: 8px; background-color: #eff6ff; color: var(--color-primary); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px;">
-                                    {{ turma.nome|slice:":2"|upper }}
-                                </div>
+                                <span style="font-size: 26px;">🏫</span>
                                 <div>
-                                    <h3 style="font-family: var(--font-title); font-size: 18px; font-weight: 700; color: var(--text-primary); margin: 0;">
+                                    <h3 style="font-family: var(--font-title); font-size: 17px; font-weight: 700; color: var(--text-primary); margin: 0;">
                                         {{ turma.nome }}
                                     </h3>
                                     <span style="font-size: 12px; color: var(--text-secondary);">
-                                        {{ turma.faixa_etaria|default:"Educação Infantil" }}
+                                        Sala Escolar
                                     </span>
                                 </div>
                             </div>
-
+                            
+                            <!-- Badge de Status -->
                             {% if turma.ativo %}
-                                <span style="font-size: 11px; font-weight: 700; color: #16a34a; background-color: #dcfce7; padding: 3px 8px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px;">
-                                    <span style="width: 6px; height: 6px; border-radius: 999px; background-color: #16a34a;"></span>
+                                <span style="background-color: #ecfdf5; color: #047857; font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px;">
+                                    <span style="width: 6px; height: 6px; border-radius: 50%; background-color: #10b981;"></span>
                                     Ativa
                                 </span>
                             {% else %}
-                                <span style="font-size: 11px; font-weight: 700; color: #dc2626; background-color: #fee2e2; padding: 3px 8px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px;">
-                                    <span style="width: 6px; height: 6px; border-radius: 999px; background-color: #dc2626;"></span>
+                                <span style="background-color: #fef2f2; color: #b91c1c; font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px;">
+                                    <span style="width: 6px; height: 6px; border-radius: 50%; background-color: #ef4444;"></span>
                                     Inativa
                                 </span>
                             {% endif %}
@@ -97,6 +96,7 @@
                                 </a>
                             </div>
 
+                            <!-- Professores Responsáveis -->
                             <div style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; border-top: 1px dashed var(--border-color); padding-top: 6px; margin-top: 2px;">
                                 <span style="color: var(--text-secondary); font-weight: 600;">Professores Responsáveis:</span>
                                 <div style="display: flex; flex-wrap: wrap; gap: 4px;">
@@ -109,13 +109,27 @@
                                     {% endfor %}
                                 </div>
                             </div>
+
+                            <!-- Auxiliares de Sala -->
+                            <div style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; border-top: 1px dashed var(--border-color); padding-top: 6px; margin-top: 2px;">
+                                <span style="color: var(--text-secondary); font-weight: 600;">Auxiliares de Sala:</span>
+                                <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                    {% for aux in turma.auxiliares.all %}
+                                        <span style="background-color: #f3f4f6; border: 1px solid #e5e7eb; color: #374151; font-size: 11px; padding: 2px 7px; border-radius: 6px; font-weight: 500;">
+                                            🤝 {{ aux.get_full_name|default:aux.username }}
+                                        </span>
+                                    {% empty %}
+                                        <span style="color: var(--text-secondary); font-style: italic; font-size: 11px;">Nenhum auxiliar vinculado</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Rodapé com Botões de Ação -->
                     <div style="border-top: 1px solid var(--border-color); padding-top: 16px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-                        {% if user.is_diretor or user.is_master_admin or user.is_superuser %}
-                            <button type="button" onclick="openEditTurmaModal({{ turma.id }}, '{{ turma.nome|escapejs }}', '{{ turma.faixa_etaria|escapejs }}', {{ turma.ativo|yesno:'true,false' }}, [{% for p in turma.professores.all %}{{ p.id }}{% if not forloop.last %},{% endif %}{% endfor %}])" class="secondary-btn" style="padding: 7px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background-color: var(--bg-card); color: var(--color-primary); cursor: pointer; font-size: 12.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+                        {% if user.is_master_admin or user.is_superuser %}
+                            <button type="button" onclick="openEditTurmaModal({{ turma.id }}, '{{ turma.nome|escapejs }}', '{{ turma.faixa_etaria|escapejs }}', {{ turma.ativo|yesno:'true,false' }}, [{% for p in turma.professores.all %}{{ p.id }}{% if not forloop.last %},{% endif %}{% endfor %}], [{% for a in turma.auxiliares.all %}{{ a.id }}{% if not forloop.last %},{% endif %}{% endfor %}])" class="secondary-btn" style="padding: 7px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background-color: var(--bg-card); color: var(--color-primary); cursor: pointer; font-size: 12.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
                                 <i data-lucide="edit-3" style="width: 14px; height: 14px;"></i>
                                 Editar Sala
                             </button>
@@ -203,15 +217,36 @@
 
             <div>
                 <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">
-                    Professores Responsáveis (Segure Ctrl para selecionar múltiplos)
+                    👩‍🏫 Professores Responsáveis
                 </label>
-                <select name="professores" id="turma-professores" multiple size="4" style="width: 100%; padding: 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background-color: var(--bg-card); color: var(--text-primary); font-size: 13px; box-sizing: border-box;">
+                <div id="container-professores" style="max-height: 140px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; background-color: var(--bg-card); display: flex; flex-direction: column; gap: 6px;">
                     {% for prof in professores_disponiveis %}
-                        <option value="{{ prof.id }}">
-                            {{ prof.get_full_name|default:prof.username }} ({{ prof.get_role_display }})
-                        </option>
+                        <label style="display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--text-primary); cursor: pointer; padding: 4px 6px; border-radius: 4px; transition: background 0.15s;" onmouseover="this.style.backgroundColor='var(--bg-input, rgba(0,0,0,0.03))'" onmouseout="this.style.backgroundColor='transparent'">
+                            <input type="checkbox" name="professores" value="{{ prof.id }}" class="turma-prof-cb" style="width: 16px; height: 16px; accent-color: var(--color-primary); cursor: pointer; margin: 0;">
+                            <span style="font-weight: 500;">{{ prof.get_full_name|default:prof.username }}</span>
+                            <span style="font-size: 11px; color: var(--text-secondary); margin-left: auto;">{{ prof.username }}</span>
+                        </label>
+                    {% empty %}
+                        <span style="font-size: 12px; color: var(--text-secondary); font-style: italic; padding: 4px 0;">Nenhum professor cadastrado</span>
                     {% endfor %}
-                </select>
+                </div>
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">
+                    🤝 Auxiliares de Sala
+                </label>
+                <div id="container-auxiliares" style="max-height: 140px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; background-color: var(--bg-card); display: flex; flex-direction: column; gap: 6px;">
+                    {% for aux in auxiliares_disponiveis %}
+                        <label style="display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--text-primary); cursor: pointer; padding: 4px 6px; border-radius: 4px; transition: background 0.15s;" onmouseover="this.style.backgroundColor='var(--bg-input, rgba(0,0,0,0.03))'" onmouseout="this.style.backgroundColor='transparent'">
+                            <input type="checkbox" name="auxiliares" value="{{ aux.id }}" class="turma-aux-cb" style="width: 16px; height: 16px; accent-color: var(--color-primary); cursor: pointer; margin: 0;">
+                            <span style="font-weight: 500;">{{ aux.get_full_name|default:aux.username }}</span>
+                            <span style="font-size: 11px; color: var(--text-secondary); margin-left: auto;">{{ aux.username }}</span>
+                        </label>
+                    {% empty %}
+                        <span style="font-size: 12px; color: var(--text-secondary); font-style: italic; padding: 4px 0;">Nenhum auxiliar cadastrado</span>
+                    {% endfor %}
+                </div>
             </div>
 
             <div style="display: flex; align-items: center; gap: 8px; padding-top: 4px;">
@@ -245,17 +280,15 @@
         document.getElementById('modal-turma-title').innerText = 'Nova Turma / Sala';
         document.getElementById('turma-btn-submit-text').innerText = 'Cadastrar Turma';
         
-        const profSelect = document.getElementById('turma-professores');
-        for (let opt of profSelect.options) {
-            opt.selected = false;
-        }
+        document.querySelectorAll('.turma-prof-cb').forEach(cb => cb.checked = false);
+        document.querySelectorAll('.turma-aux-cb').forEach(cb => cb.checked = false);
 
         const modal = document.getElementById('modal-turma-form');
         modal.style.display = 'flex';
         lucide.createIcons();
     }
 
-    function openEditTurmaModal(id, nome, faixaEtaria, ativo, profIds) {
+    function openEditTurmaModal(id, nome, faixaEtaria, ativo, profIds, auxIds) {
         document.getElementById('turma-form-action').value = 'update';
         document.getElementById('turma-form-id').value = id;
         document.getElementById('turma-nome').value = nome;
@@ -264,10 +297,16 @@
         document.getElementById('modal-turma-title').innerText = 'Editar Turma: ' + nome;
         document.getElementById('turma-btn-submit-text').innerText = 'Salvar Alterações';
 
-        const profSelect = document.getElementById('turma-professores');
-        for (let opt of profSelect.options) {
-            opt.selected = profIds.includes(parseInt(opt.value));
-        }
+        profIds = (profIds || []).map(x => parseInt(x));
+        auxIds = (auxIds || []).map(x => parseInt(x));
+
+        document.querySelectorAll('.turma-prof-cb').forEach(cb => {
+            cb.checked = profIds.includes(parseInt(cb.value));
+        });
+
+        document.querySelectorAll('.turma-aux-cb').forEach(cb => {
+            cb.checked = auxIds.includes(parseInt(cb.value));
+        });
 
         const modal = document.getElementById('modal-turma-form');
         modal.style.display = 'flex';

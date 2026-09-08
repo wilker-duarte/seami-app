@@ -7,6 +7,18 @@
 {% block content %}
 <section class="panel-section active" style="display: flex; flex-direction: column; gap: 20px;">
 
+    {% if sem_turma_vinculada %}
+    <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px; display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow-sm);">
+        <i data-lucide="alert-triangle" style="width: 26px; height: 26px; color: #d97706; flex-shrink: 0;"></i>
+        <div>
+            <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: #92400e;">Você ainda não possui turmas vinculadas</h4>
+            <p style="margin: 4px 0 0 0; font-size: 13px; color: #b45309;">
+                Solicite ao Administrador Master a atribuição das suas salas de aula para realizar o lançamento de chamada.
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- ================================================================= -->
     <!-- BARRA SUPERIOR: PILLS DE SALAS & CONTROLES DE TURNO               -->
     <!-- ================================================================= -->
@@ -17,6 +29,7 @@
             <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
                 <span style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-right: 4px;">Sala:</span>
                 
+                {% if not is_professor %}
                 <!-- Botão 'Todas as salas' -->
                 <a href="?classroom=all&date={{ attendance_date }}&shift={{ shift_filter }}"
                    style="padding: 8px 18px; border-radius: 999px; font-size: 13px; font-weight: 700; text-decoration: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px;
@@ -32,6 +45,7 @@
                         {{ salas_lancadas_count }}/{{ total_salas_count }}
                     </span>
                 </a>
+                {% endif %}
 
                 {% for s in salas_status_list %}
                     <a href="?classroom={{ s.turma.nome }}&date={{ attendance_date }}&shift={{ shift_filter }}"

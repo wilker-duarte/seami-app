@@ -25,6 +25,9 @@ urlpatterns = [
     
     # Portal Público de Consulta Externa (Read-Only, Sem Login)
     path('consulta/', include('consulta.urls', namespace='consulta')),
+    
+    # Módulo IV: Papelaria & Estoque
+    path('papelaria/', include('papelaria.urls', namespace='papelaria')),
 ]
 
 

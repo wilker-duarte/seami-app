@@ -119,7 +119,9 @@ def usuarios_list_view(request):
     q = request.GET.get('q', '').strip()
     role_filter = request.GET.get('role', '').strip()
 
-    usuarios = User.objects.filter(is_superuser=False)
+    from presencas.models import Turma
+    usuarios = User.objects.filter(is_superuser=False).prefetch_related('turmas_como_professor', 'turmas_como_auxiliar')
+    turmas_disponiveis = Turma.objects.filter(ativo=True).order_by('nome')
 
     if q:
         usuarios = usuarios.filter(
@@ -143,6 +145,7 @@ def usuarios_list_view(request):
 
     return render(request, 'accounts/usuarios_list.html', {
         'usuarios': usuarios,
+        'turmas_disponiveis': turmas_disponiveis,
         'pode_cadastrar': pode_cadastrar,
         'roles_disponiveis': roles_disponiveis,
         'busca_q': q,
@@ -173,6 +176,7 @@ def usuario_editar_view(request, user_id):
         telefone = request.POST.get('telefone', '').strip()
         is_active = request.POST.get('is_active') == '1'
         nova_senha = request.POST.get('nova_senha', '').strip()
+        turmas_ids = request.POST.getlist('turmas')
 
         valid_roles = [UserRole.PROFESSOR, UserRole.COORDENADOR, UserRole.DIRETOR, UserRole.AUXILIAR, UserRole.ENFERMEIRA]
 
@@ -194,6 +198,19 @@ def usuario_editar_view(request, user_id):
                 if nova_senha:
                     usuario.set_password(nova_senha)
                 usuario.save()
+
+                # Vínculo de turmas determinado pelo Admin Master
+                if request.user.is_master_admin or request.user.is_superuser:
+                    if role == UserRole.PROFESSOR:
+                        usuario.turmas_como_professor.set(turmas_ids)
+                        usuario.turmas_como_auxiliar.clear()
+                    elif role == UserRole.AUXILIAR:
+                        usuario.turmas_como_auxiliar.set(turmas_ids)
+                        usuario.turmas_como_professor.clear()
+                    else:
+                        usuario.turmas_como_professor.clear()
+                        usuario.turmas_como_auxiliar.clear()
+
                 messages.success(request, f"Usuário '{nome}' atualizado com sucesso!")
             except Exception as e:
                 messages.error(request, f"Erro ao atualizar usuário: {str(e)}")
