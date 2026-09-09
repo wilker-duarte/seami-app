@@ -642,6 +642,74 @@ class RegistroAmamentacao(models.Model):
         return f"Amamentação {self.data.strftime('%d/%m/%Y')} - {self.quantidade} utilizações"
 
 
+class TipoDiaNaoLetivo(models.TextChoices):
+    FERIADO = 'FERIADO', 'Feriado'
+    RECESSO = 'RECESSO', 'Recesso Escolar'
+    EMENDA = 'EMENDA', 'Emenda / Ponto Facultativo'
+    OUTRO = 'OUTRO', 'Outro Dia Não Letivo'
+
+
+class DiaNaoLetivo(models.Model):
+    """
+    Representa dias não letivos, feriados ou recessos escolares (incluindo intervalos prolongados).
+    Nesses dias, a chamada é dispensada e os alunos não têm presença nem falta.
+    """
+    data_inicio = models.DateField(verbose_name='Data de Início', db_index=True)
+    data_fim = models.DateField(verbose_name='Data de Término', db_index=True)
+    tipo = models.CharField(
+        max_length=20,
+        choices=TipoDiaNaoLetivo.choices,
+        default=TipoDiaNaoLetivo.FERIADO,
+        verbose_name='Tipo de Não Letivo'
+    )
+    descricao = models.CharField(
+        max_length=200,
+        verbose_name='Descrição / Motivo'
+    )
+    turma = models.ForeignKey(
+        Turma,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='dias_nao_letivos',
+        verbose_name='Turma / Sala (Opcional - em branco para todas)'
+    )
+    registrado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='dias_nao_letivos_registrados',
+        verbose_name='Registrado por'
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Dia Não Letivo / Feriado'
+        verbose_name_plural = 'Dias Não Letivos / Feriados'
+        ordering = ['-data_inicio', 'descricao']
+        indexes = [
+            models.Index(fields=['data_inicio', 'data_fim']),
+            models.Index(fields=['tipo']),
+        ]
+
+    def __str__(self):
+        if self.data_inicio == self.data_fim:
+            return f"{self.get_tipo_display()}: {self.descricao} ({self.data_inicio.strftime('%d/%m/%Y')})"
+        return f"{self.get_tipo_display()}: {self.descricao} ({self.data_inicio.strftime('%d/%m/%Y')} a {self.data_fim.strftime('%d/%m/%Y')})"
+
+    @property
+    def is_intervalo(self):
+        return bool(self.data_fim and self.data_fim != self.data_inicio)
+
+    @property
+    def periodo_formatado(self):
+        if not self.data_fim or self.data_fim == self.data_inicio:
+            return self.data_inicio.strftime('%d/%m/%Y')
+        return f"{self.data_inicio.strftime('%d/%m/%Y')} a {self.data_fim.strftime('%d/%m/%Y')}"
+
+
 class HistoricoFrequenciaMensal(models.Model):
     """
     Série Histórica Multiano de Frequência vs Alunos Matriculados (2019 até 2026+).

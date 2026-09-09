@@ -110,6 +110,20 @@
             </div>
 
             <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+                <!-- Botão Marcar Feriado / Recesso -->
+                {% if is_feriado_atual %}
+                <button type="button" onclick="editarFeriadoAtual('{{ feriado_atual.id }}', '{{ feriado_atual.tipo }}', '{{ feriado_atual.descricao|escapejs }}', '{{ feriado_atual.data_inicio|date:'Y-m-d' }}', '{{ feriado_atual.data_fim|date:'Y-m-d' }}', '{{ feriado_atual.turma.id|default:'' }}')" class="secondary-btn" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1.5px solid #3b82f6; background-color: #eff6ff; color: #1d4ed8; font-weight: 700; font-size: 12.5px; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.15s; box-shadow: 0 2px 6px rgba(59,130,246,0.15);">
+                    <span style="font-size: 14px;">🏖️</span>
+                    <span>Feriado / Recesso Ativo</span>
+                    <span style="background-color: #2563eb; color: #ffffff; font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 999px;">Ativo</span>
+                </button>
+                {% else %}
+                <button type="button" onclick="abrirModalFeriado()" class="secondary-btn" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid #93c5fd; background-color: var(--bg-card); color: #2563eb; font-weight: 700; font-size: 12.5px; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.15s;">
+                    <span style="font-size: 14px;">🏖️</span>
+                    <span>Marcar Feriado / Recesso</span>
+                </button>
+                {% endif %}
+
                 <!-- Botão Mostrar Pendências -->
                 <button type="button" onclick="abrirModalPendencias()" class="secondary-btn" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid #f59e0b; background-color: #fffbeb; color: #b45309; font-weight: 700; font-size: 12.5px; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.15s; box-shadow: 0 1px 3px rgba(245,158,11,0.15);">
                     <i data-lucide="alert-circle" style="width: 16px; height: 16px; color: #d97706;"></i>
@@ -125,6 +139,7 @@
                     <span id="btn-toggle-pendentes-label">Apenas Pendentes</span>
                 </button>
 
+                {% if not is_feriado_atual %}
                 <button type="button" onclick="marcarTodosPresentes()" class="secondary-btn" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid var(--color-atestados); background-color: var(--color-atestados-bg); color: var(--color-atestados); font-weight: 700; font-size: 12.5px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
                     <i data-lucide="check-check" style="width: 16px; height: 16px;"></i>
                     Marcar Todos Presentes
@@ -133,6 +148,7 @@
                     <i data-lucide="save" style="width: 16px; height: 16px;"></i>
                     <span>Salvar Chamada</span>
                 </button>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -177,34 +193,95 @@
                         <div></div>
                     {% else %}
                         <a href="?classroom={{ current_classroom_param }}&date={{ day.date }}&shift={{ shift_filter }}"
+                           title="{% if day.is_feriado %}🏖️ {{ day.feriado_info.descricao }} ({{ day.feriado_info.get_tipo_display }}){% elif day.has_attendance %}Chamada realizada{% endif %}"
                            style="height: 36px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-decoration: none; border-radius: 8px; font-size: 12.5px; font-weight: 600; position: relative; transition: all 0.15s;
                            {% if day.is_selected %}
                                background-color: var(--color-primary); color: #ffffff; font-weight: 800;
                            {% elif day.is_today %}
                                border: 1.5px solid var(--color-primary); color: var(--color-primary);
+                           {% elif day.is_feriado %}
+                               background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-weight: 700;
                            {% elif day.is_weekend %}
                                color: var(--text-light); background-color: var(--bg-body);
                            {% else %}
                                color: var(--text-primary); background-color: var(--bg-input);
                            {% endif %}">
                             <span>{{ day.day }}</span>
-                            {% if day.has_attendance %}
-                                <span style="position: absolute; bottom: 3px; width: 4px; height: 4px; border-radius: 50%;
-                                      {% if day.is_selected %}background-color: #ffffff;{% else %}background-color: #10b981;{% endif %}"></span>
+                            {% if day.is_feriado %}
+                                <span style="position: absolute; bottom: 3px; width: 5px; height: 5px; border-radius: 50%;
+                                      {% if day.is_selected %}background-color: #ffffff;{% else %}background-color: #3b82f6;{% endif %}" title="Feriado / Recesso: {{ day.feriado_info.descricao }}"></span>
+                            {% elif day.has_attendance %}
+                                <span style="position: absolute; bottom: 3px; width: 5px; height: 5px; border-radius: 50%;
+                                      {% if day.is_selected %}background-color: #ffffff;{% else %}background-color: #10b981;{% endif %}" title="Chamada realizada"></span>
                             {% endif %}
                         </a>
                     {% endif %}
                 {% endfor %}
             </div>
 
-            <div style="display: flex; align-items: center; gap: 8px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-color); font-size: 11.5px; color: var(--text-light);">
-                <span style="width: 6px; height: 6px; border-radius: 50%; background-color: #10b981; display: inline-block;"></span>
-                <span>Chamada realizada</span>
+            <!-- Legenda do Calendário com Bolinha Verde (Chamada salva) e Bolinha Azul (Feriado / Recesso) -->
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-color); font-size: 11.5px; color: var(--text-light);">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="width: 7px; height: 7px; border-radius: 50%; background-color: #10b981; display: inline-block;"></span>
+                    <span>Chamada realizada</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="width: 7px; height: 7px; border-radius: 50%; background-color: #3b82f6; display: inline-block;"></span>
+                    <span>Feriado / Recesso</span>
+                </div>
             </div>
         </div>
 
         <!-- LISTA DE ALUNOS COM BOTÕES DE STATUS E INDICADORES -->
-        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); overflow: hidden;">
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+            
+            <!-- BANNER DE FERIADO / RECESSO ATIVO NA DATA SELECIONADA -->
+            {% if is_feriado_atual %}
+            <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1.5px solid #93c5fd; border-radius: var(--radius-md); padding: 18px 22px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.12); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                <div style="display: flex; align-items: center; gap: 14px;">
+                    <div style="width: 46px; height: 46px; border-radius: 12px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: 0 2px 8px rgba(37,99,235,0.3); flex-shrink: 0;">
+                        🏖️
+                    </div>
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #1e3a8a;">
+                                {{ feriado_atual.get_tipo_display }}: {{ feriado_atual.descricao }}
+                            </h3>
+                            <span style="background-color: #2563eb; color: #ffffff; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px;">
+                                Dia Não Letivo
+                            </span>
+                            {% if feriado_atual.turma %}
+                                <span style="background-color: #ffffff; color: #1e40af; border: 1px solid #bfdbfe; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px;">
+                                    Exclusivo Sala {{ feriado_atual.turma.nome }}
+                                </span>
+                            {% else %}
+                                <span style="background-color: #ffffff; color: #1e40af; border: 1px solid #bfdbfe; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px;">
+                                    Todas as Salas
+                                </span>
+                            {% endif %}
+                        </div>
+                        <p style="margin: 4px 0 0 0; font-size: 13px; color: #1e40af; font-weight: 500;">
+                            📅 Período: <strong>{{ feriado_atual.periodo_formatado }}</strong> &bull; A chamada é <strong>dispensada</strong> nesta data e os alunos <strong>não recebem presença nem falta</strong>.
+                        </p>
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button type="button" onclick="editarFeriadoAtual('{{ feriado_atual.id }}', '{{ feriado_atual.tipo }}', '{{ feriado_atual.descricao|escapejs }}', '{{ feriado_atual.data_inicio|date:'Y-m-d' }}', '{{ feriado_atual.data_fim|date:'Y-m-d' }}', '{{ feriado_atual.turma.id|default:'' }}')" 
+                            style="padding: 8px 14px; border-radius: 8px; border: 1px solid #3b82f6; background-color: #ffffff; color: #1d4ed8; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                        <i data-lucide="edit-3" style="width: 14px; height: 14px;"></i>
+                        <span>Editar / Ajustar Intervalo</span>
+                    </button>
+                    <button type="button" onclick="excluirFeriado('{{ feriado_atual.id }}', '{{ feriado_atual.descricao|escapejs }}')" 
+                            style="padding: 8px 14px; border-radius: 8px; border: 1px solid #fca5a5; background-color: #fff1f2; color: #be123c; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.15s;">
+                        <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                        <span>Desmarcar Feriado</span>
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+
+            <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); overflow: hidden;">
             <div style="padding: 16px 20px; background-color: var(--bg-input); border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 14px;">
                 
                 <!-- Linha Superior: Título da Turma + Indicadores de Status e Turnos -->
@@ -409,31 +486,37 @@
                                 </div>
                             </div>
 
-                            <!-- Botões de Chamada (P / F / FJ) -->
+                            <!-- Botões de Chamada / Badge de Feriado -->
                             <div style="display: flex; align-items: center; gap: 12px;">
-                                <div class="attendance-btn-group" style="display: inline-flex; background-color: var(--bg-input); padding: 4px; border-radius: 12px; border: 1px solid var(--border-color); gap: 4px;">
-                                    
-                                    <button type="button" onclick="setStatus('{{ student.id }}', 'PRESENTE')"
-                                            id="btn-{{ student.id }}-PRESENTE"
-                                            style="padding: 6px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 700; border: none; cursor: pointer; transition: all 0.15s;
-                                            {% if student.status == 'PRESENTE' %}background-color: #10b981; color: #ffffff; box-shadow: 0 2px 8px rgba(16,185,129,0.35);{% else %}background: transparent; color: var(--text-secondary);{% endif %}">
-                                        Presente
-                                    </button>
+                                {% if is_feriado_atual %}
+                                    <span style="padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; display: inline-flex; align-items: center; gap: 6px;">
+                                        <span>🏖️</span>
+                                        <span>Dia Não Letivo (Dispensado)</span>
+                                    </span>
+                                {% else %}
+                                    <div class="attendance-btn-group" style="display: inline-flex; background-color: var(--bg-input); padding: 4px; border-radius: 12px; border: 1px solid var(--border-color); gap: 4px;">
+                                        <button type="button" onclick="setStatus('{{ student.id }}', 'PRESENTE')"
+                                                id="btn-{{ student.id }}-PRESENTE"
+                                                style="padding: 6px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 700; border: none; cursor: pointer; transition: all 0.15s;
+                                                {% if student.status == 'PRESENTE' %}background-color: #10b981; color: #ffffff; box-shadow: 0 2px 8px rgba(16,185,129,0.35);{% else %}background: transparent; color: var(--text-secondary);{% endif %}">
+                                            Presente
+                                        </button>
 
-                                    <button type="button" onclick="setStatus('{{ student.id }}', 'AUSENTE')"
-                                            id="btn-{{ student.id }}-AUSENTE"
-                                            style="padding: 6px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 700; border: none; cursor: pointer; transition: all 0.15s;
-                                            {% if student.status == 'AUSENTE' %}background-color: #ef4444; color: #ffffff; box-shadow: 0 2px 8px rgba(239,68,68,0.35);{% else %}background: transparent; color: var(--text-secondary);{% endif %}">
-                                        Falta
-                                    </button>
+                                        <button type="button" onclick="setStatus('{{ student.id }}', 'AUSENTE')"
+                                                id="btn-{{ student.id }}-AUSENTE"
+                                                style="padding: 6px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 700; border: none; cursor: pointer; transition: all 0.15s;
+                                                {% if student.status == 'AUSENTE' %}background-color: #ef4444; color: #ffffff; box-shadow: 0 2px 8px rgba(239,68,68,0.35);{% else %}background: transparent; color: var(--text-secondary);{% endif %}">
+                                            Falta
+                                        </button>
 
-                                    <button type="button" onclick="setStatus('{{ student.id }}', 'JUSTIFICADO')"
-                                            id="btn-{{ student.id }}-JUSTIFICADO"
-                                            style="padding: 6px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 700; border: none; cursor: pointer; transition: all 0.15s;
-                                            {% if student.status == 'JUSTIFICADO' %}background-color: #f59e0b; color: #ffffff; box-shadow: 0 2px 8px rgba(245,158,11,0.35);{% else %}background: transparent; color: var(--text-secondary);{% endif %}">
-                                        Justificada
-                                    </button>
-                                </div>
+                                        <button type="button" onclick="setStatus('{{ student.id }}', 'JUSTIFICADO')"
+                                                id="btn-{{ student.id }}-JUSTIFICADO"
+                                                style="padding: 6px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 700; border: none; cursor: pointer; transition: all 0.15s;
+                                                {% if student.status == 'JUSTIFICADO' %}background-color: #f59e0b; color: #ffffff; box-shadow: 0 2px 8px rgba(245,158,11,0.35);{% else %}background: transparent; color: var(--text-secondary);{% endif %}">
+                                            Justificada
+                                        </button>
+                                    </div>
+                                {% endif %}
                             </div>
 
                         </div>
@@ -445,6 +528,7 @@
                     <p>Nenhum aluno matriculado para o turno e sala selecionados.</p>
                 </div>
             {% endif %}
+        </div>
         </div>
 
     </div>
@@ -727,6 +811,24 @@
 
         atualizarVisibilidadeAlunos();
     }
+
+    // =========================================================================
+    // CONTROLE DO MODAL DE PENDÊNCIAS
+    // =========================================================================
+    function abrirModalPendencias() {
+        const modal = document.getElementById('modal-pendencias');
+        if (modal) {
+            modal.style.display = 'flex';
+            if (window.lucide) lucide.createIcons();
+        }
+    }
+
+    function fecharModalPendencias() {
+        const modal = document.getElementById('modal-pendencias');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
 </script>
 
 <!-- ================================================================= -->
@@ -761,71 +863,85 @@
                         <span>📅 Situação do Dia: {{ attendance_date_formatted }}</span>
                     </h4>
                     <p style="font-size: 12px; color: var(--text-secondary); margin: 4px 0 0 0;">
-                        {{ salas_lancadas_count }} de {{ total_salas_count }} salas lançadas no dia
+                        {% if is_feriado_atual %}
+                            Dia classificado como <strong>{{ feriado_atual.get_tipo_display }}</strong> ({{ feriado_atual.descricao }}) &bull; Chamada dispensada
+                        {% else %}
+                            {{ salas_lancadas_count }} de {{ total_salas_count }} salas lançadas no dia
+                        {% endif %}
                     </p>
                 </div>
-                <span style="font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 999px; {% if total_pendentes_dia == 0 and not salas_pendentes_dia %}background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;{% else %}background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a;{% endif %}">
-                    {% if total_pendentes_dia == 0 and not salas_pendentes_dia %}✅ 100% Lançado{% else %}⚠️ {{ total_pendentes_dia }} pendência(s){% endif %}
+                <span style="font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 999px; {% if is_feriado_atual or total_pendentes_dia == 0 and not salas_pendentes_dia %}background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;{% else %}background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a;{% endif %}">
+                    {% if is_feriado_atual %}🏖️ Feriado / Recesso{% elif total_pendentes_dia == 0 and not salas_pendentes_dia %}✅ 100% Lançado{% else %}⚠️ {{ total_pendentes_dia }} pendência(s){% endif %}
                 </span>
             </div>
 
-            <!-- STATUS DAS SALAS NA DATA -->
-            <div>
-                <div style="font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">
-                    Status por Sala no Dia:
-                </div>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px;">
-                    {% for sala in salas_status_list %}
-                        <a href="?classroom={{ sala.turma.nome }}&date={{ attendance_date }}&shift={{ shift_filter }}"
-                           style="padding: 12px 14px; border-radius: 10px; border: 1px solid {{ sala.turma_style.border }}; background-color: {{ sala.turma_style.bg }}; text-decoration: none; display: flex; justify-content: space-between; align-items: center; transition: all 0.15s;">
-                            <div>
-                                <div style="font-size: 13.5px; font-weight: 700; color: {{ sala.turma_style.color }}; display: flex; align-items: center; gap: 6px;">
-                                    <span>{{ sala.turma_style.emoji }}</span>
-                                    <span>Sala {{ sala.turma.nome }}</span>
-                                </div>
-                                <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 3px;">
-                                    {{ sala.total_salvos }}/{{ sala.total_alunos }} crianças lançadas
-                                </div>
-                            </div>
-                            <span style="font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; {% if sala.is_saved %}background-color: #10b981; color: #ffffff;{% else %}background-color: #f59e0b; color: #ffffff;{% endif %}">
-                                {% if sala.is_saved %}Lançada{% else %}Pendente{% endif %}
-                            </span>
-                        </a>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <!-- ALUNOS COM PENDÊNCIA NA DATA -->
-            {% if alunos_pendentes_dia %}
-                <div style="background-color: var(--bg-input); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <span style="font-size: 13px; font-weight: 700; color: var(--text-primary);">
-                            Alunos sem chamada nesta data ({{ alunos_pendentes_dia|length }}):
-                        </span>
-                        <button type="button" onclick="fecharModalPendencias(); toggleFiltroPendentes();" style="background: none; border: none; color: var(--color-primary); font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: underline;">
-                            Filtrar na tabela
-                        </button>
-                    </div>
-                    <div style="display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto;">
-                        {% for p_aluno in alunos_pendentes_dia %}
-                            <div style="display: flex; justify-content: space-between; align-items: center; background-color: var(--bg-card); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); font-size: 12px;">
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <strong style="color: var(--text-primary);">{{ p_aluno.nome }}</strong>
-                                    <span style="font-size: 11px; color: var(--text-secondary);">({{ p_aluno.turma_nome }} - {{ p_aluno.turno }})</span>
-                                </div>
-                                <span style="color: #b45309; font-weight: 600; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px;">
-                                    <i data-lucide="clock" style="width: 12px; height: 12px;"></i>
-                                    {{ p_aluno.motivo_pendencia }}
-                                </span>
-                            </div>
-                        {% endfor %}
+            {% if is_feriado_atual %}
+                <div style="padding: 16px; border-radius: 10px; background-color: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 22px;">🏖️</span>
+                    <div>
+                        <div><strong>{{ feriado_atual.get_tipo_display }}: {{ feriado_atual.descricao }}</strong> ({{ feriado_atual.periodo_formatado }})</div>
+                        <div style="font-size: 12px; font-weight: normal; margin-top: 2px;">Nesta data, a chamada não é exigida e os alunos não possuem faltas nem presenças contabilizadas.</div>
                     </div>
                 </div>
             {% else %}
-                <div style="padding: 16px; border-radius: 10px; background-color: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 10px;">
-                    <i data-lucide="check-circle-2" style="width: 20px; height: 20px; color: #059669;"></i>
-                    <span>Tudo certo! Todas as crianças e salas matriculadas nesta data possuem lançamento registrado.</span>
+                <!-- STATUS DAS SALAS NA DATA -->
+                <div>
+                    <div style="font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">
+                        Status por Sala no Dia:
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px;">
+                        {% for sala in salas_status_list %}
+                            <a href="?classroom={{ sala.turma.nome }}&date={{ attendance_date }}&shift={{ shift_filter }}"
+                               style="padding: 12px 14px; border-radius: 10px; border: 1px solid {{ sala.turma_style.border }}; background-color: {{ sala.turma_style.bg }}; text-decoration: none; display: flex; justify-content: space-between; align-items: center; transition: all 0.15s;">
+                                <div>
+                                    <div style="font-size: 13.5px; font-weight: 700; color: {{ sala.turma_style.color }}; display: flex; align-items: center; gap: 6px;">
+                                        <span>{{ sala.turma_style.emoji }}</span>
+                                        <span>Sala {{ sala.turma.nome }}</span>
+                                    </div>
+                                    <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 3px;">
+                                        {{ sala.total_salvos }}/{{ sala.total_alunos }} crianças lançadas
+                                    </div>
+                                </div>
+                                <span style="font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; {% if sala.is_saved %}background-color: #10b981; color: #ffffff;{% else %}background-color: #f59e0b; color: #ffffff;{% endif %}">
+                                    {% if sala.is_saved %}Lançada{% else %}Pendente{% endif %}
+                                </span>
+                            </a>
+                        {% endfor %}
+                    </div>
                 </div>
+
+                <!-- ALUNOS COM PENDÊNCIA NA DATA -->
+                {% if alunos_pendentes_dia %}
+                    <div style="background-color: var(--bg-input); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <span style="font-size: 13px; font-weight: 700; color: var(--text-primary);">
+                                Alunos sem chamada nesta data ({{ alunos_pendentes_dia|length }}):
+                            </span>
+                            <button type="button" onclick="fecharModalPendencias(); toggleFiltroPendentes();" style="background: none; border: none; color: var(--color-primary); font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: underline;">
+                                Filtrar na tabela
+                            </button>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto;">
+                            {% for p_aluno in alunos_pendentes_dia %}
+                                <div style="display: flex; justify-content: space-between; align-items: center; background-color: var(--bg-card); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); font-size: 12px;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <strong style="color: var(--text-primary);">{{ p_aluno.nome }}</strong>
+                                        <span style="font-size: 11px; color: var(--text-secondary);">({{ p_aluno.turma_nome }} - {{ p_aluno.turno }})</span>
+                                    </div>
+                                    <span style="color: #b45309; font-weight: 600; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px;">
+                                        <i data-lucide="clock" style="width: 12px; height: 12px;"></i>
+                                        {{ p_aluno.motivo_pendencia }}
+                                    </span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% else %}
+                    <div style="padding: 16px; border-radius: 10px; background-color: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 10px;">
+                        <i data-lucide="check-circle-2" style="width: 20px; height: 20px; color: #059669;"></i>
+                        <span>Tudo certo! Todas as crianças e salas matriculadas nesta data possuem lançamento registrado.</span>
+                    </div>
+                {% endif %}
             {% endif %}
 
         </div>
@@ -839,4 +955,326 @@
 
     </div>
 </div>
+
+<!-- ================================================================= -->
+<!-- MODAL: MARCAR FERIADO / RECESSO / INTERVALO PROLONGADO            -->
+<!-- ================================================================= -->
+<div id="modal-feriado-recesso" style="display: none; position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.65); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 16px;">
+    <div style="background-color: var(--bg-card); width: 100%; max-width: 560px; max-height: 90vh; border-radius: var(--radius-lg); border: 1px solid var(--border-color); box-shadow: var(--shadow-xl); display: flex; flex-direction: column; overflow: hidden; animation: modalFadeIn 0.2s ease-out;">
+        
+        <!-- Header da Modal -->
+        <div style="padding: 18px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: linear-gradient(to right, rgba(59,130,246,0.1), transparent);">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 10px; background-color: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 2px 6px rgba(59,130,246,0.2);">
+                    🏖️
+                </div>
+                <div>
+                    <h3 id="modal-feriado-title" style="font-family: var(--font-title); font-size: 17px; font-weight: 700; color: var(--text-primary); margin: 0;">Marcar Feriado / Recesso</h3>
+                    <p style="font-size: 12px; color: var(--text-secondary); margin: 2px 0 0 0;">Configuração de dias não letivos e feriados prolongados</p>
+                </div>
+            </div>
+            <button type="button" onclick="fecharModalFeriado()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 6px; border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+                <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+            </button>
+        </div>
+
+        <!-- Formulário -->
+        <form id="form-feriado-recesso" onsubmit="event.preventDefault(); salvarFeriadoRecesso();" style="padding: 24px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto;">
+            <input type="hidden" id="feriado-id" value="">
+
+            <!-- Tipo de Dia Não Letivo -->
+            <div>
+                <label style="display: block; font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">Tipo de Não Letivo *</label>
+                <select id="feriado-tipo" required style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); color: var(--text-primary); font-size: 13px; font-weight: 600; outline: none;">
+                    <option value="FERIADO">🏖️ Feriado</option>
+                    <option value="RECESSO">🎒 Recesso Escolar</option>
+                    <option value="EMENDA">📅 Emenda de Feriado / Ponto Facultativo</option>
+                    <option value="OUTRO">📌 Outro Dia Não Letivo</option>
+                </select>
+            </div>
+
+            <!-- Descrição / Motivo -->
+            <div>
+                <label style="display: block; font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">Nome / Motivo do Feriado *</label>
+                <input type="text" id="feriado-descricao" required placeholder="Ex: Carnaval, Feriado de Tiradentes, Recesso de Julho..."
+                       style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); color: var(--text-primary); font-size: 13px; outline: none; box-sizing: border-box;">
+            </div>
+
+            <!-- Modo de Aplicação: Único dia vs Intervalo -->
+            <div>
+                <label style="display: block; font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;">Período do Feriado</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <label style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); cursor: pointer; font-size: 12.5px; font-weight: 600; color: var(--text-primary);">
+                        <input type="radio" name="modo_periodo" id="modo-unico" value="unico" checked onchange="toggleModoPeriodo(this.value)">
+                        <span>Apenas 1 Dia</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); cursor: pointer; font-size: 12.5px; font-weight: 600; color: var(--text-primary);">
+                        <input type="radio" name="modo_periodo" id="modo-intervalo" value="intervalo" onchange="toggleModoPeriodo(this.value)">
+                        <span>Intervalo Prolongado</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Campos de Data -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div>
+                    <label id="lbl-data-inicio" style="display: block; font-size: 12.5px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Data do Feriado *</label>
+                    <input type="date" id="feriado-data-inicio" required value="{{ attendance_date }}"
+                           style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); color: var(--text-primary); font-size: 13px; font-weight: 600; outline: none; box-sizing: border-box;">
+                </div>
+                <div id="wrapper-data-fim" style="display: none;">
+                    <label style="display: block; font-size: 12.5px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Data de Término *</label>
+                    <input type="date" id="feriado-data-fim" value="{{ attendance_date }}"
+                           style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); color: var(--text-primary); font-size: 13px; font-weight: 600; outline: none; box-sizing: border-box;">
+                </div>
+            </div>
+
+            <!-- Abrangência de Sala -->
+            <div>
+                <label style="display: block; font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">Salas Afetadas</label>
+                <select id="feriado-turma" style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-input); color: var(--text-primary); font-size: 13px; font-weight: 600; outline: none;">
+                    <option value="all">🏫 Todas as Salas (Geral da Escola)</option>
+                    {% for t in turmas %}
+                        <option value="{{ t.id }}" {% if selected_turma and selected_turma.id == t.id %}selected{% endif %}>Sala {{ t.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Card Informativo -->
+            <div style="padding: 12px 14px; border-radius: 8px; background-color: #eff6ff; border: 1px solid #bfdbfe; font-size: 12px; color: #1e40af; display: flex; align-items: start; gap: 8px;">
+                <i data-lucide="info" style="width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px;"></i>
+                <span>Nos dias marcados como feriado/recesso, a chamada não precisa ser lançada e os alunos <strong>não terão presença e nem falta</strong> contabilizadas.</span>
+            </div>
+        </form>
+
+        <!-- Footer da Modal -->
+        <div style="padding: 16px 24px; border-top: 1px solid var(--border-color); background-color: var(--bg-body); display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+            <div>
+                <button type="button" id="btn-excluir-feriado-modal" onclick="excluirFeriadoDoModal()" style="display: none; padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid #fca5a5; background-color: #fff1f2; color: #be123c; font-weight: 700; font-size: 12.5px; cursor: pointer; align-items: center; gap: 6px;">
+                    <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                    <span>Excluir Feriado</span>
+                </button>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button type="button" onclick="fecharModalFeriado()" class="secondary-btn" style="padding: 8px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background-color: var(--bg-card); color: var(--text-primary); font-weight: 700; font-size: 12.5px; cursor: pointer;">
+                    Cancelar
+                </button>
+                <button type="button" onclick="salvarFeriadoRecesso()" id="btn-submit-feriado" class="primary-btn" style="padding: 8px 20px; border-radius: var(--radius-sm); background-color: #2563eb; color: #ffffff; border: none; font-weight: 700; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; box-shadow: 0 4px 12px rgba(37,99,235,0.35);">
+                    <i data-lucide="check" style="width: 16px; height: 16px;"></i>
+                    <span id="btn-submit-feriado-text">Salvar Feriado / Recesso</span>
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // =========================================================================
+    // CONTROLE DO MODAL DE FERIADO / RECESSO / INTERVALO
+    // =========================================================================
+    function abrirModalFeriado() {
+        const modal = document.getElementById('modal-feriado-recesso');
+        if (!modal) return;
+
+        // Limpa o form para modo criação com a data atual
+        document.getElementById('feriado-id').value = '';
+        document.getElementById('modal-feriado-title').innerText = 'Marcar Feriado / Recesso';
+        document.getElementById('btn-submit-feriado-text').innerText = 'Salvar Feriado / Recesso';
+        document.getElementById('feriado-tipo').value = 'FERIADO';
+        document.getElementById('feriado-descricao').value = '';
+        document.getElementById('feriado-data-inicio').value = "{{ attendance_date }}";
+        document.getElementById('feriado-data-fim').value = "{{ attendance_date }}";
+        document.getElementById('modo-unico').checked = true;
+        toggleModoPeriodo('unico');
+        
+        const deleteBtn = document.getElementById('btn-excluir-feriado-modal');
+        if (deleteBtn) deleteBtn.style.display = 'none';
+
+        modal.style.display = 'flex';
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function editarFeriadoAtual(id, tipo, descricao, dataInicio, dataFim, turmaId) {
+        const modal = document.getElementById('modal-feriado-recesso');
+        if (!modal) return;
+
+        document.getElementById('feriado-id').value = id;
+        document.getElementById('modal-feriado-title').innerText = 'Editar Feriado / Recesso';
+        document.getElementById('btn-submit-feriado-text').innerText = 'Atualizar Feriado';
+        document.getElementById('feriado-tipo').value = tipo || 'FERIADO';
+        document.getElementById('feriado-descricao').value = descricao || '';
+        document.getElementById('feriado-data-inicio').value = dataInicio || "{{ attendance_date }}";
+        document.getElementById('feriado-data-fim').value = dataFim || dataInicio || "{{ attendance_date }}";
+        
+        if (turmaId) {
+            document.getElementById('feriado-turma').value = turmaId;
+        } else {
+            document.getElementById('feriado-turma').value = 'all';
+        }
+
+        const isIntervalo = dataInicio && dataFim && dataInicio !== dataFim;
+        if (isIntervalo) {
+            document.getElementById('modo-intervalo').checked = true;
+            toggleModoPeriodo('intervalo');
+        } else {
+            document.getElementById('modo-unico').checked = true;
+            toggleModoPeriodo('unico');
+        }
+
+        const deleteBtn = document.getElementById('btn-excluir-feriado-modal');
+        if (deleteBtn) deleteBtn.style.display = 'inline-flex';
+
+        modal.style.display = 'flex';
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function fecharModalFeriado() {
+        const modal = document.getElementById('modal-feriado-recesso');
+        if (modal) modal.style.display = 'none';
+    }
+
+    function toggleModoPeriodo(modo) {
+        const wrapperFim = document.getElementById('wrapper-data-fim');
+        const lblInicio = document.getElementById('lbl-data-inicio');
+        const inputInicio = document.getElementById('feriado-data-inicio');
+        const inputFim = document.getElementById('feriado-data-fim');
+
+        if (modo === 'intervalo') {
+            if (wrapperFim) wrapperFim.style.display = 'block';
+            if (lblInicio) lblInicio.innerText = 'Data Inicial *';
+            if (inputFim && (!inputFim.value || inputFim.value < inputInicio.value)) {
+                inputFim.value = inputInicio.value;
+            }
+        } else {
+            if (wrapperFim) wrapperFim.style.display = 'none';
+            if (lblInicio) lblInicio.innerText = 'Data do Feriado *';
+            if (inputFim && inputInicio) {
+                inputFim.value = inputInicio.value;
+            }
+        }
+    }
+
+    async function salvarFeriadoRecesso() {
+        const feriadoId = document.getElementById('feriado-id').value;
+        const tipo = document.getElementById('feriado-tipo').value;
+        const descricao = document.getElementById('feriado-descricao').value.trim();
+        const dataInicio = document.getElementById('feriado-data-inicio').value;
+        const modoIntervalo = document.getElementById('modo-intervalo').checked;
+        const dataFim = modoIntervalo ? document.getElementById('feriado-data-fim').value : dataInicio;
+        const turmaId = document.getElementById('feriado-turma').value;
+
+        if (!descricao) {
+            alert('Por favor, informe a descrição ou nome do feriado/recesso.');
+            document.getElementById('feriado-descricao').focus();
+            return;
+        }
+
+        if (!dataInicio) {
+            alert('Por favor, informe a data inicial.');
+            return;
+        }
+
+        if (modoIntervalo && dataFim < dataInicio) {
+            alert('A data de término não pode ser anterior à data de início.');
+            return;
+        }
+
+        const btn = document.getElementById('btn-submit-feriado');
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<span>Salvando...</span>`;
+
+        const payload = {
+            feriado_id: feriadoId || null,
+            tipo: tipo,
+            descricao: descricao,
+            data_inicio: dataInicio,
+            data_fim: dataFim,
+            turma_id: turmaId
+        };
+
+        try {
+            const response = await fetch("{% url 'presencas:salvar_feriado_recesso' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            const toast = document.getElementById('toast-message');
+
+            if (result.success) {
+                fecharModalFeriado();
+                toast.style.display = 'flex';
+                toast.style.backgroundColor = '#ecfdf5';
+                toast.style.color = '#065f46';
+                toast.style.border = '1px solid #a7f3d0';
+                toast.innerHTML = `<i data-lucide="check-circle" style="width: 18px; height: 18px;"></i> ${result.message}`;
+                if (window.lucide) lucide.createIcons();
+
+                setTimeout(() => {
+                    window.location.reload();
+                }, 700);
+            } else {
+                alert('Erro ao salvar feriado: ' + (result.error || 'Erro desconhecido'));
+            }
+        } catch (err) {
+            alert('Falha na comunicação com o servidor ao salvar o feriado.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            if (window.lucide) lucide.createIcons();
+        }
+    }
+
+    async function excluirFeriado(id, descricao) {
+        if (!confirm(`Deseja realmente desmarcar/excluir o feriado "${descricao}"? O dia voltará a ser dia letivo normal.`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch("{% url 'presencas:excluir_feriado_recesso' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify({ feriado_id: id })
+            });
+
+            const result = await response.json();
+            const toast = document.getElementById('toast-message');
+
+            if (result.success) {
+                toast.style.display = 'flex';
+                toast.style.backgroundColor = '#ecfdf5';
+                toast.style.color = '#065f46';
+                toast.style.border = '1px solid #a7f3d0';
+                toast.innerHTML = `<i data-lucide="check-circle" style="width: 18px; height: 18px;"></i> ${result.message}`;
+                if (window.lucide) lucide.createIcons();
+
+                setTimeout(() => {
+                    window.location.reload();
+                }, 700);
+            } else {
+                alert('Erro ao excluir feriado: ' + (result.error || 'Erro desconhecido'));
+            }
+        } catch (err) {
+            alert('Falha na comunicação ao excluir o feriado.');
+        }
+    }
+
+    function excluirFeriadoDoModal() {
+        const id = document.getElementById('feriado-id').value;
+        const descricao = document.getElementById('feriado-descricao').value;
+        if (id) {
+            fecharModalFeriado();
+            excluirFeriado(id, descricao);
+        }
+    }
+</script>
 {% endblock %}

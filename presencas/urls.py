@@ -3,6 +3,8 @@ from django.urls import path
 from .views import (
     lancar_chamada_view,
     salvar_chamada_lote_view,
+    salvar_feriado_recesso_view,
+    excluir_feriado_recesso_view,
     consulta_chamada_view,
     lista_alunos_view,
     lista_turmas_view,
@@ -14,6 +16,8 @@ app_name = 'presencas'
 urlpatterns = [
     path('chamada/', lancar_chamada_view, name='lancar_chamada'),
     path('chamada/salvar-lote/', salvar_chamada_lote_view, name='salvar_chamada_lote'),
+    path('feriados/salvar/', salvar_feriado_recesso_view, name='salvar_feriado_recesso'),
+    path('feriados/excluir/', excluir_feriado_recesso_view, name='excluir_feriado_recesso'),
     path('chamada/consulta/', consulta_chamada_view, name='consulta_chamada'),
     path('alunos/', lista_alunos_view, name='lista_alunos'),
     path('turmas/', lista_turmas_view, name='lista_turmas'),

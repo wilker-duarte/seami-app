@@ -12,7 +12,8 @@ from django.db.models import Q, Sum, Count
 from .models import (
     Turma, Aluno, RegistroPresenca, StatusPresenca, StatusTurnoPresenca,
     TurnoAluno, LancamentoChamada, DiarioDeClasse, TurnoFiltro,
-    TipoOcorrencia, OcorrenciaCaderno, RegistroAmamentacao
+    TipoOcorrencia, OcorrenciaCaderno, RegistroAmamentacao,
+    DiaNaoLetivo, TipoDiaNaoLetivo
 )
 
 MONTH_NAMES_PT = [
@@ -120,6 +121,27 @@ def lancar_chamada_view(request):
             saved_by_date[d_k] = set()
         saved_by_date[d_k].add(r['aluno_id'])
 
+    # =========================================================================
+    # DIAS NÃO LETIVOS / FERIADOS / RECESSOS NO MÊS
+    # =========================================================================
+    dias_nao_letivos_qs = DiaNaoLetivo.objects.filter(
+        data_inicio__lte=last_day_of_month,
+        data_fim__gte=first_day_of_month
+    )
+    if is_prof and not sem_turma_vinculada:
+        dias_nao_letivos_qs = dias_nao_letivos_qs.filter(Q(turma__isnull=True) | Q(turma__in=turmas))
+    elif selected_turma:
+        dias_nao_letivos_qs = dias_nao_letivos_qs.filter(Q(turma__isnull=True) | Q(turma=selected_turma))
+
+    feriados_por_data = {}
+    for fer in dias_nao_letivos_qs:
+        f_start = max(fer.data_inicio, first_day_of_month)
+        f_end = min(fer.data_fim, last_day_of_month)
+        curr = f_start
+        while curr <= f_end:
+            feriados_por_data[curr] = fer
+            curr += timedelta(days=1)
+
     # Monta a grade de dias do calendário
     start_weekday = (first_day_of_month.weekday() + 1) % 7
     calendar_days = []
@@ -130,6 +152,8 @@ def lancar_chamada_view(request):
     for day_num in range(1, num_days + 1):
         d_obj = date(year, month, day_num)
         d_iso = d_obj.isoformat()
+        feriado_dia = feriados_por_data.get(d_obj)
+        is_feriado_dia = feriado_dia is not None
 
         # Filtra os alunos matriculados ativos exatamente no dia d_obj
         alunos_no_d_obj = [
@@ -140,7 +164,10 @@ def lancar_chamada_view(request):
 
         saved_aluno_ids = saved_by_date.get(d_obj, set())
 
-        if selected_turma:
+        if is_feriado_dia:
+            # Em dias de feriado/recesso, não há chamada cobrada
+            has_attendance = False
+        elif selected_turma:
             # Se uma sala específica estiver selecionada, verifica se todos os alunos dela foram salvos
             turma_alunos = [a for a in alunos_no_d_obj if a.turma_id == selected_turma.id]
             total_esperado = len(turma_alunos)
@@ -171,7 +198,9 @@ def lancar_chamada_view(request):
             'is_selected': d_obj == current_date,
             'is_today': d_obj == today,
             'is_weekend': d_obj.weekday() in (5, 6),
-            'has_attendance': has_attendance
+            'has_attendance': has_attendance,
+            'is_feriado': is_feriado_dia,
+            'feriado_info': feriado_dia
         })
 
     # =========================================================================
@@ -419,12 +448,29 @@ def lancar_chamada_view(request):
     total_alunos = len(students_list)
     taxa_presenca = round((total_presentes / total_alunos) * 100) if total_alunos > 0 else 100
 
-    # =========================================================================
-    # PENDÊNCIAS EXCLUSIVAS DO DIA DA CHAMADA
-    # =========================================================================
-    alunos_pendentes_dia = [s for s in students_list if s['is_pendente']]
-    total_pendentes_dia = len(alunos_pendentes_dia)
-    salas_pendentes_dia = [s for s in salas_status_list if not s['is_saved']]
+    # Verifica se a data atual selecionada é feriado / recesso
+    feriado_atual_qs = DiaNaoLetivo.objects.filter(
+        data_inicio__lte=current_date,
+        data_fim__gte=current_date
+    )
+    if is_prof and not sem_turma_vinculada:
+        feriado_atual_qs = feriado_atual_qs.filter(Q(turma__isnull=True) | Q(turma__in=turmas))
+    elif selected_turma:
+        feriado_atual_qs = feriado_atual_qs.filter(Q(turma__isnull=True) | Q(turma=selected_turma))
+
+    feriado_atual = feriado_atual_qs.first()
+    is_feriado_atual = feriado_atual is not None
+
+    if is_feriado_atual:
+        # Se o dia é feriado/recesso, não há pendências de chamada
+        alunos_pendentes_dia = []
+        total_pendentes_dia = 0
+        salas_pendentes_dia = []
+        is_attendance_saved = True
+    else:
+        alunos_pendentes_dia = [s for s in students_list if s['is_pendente']]
+        total_pendentes_dia = len(alunos_pendentes_dia)
+        salas_pendentes_dia = [s for s in salas_status_list if not s['is_saved']]
 
     context = {
         'is_professor': is_prof,
@@ -454,6 +500,9 @@ def lancar_chamada_view(request):
         'alunos_pendentes_dia': alunos_pendentes_dia,
         'total_pendentes_dia': total_pendentes_dia,
         'salas_pendentes_dia': salas_pendentes_dia,
+        'feriado_atual': feriado_atual,
+        'is_feriado_atual': is_feriado_atual,
+        'tipos_dias_nao_letivos': TipoDiaNaoLetivo.choices,
         'active_tab': 'attendance',
         'active_module': 'lancamento',
     }
@@ -604,6 +653,107 @@ def salvar_chamada_lote_view(request):
             'success': True,
             'message': f'Chamada salva com sucesso para {salvos} crianças!',
             'saved_count': salvos
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def salvar_feriado_recesso_view(request):
+    """
+    Cadastra ou edita um Dia Não Letivo / Feriado / Recesso (incluindo intervalos prolongados).
+    Nesses dias, a chamada é dispensada e não gera presença nem falta para os alunos.
+    """
+    try:
+        data = json.loads(request.body)
+        feriado_id = data.get('feriado_id')
+        data_inicio_str = data.get('data_inicio')
+        data_fim_str = data.get('data_fim') or data_inicio_str
+        tipo = data.get('tipo', TipoDiaNaoLetivo.FERIADO)
+        descricao = data.get('descricao', '').strip()
+        turma_id = data.get('turma_id')
+
+        if not data_inicio_str or not descricao:
+            return JsonResponse({'success': False, 'error': 'Data inicial e descrição/motivo são obrigatórios.'}, status=400)
+
+        data_inicio = datetime.strptime(data_inicio_str, '%Y-%m-%d').date()
+        data_fim = datetime.strptime(data_fim_str, '%Y-%m-%d').date()
+
+        if data_fim < data_inicio:
+            return JsonResponse({'success': False, 'error': 'A data de término não pode ser anterior à data de início.'}, status=400)
+
+        turma_obj = None
+        if turma_id and str(turma_id).strip() and str(turma_id) != 'all':
+            if str(turma_id).isdigit():
+                turma_obj = Turma.objects.filter(id=int(turma_id)).first()
+            else:
+                turma_obj = Turma.objects.filter(nome__iexact=str(turma_id).strip()).first()
+
+        from django.db import transaction
+        with transaction.atomic():
+            if feriado_id and str(feriado_id).isdigit():
+                feriado = DiaNaoLetivo.objects.filter(id=int(feriado_id)).first()
+                if not feriado:
+                    return JsonResponse({'success': False, 'error': 'Registro de feriado/recesso não encontrado.'}, status=404)
+                feriado.data_inicio = data_inicio
+                feriado.data_fim = data_fim
+                feriado.tipo = tipo
+                feriado.descricao = descricao
+                feriado.turma = turma_obj
+                feriado.save()
+            else:
+                feriado = DiaNaoLetivo.objects.create(
+                    data_inicio=data_inicio,
+                    data_fim=data_fim,
+                    tipo=tipo,
+                    descricao=descricao,
+                    turma=turma_obj,
+                    registrado_por=request.user
+                )
+
+            # Limpa chamadas prévias no intervalo do feriado/recesso para não contabilizar presença ou falta indevida
+            regs_qs = RegistroPresenca.objects.filter(data__gte=data_inicio, data__lte=data_fim)
+            diarios_qs = DiarioDeClasse.objects.filter(data__gte=data_inicio, data__lte=data_fim)
+            if turma_obj:
+                regs_qs = regs_qs.filter(turma=turma_obj)
+                diarios_qs = diarios_qs.filter(turma=turma_obj)
+
+            regs_qs.delete()
+            diarios_qs.delete()
+
+        return JsonResponse({
+            'success': True,
+            'message': f'{feriado.get_tipo_display()} "{feriado.descricao}" registrado com sucesso para o período {feriado.periodo_formatado}!',
+            'feriado_id': feriado.id
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def excluir_feriado_recesso_view(request):
+    """
+    Remove o Dia Não Letivo / Feriado / Recesso, restaurando os dias como dias letivos normais.
+    """
+    try:
+        data = json.loads(request.body)
+        feriado_id = data.get('feriado_id')
+        if not feriado_id:
+            return JsonResponse({'success': False, 'error': 'ID do feriado é obrigatório.'}, status=400)
+
+        feriado = DiaNaoLetivo.objects.filter(id=int(feriado_id)).first()
+        if not feriado:
+            return JsonResponse({'success': False, 'error': 'Registro de feriado/recesso não encontrado.'}, status=404)
+
+        desc = feriado.descricao
+        periodo = feriado.periodo_formatado
+        feriado.delete()
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Feriado/Recesso "{desc}" ({periodo}) excluído com sucesso. Os dias voltaram a ser dias letivos normais.'
         })
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
