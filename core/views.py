@@ -807,18 +807,9 @@ def build_relatorios_context(request):
         status_aluno_filter = 'inativos'
 
     if not date_start_str or not date_end_str:
-        # Verifica se há registros no mês atual; se não houver registros no mês corrente,
-        # define como padrão o ano letivo completo (ano atual) para que a exportação e visualização venham completas
-        has_records_this_month = RegistroPresenca.objects.filter(
-            data__gte=this_month_start,
-            data__lte=this_month_end
-        ).exists()
-        if has_records_this_month:
-            date_start = this_month_start
-            date_end = this_month_end
-        else:
-            date_start = year_start
-            date_end = today if today <= year_end else year_end
+        # Padrão: sempre o mês atual de referência
+        date_start = this_month_start
+        date_end = this_month_end
     else:
         try:
             date_start = datetime.strptime(date_start_str, '%Y-%m-%d').date()
@@ -826,8 +817,8 @@ def build_relatorios_context(request):
             if date_start > date_end:
                 date_start, date_end = date_end, date_start
         except ValueError:
-            date_start = year_start
-            date_end = today
+            date_start = this_month_start
+            date_end = this_month_end
 
     turmas_qs = Turma.objects.filter(ativo=True).order_by('nome')
     all_students_qs = Aluno.objects.all().select_related('turma').order_by('nome')
@@ -1020,6 +1011,12 @@ def build_relatorios_context(request):
     elif justified_filter == 'nao':
         ocorrencias_atrasos_qs = ocorrencias_atrasos_qs.filter(justificado=False)
 
+    # Mapa de atrasos do período filtrado por aluno
+    atrasos_periodo_agg = (
+        ocorrencias_atrasos_qs.values('aluno_id').annotate(total_periodo=Count('id'))
+    )
+    mapa_atrasos_periodo = {item['aluno_id']: item['total_periodo'] for item in atrasos_periodo_agg if item['aluno_id']}
+
     atrasos_tabela_list = []
     criancas_impactadas_atrasos_set = set()
     total_atrasos_periodo = 0
@@ -1038,6 +1035,7 @@ def build_relatorios_context(request):
         nome_sala = oc.turma.nome.lower().strip() if oc.turma else ''
         turma_style = cores_salas.get(nome_sala, {'bg': '#f1f5f9', 'color': '#475569', 'border': '#cbd5e1', 'emoji': '🏫'})
         atrasos_aluno_ano = mapa_atrasos_ano.get(oc.aluno_id, 0)
+        atrasos_aluno_periodo = mapa_atrasos_periodo.get(oc.aluno_id, 1)
 
         is_aluno_ativo = oc.aluno.ativo if oc.aluno else True
         aluno_status_display = 'Ativo' if is_aluno_ativo else 'Inativo'
@@ -1057,6 +1055,8 @@ def build_relatorios_context(request):
             'motivo': oc.motivo.strip() if oc.motivo and oc.motivo.strip() else '',
             'responsavel': oc.aluno.nome_responsavel if oc.aluno and oc.aluno.nome_responsavel else 'Responsável familiar',
             'telefone_responsavel': oc.aluno.telefone_responsavel if oc.aluno else '',
+            'atrasos_registrados': atrasos_aluno_periodo,
+            'atrasos_no_periodo': atrasos_aluno_periodo,
             'atrasos_no_ano': atrasos_aluno_ano,
             'documento': oc.documento,
             'comprovante': oc.documento,
@@ -1474,7 +1474,7 @@ def relatorios_view(request):
                     row['faltas_no_ano']
                 ])
         elif active_tab == 'atrasos':
-            writer.writerow(['Data', 'Horário Entrada', 'Criança', 'Status do Aluno', 'Sala', 'Tipo de Atraso', 'Justificativa / Motivo', 'Responsável', 'Atrasos no Ano'])
+            writer.writerow(['Data', 'Horário Entrada', 'Criança', 'Status do Aluno', 'Sala', 'Tipo de Atraso', 'Justificativa / Motivo', 'Responsável', 'Atrasos Registrados'])
             for row in context['atrasos_tabela']:
                 writer.writerow([
                     row['data'].strftime('%d/%m/%Y'),
@@ -1485,7 +1485,7 @@ def relatorios_view(request):
                     row['tipo_atraso'],
                     row['motivo'],
                     row['responsavel'],
-                    row['atrasos_no_ano']
+                    row.get('atrasos_registrados', row.get('atrasos_no_periodo', row.get('atrasos_no_ano', 0)))
                 ])
         elif active_tab == 'frequencia':
             writer.writerow(['Data / Mês', 'Alunos Matriculados', 'Alunos Presentes', 'Faltas / Ausentes', 'Frequência (%)'])
