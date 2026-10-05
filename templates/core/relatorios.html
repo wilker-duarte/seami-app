@@ -12,32 +12,33 @@
     <!-- NAVEGAÇÃO ENTRE AS 4 ABAS DE RELATÓRIO                            -->
     <!-- ================================================================= -->
     <!-- ================================================================= -->
+    <!-- ================================================================= -->
     <!-- NAVEGAÇÃO ENTRE AS 4 ABAS DE RELATÓRIO                            -->
     <!-- ================================================================= -->
     <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 14px;">
         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-            <a href="?tab=faltas{% if classroom_filter %}&classroom={{ classroom_filter }}{% endif %}&date_start={{ date_start }}&date_end={{ date_end }}"
+            <a href="?tab=faltas{% if classroom_filter %}&classroom={{ classroom_filter }}{% endif %}&status_aluno={{ status_aluno_filter }}&date_start={{ date_start }}&date_end={{ date_end }}"
                class="report-tab-btn {% if active_tab_nav == 'faltas' %}active{% endif %}"
                style="text-decoration: none; padding: 9px 16px; border-radius: 10px; font-size: 13.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
                 <i data-lucide="calendar-x" style="width: 16px; height: 16px;"></i>
                 <span>Relatório de Faltas</span>
             </a>
 
-            <a href="?tab=atrasos{% if classroom_filter %}&classroom={{ classroom_filter }}{% endif %}&date_start={{ date_start }}&date_end={{ date_end }}"
+            <a href="?tab=atrasos{% if classroom_filter %}&classroom={{ classroom_filter }}{% endif %}&status_aluno={{ status_aluno_filter }}&date_start={{ date_start }}&date_end={{ date_end }}"
                class="report-tab-btn {% if active_tab_nav == 'atrasos' %}active{% endif %}"
                style="text-decoration: none; padding: 9px 16px; border-radius: 10px; font-size: 13.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
                 <i data-lucide="clock" style="width: 16px; height: 16px;"></i>
                 <span>Relatório de Atrasos</span>
             </a>
 
-            <a href="?tab=frequencia{% if classroom_filter %}&classroom={{ classroom_filter }}{% endif %}&date_start={{ date_start }}&date_end={{ date_end }}"
+            <a href="?tab=frequencia{% if classroom_filter %}&classroom={{ classroom_filter }}{% endif %}&status_aluno={{ status_aluno_filter }}&date_start={{ date_start }}&date_end={{ date_end }}"
                class="report-tab-btn {% if active_tab_nav == 'frequencia' %}active{% endif %}"
                style="text-decoration: none; padding: 9px 16px; border-radius: 10px; font-size: 13.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
                 <i data-lucide="bar-chart-3" style="width: 16px; height: 16px;"></i>
                 <span>Frequência vs Matriculados</span>
             </a>
 
-            <a href="?tab=matriculas{% if classroom_filter %}&classroom={{ classroom_filter }}{% endif %}&date_start={{ date_start }}&date_end={{ date_end }}"
+            <a href="?tab=matriculas{% if classroom_filter %}&classroom={{ classroom_filter }}{% endif %}&status_aluno={{ status_aluno_filter }}&date_start={{ date_start }}&date_end={{ date_end }}"
                class="report-tab-btn {% if active_tab_nav == 'matriculas' %}active{% endif %}"
                style="text-decoration: none; padding: 9px 16px; border-radius: 10px; font-size: 13.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
                 <i data-lucide="user-plus" style="width: 16px; height: 16px;"></i>
@@ -66,7 +67,7 @@
                 </span>
             </div>
 
-            <!-- BOTÕES DE AÇÃO E EXPORTAÇÃO EXCEL E PDF (IGUAL AO SEAMI) -->
+            <!-- BOTÕES DE AÇÃO E EXPORTAÇÃO EXCEL, PDF E CSV -->
             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                 {% if active_tab_nav == 'frequencia' %}
                 <button type="button" onclick="openAddHistoricalModal()" class="primary-btn" style="padding: 8px 14px; border-radius: 8px; background-color: var(--color-primary); color: white; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; border: none;">
@@ -84,6 +85,11 @@
                     <i data-lucide="file-text" style="width: 15px; height: 15px;"></i>
                     <span>Exportar PDF (.pdf)</span>
                 </button>
+
+                <a href="?tab={{ active_tab_nav }}&export=csv&date_start={{ date_start }}&date_end={{ date_end }}{% if classroom_filter %}&classroom={{ classroom_filter|urlencode }}{% endif %}&status_aluno={{ status_aluno_filter }}{% if student_id_filter %}&student_id={{ student_id_filter }}{% endif %}{% if justified_filter %}&justified={{ justified_filter }}{% endif %}" class="secondary-btn" style="padding: 8px 14px; border-radius: 8px; border: 1px solid #93c5fd; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; background-color: #eff6ff; color: #1d4ed8; text-decoration: none; transition: all 0.2s;">
+                    <i data-lucide="file-spreadsheet" style="width: 15px; height: 15px;"></i>
+                    <span>Exportar CSV (.csv)</span>
+                </a>
             </div>
         </div>
 
@@ -107,13 +113,21 @@
                         {% endfor %}
                     </select>
                 </div>
+                <div class="filter-group">
+                    <label>Status do Aluno</label>
+                    <select name="status_aluno" onchange="this.form.submit()">
+                        <option value="all" {% if status_aluno_filter == 'all' or not status_aluno_filter %}selected{% endif %}>Todos (Ativos e Inativos)</option>
+                        <option value="ativos" {% if status_aluno_filter == 'ativos' %}selected{% endif %}>Apenas Ativos</option>
+                        <option value="inativos" {% if status_aluno_filter == 'inativos' %}selected{% endif %}>Apenas Inativos (Desligados)</option>
+                    </select>
+                </div>
                 {% if active_tab_nav == 'faltas' or active_tab_nav == 'atrasos' %}
                 <div class="filter-group">
                     <label>Criança</label>
                     <select name="student_id" onchange="this.form.submit()">
                         <option value="">Todas as crianças</option>
                         {% for st in all_students %}
-                            <option value="{{ st.id }}" {% if student_id_filter == st.id %}selected{% endif %}>{{ st.nome }}</option>
+                            <option value="{{ st.id }}" {% if student_id_filter == st.id %}selected{% endif %}>{{ st.nome }}{% if not st.ativo %} (Inativo){% endif %}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -1186,13 +1200,15 @@
     {
         "date_br": "{{ row.data|date:'d/m/Y' }}",
         "date_raw": "{{ row.data|date:'Y-m-d' }}",
-        "student_name": "{{ row.aluno.nome|escapejs }}",
-        "classroom": "Sala {{ row.turma.nome|escapejs }}",
+        "student_name": "{{ row.aluno_nome|default:row.aluno.nome|escapejs }}",
+        "student_status": "{{ row.aluno_status_display|default:'Ativo'|escapejs }}",
+        "is_aluno_ativo": {{ row.is_aluno_ativo|default:True|yesno:"true,false" }},
+        "classroom": "Sala {{ row.turma_nome|default:row.turma.nome|escapejs }}",
         "tipo_falta": "{{ row.tipo_falta }}",
-        "is_just": {{ row.is_justificada|yesno:"true,false" }},
+        "is_just": {{ row.is_justificada|default:False|yesno:"true,false" }},
         "motivo": "{{ row.motivo|escapejs }}",
         "responsavel": "{{ row.responsavel|escapejs }}{% if row.telefone_responsavel %} ({{ row.telefone_responsavel }}){% endif %}",
-        "faltas_ano": {{ row.faltas_no_ano }}
+        "faltas_ano": {{ row.faltas_no_ano|default:0 }}
     }{% if not forloop.last %},{% endif %}
     {% endfor %}
 ]
@@ -1205,12 +1221,14 @@
         "date_br": "{{ row.data|date:'d/m/Y' }}",
         "horario": "{{ row.horario }}",
         "student_name": "{{ row.aluno_nome|escapejs }}",
+        "student_status": "{{ row.aluno_status_display|default:'Ativo'|escapejs }}",
+        "is_aluno_ativo": {{ row.is_aluno_ativo|default:True|yesno:"true,false" }},
         "classroom": "{{ row.turma_nome|escapejs }}",
         "tipo_atraso": "{{ row.tipo_atraso }}",
-        "is_just": {{ row.is_justificado|yesno:"true,false" }},
+        "is_just": {{ row.is_justificado|default:False|yesno:"true,false" }},
         "motivo": "{{ row.motivo|escapejs }}",
         "responsavel": "{{ row.responsavel|escapejs }}",
-        "atrasos_ano": {{ row.atrasos_no_ano }}
+        "atrasos_ano": {{ row.atrasos_no_ano|default:0 }}
     }{% if not forloop.last %},{% endif %}
     {% endfor %}
 ]
@@ -1221,10 +1239,10 @@
     {% for row in freq_tabela %}
     {
         "date_br": "{{ row.data|date:'d/m/Y' }}",
-        "matriculados": {{ row.matriculados }},
-        "presentes": {{ row.presentes }},
-        "faltas": {{ row.faltas }},
-        "taxa": "{{ row.taxa }}%"
+        "matriculados": {{ row.matriculados|default:0 }},
+        "presentes": {{ row.presentes|default:0 }},
+        "faltas": {{ row.faltas|default:0 }},
+        "taxa": "{{ row.taxa|default:'0' }}%"
     }{% if not forloop.last %},{% endif %}
     {% endfor %}
 ]
@@ -1236,10 +1254,10 @@
     {
         "mes_ano": "{{ row.mes_ano }}",
         "classroom": "Sala {{ row.turma.nome|escapejs }}",
-        "entradas": {{ row.novas_matriculas }},
-        "saidas_real": {{ row.deslig_realizados }},
-        "saidas_prev": {{ row.deslig_previstos }},
-        "ativos": {{ row.matriculados_ativos }}
+        "entradas": {{ row.novas_matriculas|default:0 }},
+        "saidas_real": {{ row.deslig_realizados|default:0 }},
+        "saidas_prev": {{ row.deslig_previstos|default:0 }},
+        "ativos": {{ row.matriculados_ativos|default:0 }}
     }{% if not forloop.last %},{% endif %}
     {% endfor %}
 ]
@@ -1251,11 +1269,11 @@
     {
         "month_formatted": "{{ row.month_formatted }}",
         "month_raw": "{{ row.month }}",
-        "year": {{ row.year }},
-        "enrolled": {{ row.enrolled }},
-        "present": {{ row.present }},
-        "absences": {{ row.absences }},
-        "percentage": "{{ row.percentage }}%"
+        "year": {{ row.year|default:2026 }},
+        "enrolled": {{ row.enrolled|default:0 }},
+        "present": {{ row.present|default:0 }},
+        "absences": {{ row.absences|default:0 }},
+        "percentage": "{{ row.percentage|default:'0' }}%"
     }{% if not forloop.last %},{% endif %}
     {% endfor %}
 ]
@@ -1264,6 +1282,7 @@
 <script id="json-report-date-start" type="application/json">"{{ date_start }}"</script>
 <script id="json-report-date-end" type="application/json">"{{ date_end }}"</script>
 <script id="json-report-classroom" type="application/json">"{{ classroom_filter }}"</script>
+<script id="json-report-status-aluno" type="application/json">"{{ status_aluno_filter }}"</script>
 
 <script>
     // =========================================================================
@@ -1363,7 +1382,7 @@
     }
 
     // =========================================================================
-    // EXPORTAÇÃO EXCEL (.XLSX) PARA TODAS AS 4 ABAS (RESPEITANDO O PERÍODO)
+    // EXPORTAÇÃO EXCEL (.XLSX) PARA TODAS AS 4 ABAS (RESPEITANDO O PERÍODO E FILTRO)
     // =========================================================================
     function exportReportExcel() {
         if (typeof XLSX === 'undefined') {
@@ -1371,51 +1390,63 @@
             return;
         }
 
-        const activeTab = JSON.parse(document.getElementById('json-report-active-tab').textContent || '"faltas"');
-        const filterStart = JSON.parse(document.getElementById('json-report-date-start').textContent || '""');
-        const filterEnd = JSON.parse(document.getElementById('json-report-date-end').textContent || '""');
-        const startMonthKey = filterStart ? filterStart.substring(0, 7) : '2019-01';
-        const endMonthKey = filterEnd ? filterEnd.substring(0, 7) : '2026-12';
-        const todayStr = new Date().toISOString().split('T')[0];
-        const wb = XLSX.utils.book_new();
+        try {
+            const activeTab = JSON.parse(document.getElementById('json-report-active-tab')?.textContent || '"faltas"');
+            const filterStart = JSON.parse(document.getElementById('json-report-date-start')?.textContent || '""');
+            const filterEnd = JSON.parse(document.getElementById('json-report-date-end')?.textContent || '""');
+            const statusFilter = JSON.parse(document.getElementById('json-report-status-aluno')?.textContent || '"all"');
+            const startMonthKey = filterStart ? filterStart.substring(0, 7) : '2019-01';
+            const endMonthKey = filterEnd ? filterEnd.substring(0, 7) : '2026-12';
+            const todayStr = new Date().toISOString().split('T')[0];
+            const wb = XLSX.utils.book_new();
 
-        if (activeTab === 'faltas') {
-            const data = JSON.parse(document.getElementById('json-report-faltas').textContent || '[]');
-            if (data.length === 0) { alert('Não há registros de faltas para exportar.'); return; }
+            if (activeTab === 'faltas') {
+                const rawEl = document.getElementById('json-report-faltas');
+                const data = rawEl ? JSON.parse(rawEl.textContent || '[]') : [];
+                if (data.length === 0) {
+                    alert(`Não há registros de faltas no período filtrado (${filterStart} a ${filterEnd}). Ajuste o período ou limpe os filtros para exportar.`);
+                    return;
+                }
 
-            const rows = data.map(r => ({
-                "Data": r.date_br,
-                "Criança": r.student_name,
-                "Sala / Turma": r.classroom,
-                "Tipo de Falta": r.tipo_falta,
-                "Justificativa / Motivo": r.motivo,
-                "Responsável": r.responsavel,
-                "Faltas no Ano": r.faltas_ano
-            }));
+                const rows = data.map(r => ({
+                    "Data": r.date_br,
+                    "Criança": r.student_name,
+                    "Status do Aluno": r.student_status || "Ativo",
+                    "Sala / Turma": r.classroom,
+                    "Tipo de Falta": r.tipo_falta,
+                    "Justificativa / Motivo": r.motivo,
+                    "Responsável": r.responsavel,
+                    "Faltas no Ano": r.faltas_ano
+                }));
 
-            const ws = XLSX.utils.json_to_sheet(rows);
-            ws['!cols'] = [{wch: 14}, {wch: 30}, {wch: 16}, {wch: 18}, {wch: 35}, {wch: 30}, {wch: 25}];
-            XLSX.utils.book_append_sheet(wb, ws, "Relatório de Faltas");
-            XLSX.writeFile(wb, `Relatorio_Faltas_SEAMI_${todayStr}.xlsx`);
+                const ws = XLSX.utils.json_to_sheet(rows);
+                ws['!cols'] = [{wch: 14}, {wch: 30}, {wch: 16}, {wch: 16}, {wch: 18}, {wch: 35}, {wch: 30}, {wch: 25}];
+                XLSX.utils.book_append_sheet(wb, ws, "Relatório de Faltas");
+                XLSX.writeFile(wb, `Relatorio_Faltas_SEAMI_${todayStr}.xlsx`);
 
-        } else if (activeTab === 'atrasos') {
-            const data = JSON.parse(document.getElementById('json-report-atrasos').textContent || '[]');
-            if (data.length === 0) { alert('Não há registros de atrasos para exportar.'); return; }
+            } else if (activeTab === 'atrasos') {
+                const rawEl = document.getElementById('json-report-atrasos');
+                const data = rawEl ? JSON.parse(rawEl.textContent || '[]') : [];
+                if (data.length === 0) {
+                    alert(`Não há registros de atrasos no período filtrado (${filterStart} a ${filterEnd}). Ajuste o período ou limpe os filtros para exportar.`);
+                    return;
+                }
 
-            const rows = data.map(r => ({
-                "Data": r.date_br,
-                "Horário de Entrada": r.horario,
-                "Criança": r.student_name,
-                "Sala / Turma": r.classroom,
-                "Tipo de Atraso": r.tipo_atraso,
-                "Justificativa / Motivo": r.motivo,
-                "Responsável": r.responsavel,
-                "Atrasos no Ano": r.atrasos_ano
-            }));
+                const rows = data.map(r => ({
+                    "Data": r.date_br,
+                    "Horário de Entrada": r.horario,
+                    "Criança": r.student_name,
+                    "Status do Aluno": r.student_status || "Ativo",
+                    "Sala / Turma": r.classroom,
+                    "Tipo de Atraso": r.tipo_atraso,
+                    "Justificativa / Motivo": r.motivo,
+                    "Responsável": r.responsavel,
+                    "Atrasos no Ano": r.atrasos_ano
+                }));
 
-            const ws = XLSX.utils.json_to_sheet(rows);
-            ws['!cols'] = [{wch: 14}, {wch: 16}, {wch: 30}, {wch: 16}, {wch: 18}, {wch: 35}, {wch: 30}, {wch: 18}];
-            XLSX.utils.book_append_sheet(wb, ws, "Relatório de Atrasos");
+                const ws = XLSX.utils.json_to_sheet(rows);
+                ws['!cols'] = [{wch: 14}, {wch: 16}, {wch: 30}, {wch: 16}, {wch: 16}, {wch: 18}, {wch: 35}, {wch: 30}, {wch: 18}];
+                XLSX.utils.book_append_sheet(wb, ws, "Relatório de Atrasos");
             XLSX.writeFile(wb, `Relatorio_Atrasos_SEAMI_${todayStr}.xlsx`);
 
         } else if (activeTab === 'frequencia') {
@@ -1492,7 +1523,11 @@
             XLSX.utils.book_append_sheet(wb, ws, "Matrículas e Desligamentos");
             XLSX.writeFile(wb, `Relatorio_Matriculas_SEAMI_${filterStart}_a_${filterEnd}.xlsx`);
         }
+    } catch (err) {
+        console.error("Erro ao exportar relatório Excel:", err);
+        alert("Ocorreu um erro ao processar os dados para exportação em Excel.");
     }
+}
 
     // =========================================================================
     // EXPORTAÇÃO PDF (.PDF) COM CABEÇALHO, GRÁFICOS DE PILHA COM VALORES E TABELA
@@ -1503,16 +1538,19 @@
             return;
         }
 
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-        const activeTab = JSON.parse(document.getElementById('json-report-active-tab').textContent || '"faltas"');
-        const filterStart = JSON.parse(document.getElementById('json-report-date-start').textContent || '""');
-        const filterEnd = JSON.parse(document.getElementById('json-report-date-end').textContent || '""');
-        const classroomFilter = JSON.parse(document.getElementById('json-report-classroom').textContent || '""');
-        const dataEmissao = new Date().toLocaleDateString('pt-BR');
-        const startLabel = filterStart ? filterStart.split('-').reverse().join('/') : 'Início';
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            const activeTab = JSON.parse(document.getElementById('json-report-active-tab')?.textContent || '"faltas"');
+            const filterStart = JSON.parse(document.getElementById('json-report-date-start')?.textContent || '""');
+            const filterEnd = JSON.parse(document.getElementById('json-report-date-end')?.textContent || '""');
+            const classroomFilter = JSON.parse(document.getElementById('json-report-classroom')?.textContent || '""');
+            const statusFilter = JSON.parse(document.getElementById('json-report-status-aluno')?.textContent || '"all"');
+            const dataEmissao = new Date().toLocaleDateString('pt-BR');
+            const startLabel = filterStart ? filterStart.split('-').reverse().join('/') : 'Início';
         const endLabel = filterEnd ? filterEnd.split('-').reverse().join('/') : 'Fim';
         const roomLabel = classroomFilter ? `Turma ${classroomFilter}` : 'Todas as Salas';
+        const statusLabel = statusFilter === 'ativos' ? 'Apenas Ativos' : (statusFilter === 'inativos' ? 'Apenas Inativos' : 'Todos os Status');
 
         const startMonthKey = filterStart ? filterStart.substring(0, 7) : '2019-01';
         const endMonthKey = filterEnd ? filterEnd.substring(0, 7) : '2026-12';
@@ -1540,7 +1578,7 @@
             doc.text(fullTitle, 20, 26);
 
             doc.setFontSize(8);
-            doc.text(`Filtros: ${roomLabel} | Período: ${startLabel} a ${endLabel}`, 155, 26);
+            doc.text(`Filtros: ${roomLabel} | Status: ${statusLabel} | Período: ${startLabel} a ${endLabel}`, 130, 26);
             doc.text(`Emissão: ${dataEmissao}`, 235, 18);
         }
 
@@ -1823,8 +1861,12 @@
             });
 
         } else if (activeTab === 'faltas') {
-            const data = JSON.parse(document.getElementById('json-report-faltas').textContent || '[]');
-            if (data.length === 0) { alert('Não há dados de faltas para exportar.'); return; }
+            const rawEl = document.getElementById('json-report-faltas');
+            const data = rawEl ? JSON.parse(rawEl.textContent || '[]') : [];
+            if (data.length === 0) {
+                alert(`Não há registros de faltas no período filtrado (${filterStart} a ${filterEnd}). Ajuste o período ou limpe os filtros para exportar.`);
+                return;
+            }
 
             drawInstitutionalHeader("Relatório Oficial de Gestão de Faltas (Justificadas e Não Justificadas)", "", [220, 38, 38]);
 
@@ -1867,6 +1909,7 @@
             const bodyRows = data.map(r => [
                 r.date_br,
                 r.student_name,
+                r.student_status || "Ativo",
                 r.classroom,
                 r.tipo_falta,
                 r.motivo,
@@ -1876,7 +1919,7 @@
 
             doc.autoTable({
                 startY: currentY,
-                head: [['Data', 'Criança', 'Sala', 'Tipo de Falta', 'Justificativa / Motivo', 'Responsável', 'Faltas no Ano']],
+                head: [['Data', 'Criança', 'Status', 'Sala', 'Tipo de Falta', 'Justificativa / Motivo', 'Responsável', 'Faltas no Ano']],
                 body: bodyRows,
                 theme: 'grid',
                 headStyles: { fillColor: [220, 38, 38], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
@@ -1893,8 +1936,12 @@
             });
 
         } else if (activeTab === 'atrasos') {
-            const data = JSON.parse(document.getElementById('json-report-atrasos').textContent || '[]');
-            if (data.length === 0) { alert('Não há dados de atrasos para exportar.'); return; }
+            const rawEl = document.getElementById('json-report-atrasos');
+            const data = rawEl ? JSON.parse(rawEl.textContent || '[]') : [];
+            if (data.length === 0) {
+                alert(`Não há registros de atrasos no período filtrado (${filterStart} a ${filterEnd}). Ajuste o período ou limpe os filtros para exportar.`);
+                return;
+            }
 
             drawInstitutionalHeader("Relatório Oficial de Gestão de Atrasos (Justificados e Não Justificados)", "", [217, 119, 6]);
 
@@ -1902,6 +1949,7 @@
                 r.date_br,
                 r.horario,
                 r.student_name,
+                r.student_status || "Ativo",
                 r.classroom,
                 r.tipo_atraso,
                 r.motivo,
@@ -1911,7 +1959,7 @@
 
             doc.autoTable({
                 startY: 36,
-                head: [['Data', 'Horário', 'Criança', 'Sala', 'Tipo de Atraso', 'Justificativa / Motivo', 'Responsável', 'Atrasos no Ano']],
+                head: [['Data', 'Horário', 'Criança', 'Status', 'Sala', 'Tipo de Atraso', 'Justificativa / Motivo', 'Responsável', 'Atrasos no Ano']],
                 body: bodyRows,
                 theme: 'grid',
                 headStyles: { fillColor: [217, 119, 6], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
@@ -1932,6 +1980,10 @@
         }
 
         doc.save(`Relatorio_${activeTab.toUpperCase()}_SEAMI_${filterStart}_a_${filterEnd}.pdf`);
+    } catch (err) {
+        console.error("Erro ao gerar PDF:", err);
+        alert("Ocorreu um erro ao gerar o relatório PDF.");
     }
+}
 </script>
 {% endblock %}

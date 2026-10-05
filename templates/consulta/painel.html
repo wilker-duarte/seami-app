@@ -674,25 +674,25 @@
             <!-- NAVEGAÇÃO ENTRE AS 4 ABAS DE RELATÓRIO -->
             <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 14px;">
                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <a href="?tab=relatorios&subtab=faltas{% if classroom_filter %}&classroom={{ classroom_filter }}{% endif %}&date_start={{ date_start }}&date_end={{ date_end }}"
+                    <a href="?tab=relatorios&subtab=faltas{% if classroom_filter %}&classroom={{ classroom_filter }}{% endif %}&status_aluno={{ status_aluno_filter }}&date_start={{ date_start }}&date_end={{ date_end }}"
                        class="subtab-pill {% if active_tab_nav == 'faltas' %}active{% endif %}">
                         <i data-lucide="calendar-x" style="width: 16px; height: 16px;"></i>
                         <span>Relatório de Faltas</span>
                     </a>
 
-                    <a href="?tab=relatorios&subtab=atrasos{% if classroom_filter %}&classroom={{ classroom_filter }}{% endif %}&date_start={{ date_start }}&date_end={{ date_end }}"
+                    <a href="?tab=relatorios&subtab=atrasos{% if classroom_filter %}&classroom={{ classroom_filter }}{% endif %}&status_aluno={{ status_aluno_filter }}&date_start={{ date_start }}&date_end={{ date_end }}"
                        class="subtab-pill {% if active_tab_nav == 'atrasos' %}active{% endif %}">
                         <i data-lucide="clock" style="width: 16px; height: 16px;"></i>
                         <span>Relatório de Atrasos</span>
                     </a>
 
-                    <a href="?tab=relatorios&subtab=frequencia{% if classroom_filter %}&classroom={{ classroom_filter }}{% endif %}&date_start={{ date_start }}&date_end={{ date_end }}"
+                    <a href="?tab=relatorios&subtab=frequencia{% if classroom_filter %}&classroom={{ classroom_filter }}{% endif %}&status_aluno={{ status_aluno_filter }}&date_start={{ date_start }}&date_end={{ date_end }}"
                        class="subtab-pill {% if active_tab_nav == 'frequencia' %}active{% endif %}">
                         <i data-lucide="bar-chart-3" style="width: 16px; height: 16px;"></i>
                         <span>Frequência vs Matriculados</span>
                     </a>
 
-                    <a href="?tab=relatorios&subtab=matriculas{% if classroom_filter %}&classroom={{ classroom_filter }}{% endif %}&date_start={{ date_start }}&date_end={{ date_end }}"
+                    <a href="?tab=relatorios&subtab=matriculas{% if classroom_filter %}&classroom={{ classroom_filter }}{% endif %}&status_aluno={{ status_aluno_filter }}&date_start={{ date_start }}&date_end={{ date_end }}"
                        class="subtab-pill {% if active_tab_nav == 'matriculas' %}active{% endif %}">
                         <i data-lucide="user-plus" style="width: 16px; height: 16px;"></i>
                         <span>Matrícula / Desligamento</span>
@@ -753,13 +753,21 @@
                                 {% endfor %}
                             </select>
                         </div>
+                        <div class="filter-group">
+                            <label>Status do Aluno</label>
+                            <select name="status_aluno" onchange="this.form.submit()">
+                                <option value="all" {% if status_aluno_filter == 'all' or not status_aluno_filter %}selected{% endif %}>Todos (Ativos e Inativos)</option>
+                                <option value="ativos" {% if status_aluno_filter == 'ativos' %}selected{% endif %}>Apenas Ativos</option>
+                                <option value="inativos" {% if status_aluno_filter == 'inativos' %}selected{% endif %}>Apenas Inativos (Desligados)</option>
+                            </select>
+                        </div>
                         {% if active_tab_nav == 'faltas' or active_tab_nav == 'atrasos' %}
                         <div class="filter-group">
                             <label>Criança</label>
                             <select name="student_id" onchange="this.form.submit()">
                                 <option value="">Todas as crianças</option>
                                 {% for st in all_students %}
-                                    <option value="{{ st.id }}" {% if student_id_filter == st.id %}selected{% endif %}>{{ st.nome }}</option>
+                                    <option value="{{ st.id }}" {% if student_id_filter == st.id %}selected{% endif %}>{{ st.nome }}{% if not st.ativo %} (Inativo){% endif %}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -1597,157 +1605,169 @@
     <script>
         function exportReportExcel() {
             if (typeof XLSX === 'undefined') { alert('Biblioteca XLSX não carregada.'); return; }
-            const activeTab = "{{ active_tab_nav }}";
-            const todayStr = new Date().toISOString().split('T')[0];
-            const wb = XLSX.utils.book_new();
+            try {
+                const activeTab = "{{ active_tab_nav }}";
+                const todayStr = new Date().toISOString().split('T')[0];
+                const wb = XLSX.utils.book_new();
 
-            if (activeTab === 'faltas') {
-                const rows = [
-                    {% for row in faltas_tabela %}
-                    {
-                        "Data": "{{ row.data|date:'d/m/Y' }}",
-                        "Criança": "{{ row.aluno.nome|escapejs }}",
-                        "Sala": "Sala {{ row.turma.nome|escapejs }}",
-                        "Tipo": "{{ row.tipo_falta }}",
-                        "Motivo": "{{ row.motivo|escapejs }}",
-                        "Responsável": "{{ row.responsavel|escapejs }}",
-                        "Faltas Não Just. no Ano (Jan-Dez)": {{ row.faltas_no_ano }}
-                    }{% if not forloop.last %},{% endif %}
-                    {% endfor %}
-                ];
-                if (rows.length === 0) { alert('Sem dados de faltas para exportar.'); return; }
-                const ws = XLSX.utils.json_to_sheet(rows);
-                XLSX.utils.book_append_sheet(wb, ws, "Faltas");
-                XLSX.writeFile(wb, `Consulta_Faltas_SEAMI_${todayStr}.xlsx`);
-            } else if (activeTab === 'atrasos') {
-                const rows = [
-                    {% for row in atrasos_tabela %}
-                    {
-                        "Data": "{{ row.data|date:'d/m/Y' }}",
-                        "Horário": "{{ row.horario }}",
-                        "Criança": "{{ row.aluno_nome|escapejs }}",
-                        "Sala": "{{ row.turma_nome|escapejs }}",
-                        "Tipo": "{{ row.tipo_atraso }}",
-                        "Motivo": "{{ row.motivo|escapejs }}",
-                        "Responsável": "{{ row.responsavel|escapejs }}"
-                    }{% if not forloop.last %},{% endif %}
-                    {% endfor %}
-                ];
-                if (rows.length === 0) { alert('Sem dados de atrasos para exportar.'); return; }
-                const ws = XLSX.utils.json_to_sheet(rows);
-                XLSX.utils.book_append_sheet(wb, ws, "Atrasos");
-                XLSX.writeFile(wb, `Consulta_Atrasos_SEAMI_${todayStr}.xlsx`);
-            } else if (activeTab === 'frequencia') {
-                const rows = [
-                    {% for row in freq_tabela %}
-                    {
-                        "Data": "{{ row.data|date:'d/m/Y' }}",
-                        "Matriculados": {{ row.matriculados }},
-                        "Presentes": {{ row.presentes }},
-                        "Faltas": {{ row.faltas }},
-                        "Taxa (%)": "{{ row.taxa }}%"
-                    }{% if not forloop.last %},{% endif %}
-                    {% endfor %}
-                ];
-                if (rows.length === 0) { alert('Sem dados de frequência para exportar.'); return; }
-                const ws = XLSX.utils.json_to_sheet(rows);
-                XLSX.utils.book_append_sheet(wb, ws, "Frequência");
-                XLSX.writeFile(wb, `Consulta_Frequencia_SEAMI_${todayStr}.xlsx`);
-            } else if (activeTab === 'matriculas') {
-                const rows = [
-                    {% for row in mat_tabela %}
-                    {
-                        "Mês / Ano": "{{ row.mes_ano }}",
-                        "Turma": "{{ row.turma.nome|default:'Geral'|escapejs }}",
-                        "Novas Matrículas (+)": {{ row.novas_matriculas }},
-                        "Desligamentos Realizados (-)": {{ row.deslig_realizados }},
-                        "Desligamentos Previstos (⏳)": {{ row.deslig_previstos }},
-                        "Matriculados Ativos": {{ row.matriculados_ativos }}
-                    }{% if not forloop.last %},{% endif %}
-                    {% endfor %}
-                ];
-                if (rows.length === 0) { alert('Sem dados de matrículas para exportar.'); return; }
-                const ws = XLSX.utils.json_to_sheet(rows);
-                XLSX.utils.book_append_sheet(wb, ws, "Matrículas e Desligamentos");
-                XLSX.writeFile(wb, `Consulta_Matriculas_SEAMI_${todayStr}.xlsx`);
+                if (activeTab === 'faltas') {
+                    const rows = [
+                        {% for row in faltas_tabela %}
+                        {
+                            "Data": "{{ row.data|date:'d/m/Y' }}",
+                            "Criança": "{{ row.aluno_nome|default:row.aluno.nome|escapejs }}",
+                            "Status do Aluno": "{{ row.aluno_status_display|default:'Ativo'|escapejs }}",
+                            "Sala": "Sala {{ row.turma_nome|default:row.turma.nome|escapejs }}",
+                            "Tipo": "{{ row.tipo_falta }}",
+                            "Motivo": "{{ row.motivo|escapejs }}",
+                            "Responsável": "{{ row.responsavel|escapejs }}",
+                            "Faltas no Ano": {{ row.faltas_no_ano|default:0 }}
+                        }{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ];
+                    if (rows.length === 0) { alert('Sem dados de faltas para exportar no período filtrado.'); return; }
+                    const ws = XLSX.utils.json_to_sheet(rows);
+                    XLSX.utils.book_append_sheet(wb, ws, "Faltas");
+                    XLSX.writeFile(wb, `Consulta_Faltas_SEAMI_${todayStr}.xlsx`);
+                } else if (activeTab === 'atrasos') {
+                    const rows = [
+                        {% for row in atrasos_tabela %}
+                        {
+                            "Data": "{{ row.data|date:'d/m/Y' }}",
+                            "Horário": "{{ row.horario }}",
+                            "Criança": "{{ row.aluno_nome|escapejs }}",
+                            "Status do Aluno": "{{ row.aluno_status_display|default:'Ativo'|escapejs }}",
+                            "Sala": "{{ row.turma_nome|escapejs }}",
+                            "Tipo": "{{ row.tipo_atraso }}",
+                            "Motivo": "{{ row.motivo|escapejs }}",
+                            "Responsável": "{{ row.responsavel|escapejs }}"
+                        }{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ];
+                    if (rows.length === 0) { alert('Sem dados de atrasos para exportar no período filtrado.'); return; }
+                    const ws = XLSX.utils.json_to_sheet(rows);
+                    XLSX.utils.book_append_sheet(wb, ws, "Atrasos");
+                    XLSX.writeFile(wb, `Consulta_Atrasos_SEAMI_${todayStr}.xlsx`);
+                } else if (activeTab === 'frequencia') {
+                    const rows = [
+                        {% for row in freq_tabela %}
+                        {
+                            "Data": "{{ row.data|date:'d/m/Y' }}",
+                            "Matriculados": {{ row.matriculados|default:0 }},
+                            "Presentes": {{ row.presentes|default:0 }},
+                            "Faltas": {{ row.faltas|default:0 }},
+                            "Taxa (%)": "{{ row.taxa|default:'0' }}%"
+                        }{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ];
+                    if (rows.length === 0) { alert('Sem dados de frequência para exportar no período filtrado.'); return; }
+                    const ws = XLSX.utils.json_to_sheet(rows);
+                    XLSX.utils.book_append_sheet(wb, ws, "Frequência");
+                    XLSX.writeFile(wb, `Consulta_Frequencia_SEAMI_${todayStr}.xlsx`);
+                } else if (activeTab === 'matriculas') {
+                    const rows = [
+                        {% for row in mat_tabela %}
+                        {
+                            "Mês / Ano": "{{ row.mes_ano }}",
+                            "Turma": "{{ row.turma.nome|default:'Geral'|escapejs }}",
+                            "Novas Matrículas (+)": {{ row.novas_matriculas|default:0 }},
+                            "Desligamentos Realizados (-)": {{ row.deslig_realizados|default:0 }},
+                            "Desligamentos Previstos (⏳)": {{ row.deslig_previstos|default:0 }},
+                            "Matriculados Ativos": {{ row.matriculados_ativos|default:0 }}
+                        }{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ];
+                    if (rows.length === 0) { alert('Sem dados de matrículas para exportar no período filtrado.'); return; }
+                    const ws = XLSX.utils.json_to_sheet(rows);
+                    XLSX.utils.book_append_sheet(wb, ws, "Matrículas e Desligamentos");
+                    XLSX.writeFile(wb, `Consulta_Matriculas_SEAMI_${todayStr}.xlsx`);
+                }
+            } catch (err) {
+                console.error("Erro ao exportar Excel:", err);
+                alert("Erro ao processar dados para exportação em Excel.");
             }
         }
 
         function exportReportPDF() {
             if (typeof window.jspdf === 'undefined') { alert('Biblioteca jsPDF não carregada.'); return; }
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-            const activeTab = "{{ active_tab_nav }}";
-            const todayStr = new Date().toISOString().split('T')[0];
-            const dataEmissao = new Date().toLocaleDateString('pt-BR');
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+                const activeTab = "{{ active_tab_nav }}";
+                const todayStr = new Date().toISOString().split('T')[0];
+                const dataEmissao = new Date().toLocaleDateString('pt-BR');
+                const statusFilter = "{{ status_aluno_filter }}";
+                const statusLabel = statusFilter === 'ativos' ? 'Apenas Ativos' : (statusFilter === 'inativos' ? 'Apenas Inativos' : 'Todos os Status');
 
-            let title = "Relatório Oficial de Consulta SEAMI";
-            let head = [];
-            let body = [];
+                let title = "Relatório Oficial de Consulta SEAMI";
+                let head = [];
+                let body = [];
 
-            if (activeTab === 'faltas') {
-                title = "Relatório Oficial de Gestão de Faltas - Consulta Externa";
-                head = [['Data', 'Criança', 'Sala', 'Tipo', 'Motivo', 'Responsável', 'Faltas Não Just. no Ano']];
-                body = [
-                    {% for row in faltas_tabela %}
-                    [
-                        "{{ row.data|date:'d/m/Y' }}",
-                        "{{ row.aluno.nome|escapejs }}",
-                        "Sala {{ row.turma.nome|escapejs }}",
-                        "{{ row.tipo_falta }}",
-                        "{{ row.motivo|escapejs }}",
-                        "{{ row.responsavel|escapejs }}",
-                        "{{ row.faltas_no_ano }}"
-                    ]{% if not forloop.last %},{% endif %}
-                    {% endfor %}
-                ];
-            } else if (activeTab === 'atrasos') {
-                title = "Relatório Oficial de Gestão de Atrasos - Consulta Externa";
-                head = [['Data', 'Horário', 'Criança', 'Sala', 'Tipo', 'Motivo', 'Responsável']];
-                body = [
-                    {% for row in atrasos_tabela %}
-                    [
-                        "{{ row.data|date:'d/m/Y' }}",
-                        "{{ row.horario }}",
-                        "{{ row.aluno_nome|escapejs }}",
-                        "{{ row.turma_nome|escapejs }}",
-                        "{{ row.tipo_atraso }}",
-                        "{{ row.motivo|escapejs }}",
-                        "{{ row.responsavel|escapejs }}"
-                    ]{% if not forloop.last %},{% endif %}
-                    {% endfor %}
-                ];
-            } else if (activeTab === 'frequencia') {
-                title = "Relatório Oficial de Frequência Diária vs Matriculados - Consulta Externa";
-                head = [['Data', 'Turma / Sala', 'Matriculados', 'Presentes', 'Faltas', 'Taxa (%)']];
-                body = [
-                    {% for row in freq_tabela %}
-                    [
-                        "{{ row.data|date:'d/m/Y' }}",
-                        "Sala {{ row.turma.nome|escapejs }}",
-                        "{{ row.matriculados }}",
-                        "{{ row.presentes }}",
-                        "{{ row.faltas }}",
-                        "{{ row.taxa }}%"
-                    ]{% if not forloop.last %},{% endif %}
-                    {% endfor %}
-                ];
-            } else if (activeTab === 'matriculas') {
-                title = "Relatório Oficial de Movimentação de Matrículas e Desligamentos - Consulta Externa";
-                head = [['Mês / Ano', 'Turma', 'Novas (+)', 'Deslig. (-)', 'Previstos (⏳)', 'Total Ativos']];
-                body = [
-                    {% for row in mat_tabela %}
-                    [
-                        "{{ row.mes_ano }}",
-                        "{{ row.turma.nome|default:'Geral'|escapejs }}",
-                        "+{{ row.novas_matriculas }}",
-                        "-{{ row.deslig_realizados }}",
-                        "⏳ {{ row.deslig_previstos }}",
-                        "{{ row.matriculados_ativos }}"
-                    ]{% if not forloop.last %},{% endif %}
-                    {% endfor %}
-                ];
-            }
+                if (activeTab === 'faltas') {
+                    title = "Relatório Oficial de Gestão de Faltas - Consulta Externa";
+                    head = [['Data', 'Criança', 'Status', 'Sala', 'Tipo', 'Motivo', 'Responsável', 'Faltas no Ano']];
+                    body = [
+                        {% for row in faltas_tabela %}
+                        [
+                            "{{ row.data|date:'d/m/Y' }}",
+                            "{{ row.aluno_nome|default:row.aluno.nome|escapejs }}",
+                            "{{ row.aluno_status_display|default:'Ativo'|escapejs }}",
+                            "Sala {{ row.turma_nome|default:row.turma.nome|escapejs }}",
+                            "{{ row.tipo_falta }}",
+                            "{{ row.motivo|escapejs }}",
+                            "{{ row.responsavel|escapejs }}",
+                            "{{ row.faltas_no_ano|default:0 }}"
+                        ]{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ];
+                } else if (activeTab === 'atrasos') {
+                    title = "Relatório Oficial de Gestão de Atrasos - Consulta Externa";
+                    head = [['Data', 'Horário', 'Criança', 'Status', 'Sala', 'Tipo', 'Motivo', 'Responsável']];
+                    body = [
+                        {% for row in atrasos_tabela %}
+                        [
+                            "{{ row.data|date:'d/m/Y' }}",
+                            "{{ row.horario }}",
+                            "{{ row.aluno_nome|escapejs }}",
+                            "{{ row.aluno_status_display|default:'Ativo'|escapejs }}",
+                            "{{ row.turma_nome|escapejs }}",
+                            "{{ row.tipo_atraso }}",
+                            "{{ row.motivo|escapejs }}",
+                            "{{ row.responsavel|escapejs }}"
+                        ]{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ];
+                } else if (activeTab === 'frequencia') {
+                    title = "Relatório Oficial de Frequência Diária vs Matriculados - Consulta Externa";
+                    head = [['Data', 'Turma / Sala', 'Matriculados', 'Presentes', 'Faltas', 'Taxa (%)']];
+                    body = [
+                        {% for row in freq_tabela %}
+                        [
+                            "{{ row.data|date:'d/m/Y' }}",
+                            "Sala {{ row.turma.nome|escapejs }}",
+                            "{{ row.matriculados|default:0 }}",
+                            "{{ row.presentes|default:0 }}",
+                            "{{ row.faltas|default:0 }}",
+                            "{{ row.taxa|default:'0' }}%"
+                        ]{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ];
+                } else if (activeTab === 'matriculas') {
+                    title = "Relatório Oficial de Movimentação de Matrículas e Desligamentos - Consulta Externa";
+                    head = [['Mês / Ano', 'Turma', 'Novas (+)', 'Deslig. (-)', 'Previstos (⏳)', 'Total Ativos']];
+                    body = [
+                        {% for row in mat_tabela %}
+                        [
+                            "{{ row.mes_ano }}",
+                            "{{ row.turma.nome|default:'Geral'|escapejs }}",
+                            "+{{ row.novas_matriculas|default:0 }}",
+                            "-{{ row.deslig_realizados|default:0 }}",
+                            "⏳ {{ row.deslig_previstos|default:0 }}",
+                            "{{ row.matriculados_ativos|default:0 }}"
+                        ]{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ];
+                }
 
             // Header Oficial
             doc.setFillColor(79, 70, 229);
@@ -1759,7 +1779,7 @@
             doc.setFont("helvetica", "normal");
             doc.setFontSize(9.5);
             doc.setTextColor(224, 231, 255);
-            doc.text(title, 20, 28);
+            doc.text(`${title} (${statusLabel})`, 20, 28);
             doc.setFontSize(8.5);
             doc.text(`Emissão: ${dataEmissao}`, 240, 21);
 
@@ -1774,6 +1794,10 @@
             });
 
             doc.save(`Consulta_SEAMI_${activeTab.toUpperCase()}_${todayStr}.pdf`);
+            } catch (err) {
+                console.error("Erro ao gerar PDF:", err);
+                alert("Erro ao processar dados para exportação em PDF.");
+            }
         }
     </script>
     {% endif %}

@@ -798,20 +798,43 @@ def build_relatorios_context(request):
     classroom_filter = request.GET.get('classroom', '').strip()
     student_id_filter = request.GET.get('student_id', '').strip()
     justified_filter = request.GET.get('justified', 'all').strip()
+    status_aluno_filter = request.GET.get('status_aluno', request.GET.get('status', 'all')).strip().lower()
+    if status_aluno_filter not in ['ativos', 'inativos', 'ativo', 'inativo', 'all']:
+        status_aluno_filter = 'all'
+    if status_aluno_filter in ['ativo', 'ativos']:
+        status_aluno_filter = 'ativos'
+    elif status_aluno_filter in ['inativo', 'inativos']:
+        status_aluno_filter = 'inativos'
 
     if not date_start_str or not date_end_str:
-        date_start = this_month_start
-        date_end = this_month_end
+        # Verifica se há registros no mês atual; se não houver registros no mês corrente,
+        # define como padrão o ano letivo completo (ano atual) para que a exportação e visualização venham completas
+        has_records_this_month = RegistroPresenca.objects.filter(
+            data__gte=this_month_start,
+            data__lte=this_month_end
+        ).exists()
+        if has_records_this_month:
+            date_start = this_month_start
+            date_end = this_month_end
+        else:
+            date_start = year_start
+            date_end = today if today <= year_end else year_end
     else:
         try:
             date_start = datetime.strptime(date_start_str, '%Y-%m-%d').date()
             date_end = datetime.strptime(date_end_str, '%Y-%m-%d').date()
+            if date_start > date_end:
+                date_start, date_end = date_end, date_start
         except ValueError:
-            date_start = this_month_start
-            date_end = this_month_end
+            date_start = year_start
+            date_end = today
 
     turmas_qs = Turma.objects.filter(ativo=True).order_by('nome')
     all_students_qs = Aluno.objects.all().select_related('turma').order_by('nome')
+    if status_aluno_filter == 'ativos':
+        all_students_qs = all_students_qs.filter(ativo=True)
+    elif status_aluno_filter == 'inativos':
+        all_students_qs = all_students_qs.filter(ativo=False)
 
     # Paleta de Cores das Turmas
     cores_salas = {
@@ -826,12 +849,18 @@ def build_relatorios_context(request):
     # =========================================================================
     # CÁLCULOS GERAIS DO ANO DE 2026 POR ALUNO (FALTAS EM REGISTROPRESENCA)
     # =========================================================================
+    faltas_ano_qs = RegistroPresenca.objects.filter(
+        status__in=[StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO],
+        data__gte=year_start,
+        data__lte=year_end
+    )
+    if status_aluno_filter == 'ativos':
+        faltas_ano_qs = faltas_ano_qs.filter(aluno__ativo=True)
+    elif status_aluno_filter == 'inativos':
+        faltas_ano_qs = faltas_ano_qs.filter(aluno__ativo=False)
+
     faltas_ano_agg = (
-        RegistroPresenca.objects.filter(
-            status__in=[StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO],
-            data__gte=year_start,
-            data__lte=year_end
-        ).values('aluno_id', 'aluno__nome').annotate(total_ano=Count('id'))
+        faltas_ano_qs.values('aluno_id', 'aluno__nome').annotate(total_ano=Count('id'))
     )
     mapa_faltas_ano = {item['aluno_id']: item['total_ano'] for item in faltas_ano_agg if item['aluno_id']}
     total_faltas_ano_geral = sum(mapa_faltas_ano.values())
@@ -845,12 +874,18 @@ def build_relatorios_context(request):
     alunos_limite_10_nomes = ", ".join(alunos_limite_10_list)
 
     # Mapa de atrasos acumulados no ano por aluno (Caderno SEAMI)
+    atrasos_ano_qs = OcorrenciaCaderno.objects.filter(
+        tipo=TipoOcorrencia.ATRASO,
+        data__gte=year_start,
+        data__lte=year_end
+    )
+    if status_aluno_filter == 'ativos':
+        atrasos_ano_qs = atrasos_ano_qs.filter(aluno__ativo=True)
+    elif status_aluno_filter == 'inativos':
+        atrasos_ano_qs = atrasos_ano_qs.filter(aluno__ativo=False)
+
     atrasos_ano_agg = (
-        OcorrenciaCaderno.objects.filter(
-            tipo=TipoOcorrencia.ATRASO,
-            data__gte=year_start,
-            data__lte=year_end
-        ).values('aluno_id').annotate(total_ano=Count('id'))
+        atrasos_ano_qs.values('aluno_id').annotate(total_ano=Count('id'))
     )
     mapa_atrasos_ano = {item['aluno_id']: item['total_ano'] for item in atrasos_ano_agg if item['aluno_id']}
     total_atrasos_ano_geral = sum(mapa_atrasos_ano.values())
@@ -884,6 +919,11 @@ def build_relatorios_context(request):
         )
     if student_id_filter and str(student_id_filter).isdigit():
         registros_faltas_qs = registros_faltas_qs.filter(aluno_id=int(student_id_filter))
+
+    if status_aluno_filter == 'ativos':
+        registros_faltas_qs = registros_faltas_qs.filter(aluno__ativo=True)
+    elif status_aluno_filter == 'inativos':
+        registros_faltas_qs = registros_faltas_qs.filter(aluno__ativo=False)
 
     if justified_filter == 'sim':
         registros_faltas_qs = registros_faltas_qs.filter(status=StatusPresenca.JUSTIFICADO)
@@ -926,12 +966,17 @@ def build_relatorios_context(request):
             cid_val = oc_extra.cid or ''
             doc_val = oc_extra.documento
 
+        is_aluno_ativo = reg.aluno.ativo if reg.aluno else True
+        aluno_status_display = 'Ativo' if is_aluno_ativo else 'Inativo'
+
         faltas_tabela_list.append({
             'data': reg.data,
             'data_fim': None,
             'periodo_formatado': reg.data.strftime('%d/%m/%Y'),
             'aluno': reg.aluno,
             'aluno_nome': reg.aluno.nome if reg.aluno else 'Não informado',
+            'is_aluno_ativo': is_aluno_ativo,
+            'aluno_status_display': aluno_status_display,
             'turma': reg.turma,
             'turma_nome': reg.turma.nome if reg.turma else 'Geral',
             'turma_style': turma_style,
@@ -965,6 +1010,11 @@ def build_relatorios_context(request):
     if student_id_filter and student_id_filter.isdigit():
         ocorrencias_atrasos_qs = ocorrencias_atrasos_qs.filter(aluno_id=int(student_id_filter))
 
+    if status_aluno_filter == 'ativos':
+        ocorrencias_atrasos_qs = ocorrencias_atrasos_qs.filter(aluno__ativo=True)
+    elif status_aluno_filter == 'inativos':
+        ocorrencias_atrasos_qs = ocorrencias_atrasos_qs.filter(aluno__ativo=False)
+
     if justified_filter == 'sim':
         ocorrencias_atrasos_qs = ocorrencias_atrasos_qs.filter(justificado=True)
     elif justified_filter == 'nao':
@@ -989,11 +1039,16 @@ def build_relatorios_context(request):
         turma_style = cores_salas.get(nome_sala, {'bg': '#f1f5f9', 'color': '#475569', 'border': '#cbd5e1', 'emoji': '🏫'})
         atrasos_aluno_ano = mapa_atrasos_ano.get(oc.aluno_id, 0)
 
+        is_aluno_ativo = oc.aluno.ativo if oc.aluno else True
+        aluno_status_display = 'Ativo' if is_aluno_ativo else 'Inativo'
+
         atrasos_tabela_list.append({
             'data': oc.data,
             'horario': oc.horario.strftime('%H:%M') if oc.horario else '08:00',
             'aluno': oc.aluno,
             'aluno_nome': oc.aluno.nome if oc.aluno else 'Não informado',
+            'is_aluno_ativo': is_aluno_ativo,
+            'aluno_status_display': aluno_status_display,
             'turma': oc.turma,
             'turma_nome': oc.turma.nome if oc.turma else 'Geral',
             'turma_style': turma_style,
@@ -1068,9 +1123,21 @@ def build_relatorios_context(request):
             Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
         )
 
+    if status_aluno_filter == 'ativos':
+        registros_periodo_all = registros_periodo_all.filter(aluno__ativo=True)
+    elif status_aluno_filter == 'inativos':
+        registros_periodo_all = registros_periodo_all.filter(aluno__ativo=False)
+
     datas_chamada_distintas = set(d for d in registros_periodo_all.values_list('data', flat=True) if d.weekday() < 5)
     dias_com_chamada_count = len(datas_chamada_distintas) or 1
-    total_matriculados_ativos = Aluno.objects.filter(
+
+    aluno_mat_base = Aluno.objects.all()
+    if status_aluno_filter == 'ativos':
+        aluno_mat_base = aluno_mat_base.filter(ativo=True)
+    elif status_aluno_filter == 'inativos':
+        aluno_mat_base = aluno_mat_base.filter(ativo=False)
+
+    total_matriculados_ativos = aluno_mat_base.filter(
         Q(data_entrada__isnull=True) | Q(data_entrada__lte=date_end)
     ).filter(
         Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=date_start)
@@ -1093,7 +1160,7 @@ def build_relatorios_context(request):
     for m_i in range(1, 9):
         m_k = f"{current_year}-{m_i:02d}"
         h_found = next((h for h in historical_formatted_list if h['month'] == m_k), None)
-        if h_found:
+        if h_found and status_aluno_filter == 'all':
             freq_mes_presentes.append(h_found['present'])
             freq_mes_ausentes.append(h_found['absences'])
             freq_mes_matriculados.append(h_found['enrolled'])
@@ -1104,7 +1171,7 @@ def build_relatorios_context(request):
             end_m_i = date(current_year, m_i, _last_day)
 
             # Total Geral de Matriculados no mês (pertencem quem entrou e quem saiu no mês)
-            mat_mes_qs = Aluno.objects.filter(
+            mat_mes_qs = aluno_mat_base.filter(
                 Q(data_entrada__isnull=True) | Q(data_entrada__lte=end_m_i)
             ).filter(
                 Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=start_m_i)
@@ -1121,6 +1188,10 @@ def build_relatorios_context(request):
             )
             if classroom_filter:
                 regs_mes = regs_mes.filter(Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None))
+            if status_aluno_filter == 'ativos':
+                regs_mes = regs_mes.filter(aluno__ativo=True)
+            elif status_aluno_filter == 'inativos':
+                regs_mes = regs_mes.filter(aluno__ativo=False)
 
             dias_chamada_mes = len(set(regs_mes.values_list('data', flat=True)))
             p_val = 0
@@ -1146,7 +1217,7 @@ def build_relatorios_context(request):
         falt = regs_dt.filter(status__in=[StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO]).count()
         tot = pres + falt
         taxa = round((pres / tot) * 100) if tot > 0 else 100
-        mat_d_qs = Aluno.objects.filter(
+        mat_d_qs = aluno_mat_base.filter(
             Q(data_entrada__isnull=True) | Q(data_entrada__lte=d)
         ).filter(
             Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=d)
@@ -1172,6 +1243,10 @@ def build_relatorios_context(request):
     ).select_related('turma').order_by('-data_entrada')
     if classroom_filter:
         novas_mat_qs = novas_mat_qs.filter(turma__nome__iexact=classroom_filter)
+    if status_aluno_filter == 'ativos':
+        novas_mat_qs = novas_mat_qs.filter(ativo=True)
+    elif status_aluno_filter == 'inativos':
+        novas_mat_qs = novas_mat_qs.filter(ativo=False)
 
     # Desligamentos Realizados (data_desligamento <= today)
     deslig_realizados_qs = Aluno.objects.filter(
@@ -1180,6 +1255,10 @@ def build_relatorios_context(request):
     ).select_related('turma').order_by('-data_desligamento')
     if classroom_filter:
         deslig_realizados_qs = deslig_realizados_qs.filter(turma__nome__iexact=classroom_filter)
+    if status_aluno_filter == 'ativos':
+        deslig_realizados_qs = deslig_realizados_qs.filter(ativo=True)
+    elif status_aluno_filter == 'inativos':
+        deslig_realizados_qs = deslig_realizados_qs.filter(ativo=False)
 
     # Desligamentos Previstos no Ano Atual (data_desligamento > today)
     all_deslig_previstos_year_qs = Aluno.objects.filter(
@@ -1188,6 +1267,10 @@ def build_relatorios_context(request):
     ).select_related('turma').order_by('data_desligamento')
     if classroom_filter:
         all_deslig_previstos_year_qs = all_deslig_previstos_year_qs.filter(turma__nome__iexact=classroom_filter)
+    if status_aluno_filter == 'ativos':
+        all_deslig_previstos_year_qs = all_deslig_previstos_year_qs.filter(ativo=True)
+    elif status_aluno_filter == 'inativos':
+        all_deslig_previstos_year_qs = all_deslig_previstos_year_qs.filter(ativo=False)
 
     # Desligamentos Previstos no período do filtro (se houver no range específico)
     deslig_previstos_qs = Aluno.objects.filter(
@@ -1196,6 +1279,10 @@ def build_relatorios_context(request):
     ).select_related('turma').order_by('data_desligamento')
     if classroom_filter:
         deslig_previstos_qs = deslig_previstos_qs.filter(turma__nome__iexact=classroom_filter)
+    if status_aluno_filter == 'ativos':
+        deslig_previstos_qs = deslig_previstos_qs.filter(ativo=True)
+    elif status_aluno_filter == 'inativos':
+        deslig_previstos_qs = deslig_previstos_qs.filter(ativo=False)
 
     # Gráfico de Evolução Mensal (Matrículas, Desligamentos Realizados, Desligamentos Previstos) - 12 Meses
     mat_evolucao_labels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
@@ -1209,10 +1296,10 @@ def build_relatorios_context(request):
         m_label = f"{MONTH_NAMES_PT[m_idx]} / {current_year}"
         for t in turmas_qs:
             t_style = cores_salas.get(t.nome.lower().strip(), {'bg': '#f1f5f9', 'color': '#475569', 'border': '#cbd5e1', 'emoji': '🏫'})
-            mat_t = t.alunos.ativos().count()
-            novas_t = Aluno.objects.filter(turma=t, data_entrada__year=current_year, data_entrada__month=m_idx).count()
-            desl_r_t = Aluno.objects.filter(turma=t, data_desligamento__year=current_year, data_desligamento__month=m_idx, data_desligamento__lte=today).count()
-            desl_p_t = Aluno.objects.filter(turma=t, data_desligamento__year=current_year, data_desligamento__month=m_idx, data_desligamento__gt=today).count()
+            mat_t = t.alunos.filter(ativo=True).count() if status_aluno_filter in ['all', 'ativos'] else t.alunos.filter(ativo=False).count()
+            novas_t = novas_mat_qs.filter(turma=t, data_entrada__year=current_year, data_entrada__month=m_idx).count()
+            desl_r_t = deslig_realizados_qs.filter(turma=t, data_desligamento__year=current_year, data_desligamento__month=m_idx).count()
+            desl_p_t = all_deslig_previstos_year_qs.filter(turma=t, data_desligamento__year=current_year, data_desligamento__month=m_idx).count()
 
             mat_tabela_list.append({
                 'mes_ano': m_label,
@@ -1233,6 +1320,7 @@ def build_relatorios_context(request):
         'classroom_filter': classroom_filter,
         'student_id_filter': int(student_id_filter) if student_id_filter else '',
         'justified_filter': justified_filter,
+        'status_aluno_filter': status_aluno_filter,
         'turmas': turmas_qs,
         'all_students': all_students_qs,
 
@@ -1372,11 +1460,12 @@ def relatorios_view(request):
         writer = csv.writer(response, delimiter=';')
 
         if active_tab == 'faltas':
-            writer.writerow(['Data', 'Criança', 'Sala', 'Tipo de Falta', 'Justificativa / Motivo', 'Responsável', 'Telefone', 'Faltas no Ano'])
+            writer.writerow(['Data', 'Criança', 'Status do Aluno', 'Sala', 'Tipo de Falta', 'Justificativa / Motivo', 'Responsável', 'Telefone', 'Faltas no Ano'])
             for row in context['faltas_tabela']:
                 writer.writerow([
                     row['data'].strftime('%d/%m/%Y'),
                     row['aluno'].nome if row.get('aluno') else row.get('aluno_nome', ''),
+                    row.get('aluno_status_display', 'Ativo'),
                     row['turma'].nome if row.get('turma') else row.get('turma_nome', ''),
                     row['tipo_falta'],
                     row['motivo'],
@@ -1385,12 +1474,13 @@ def relatorios_view(request):
                     row['faltas_no_ano']
                 ])
         elif active_tab == 'atrasos':
-            writer.writerow(['Data', 'Horário Entrada', 'Criança', 'Sala', 'Tipo de Atraso', 'Justificativa / Motivo', 'Responsável', 'Atrasos no Ano'])
+            writer.writerow(['Data', 'Horário Entrada', 'Criança', 'Status do Aluno', 'Sala', 'Tipo de Atraso', 'Justificativa / Motivo', 'Responsável', 'Atrasos no Ano'])
             for row in context['atrasos_tabela']:
                 writer.writerow([
                     row['data'].strftime('%d/%m/%Y'),
                     row['horario'],
                     row['aluno_nome'],
+                    row.get('aluno_status_display', 'Ativo'),
                     row['turma'].nome if row.get('turma') else row.get('turma_nome', ''),
                     row['tipo_atraso'],
                     row['motivo'],
