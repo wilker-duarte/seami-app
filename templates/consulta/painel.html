@@ -488,9 +488,22 @@
                                         Frequência dos alunos em relação à quantidade de matriculados
                                     </span>
                                 </div>
-                                <span style="background-color: #f1f5f9; color: #475569; font-size: 11.5px; padding: 4px 10px; border-radius: 8px; font-weight: 700;">
-                                    Agosto / 2026
-                                </span>
+
+                                <!-- Navegador de Mês / Ano do Calendário -->
+                                <div style="display: flex; align-items: center; gap: 4px; background: var(--bg-input); padding: 4px; border-radius: 8px; border: 1px solid var(--border-color);">
+                                    <button type="button" onclick="navigateCalendar(-1)" style="padding: 4px 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); border-radius: 6px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; transition: all 0.15s;" title="Mês Anterior">
+                                        ◀
+                                    </button>
+                                    <span id="cal-current-month-label" style="font-size: 12px; font-weight: 800; color: var(--text-primary); min-width: 120px; text-align: center; user-select: none;">
+                                        Carregando...
+                                    </span>
+                                    <button type="button" onclick="navigateCalendar(1)" style="padding: 4px 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); border-radius: 6px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; transition: all 0.15s;" title="Próximo Mês">
+                                        ▶
+                                    </button>
+                                    <button type="button" onclick="resetCalendarToToday()" style="padding: 4px 8px; border: 1px solid transparent; background: var(--brand-primary); color: #ffffff; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; margin-left: 2px;" title="Ir para o mês atual">
+                                        Hoje
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- GRID DO CALENDÁRIO -->
@@ -944,41 +957,54 @@
                         <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13.5px;">
                             <thead>
                                 <tr style="background: var(--bg-body); border-bottom: 1.5px solid var(--border-color); color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">
-                                    <th style="padding: 12px 16px;">Data</th>
-                                    <th style="padding: 12px 16px;">Horário</th>
                                     <th style="padding: 12px 16px;">Criança</th>
+                                    <th style="padding: 12px 16px; text-align: center;">Status</th>
                                     <th style="padding: 12px 16px;">Sala</th>
-                                    <th style="padding: 12px 16px; text-align: center;">Tipo de Atraso</th>
-                                    <th style="padding: 12px 16px;">Justificativa / Motivo</th>
                                     <th style="padding: 12px 16px; text-align: center;">Atrasos Registrados</th>
+                                    <th style="padding: 12px 16px; text-align: center;">Justificados</th>
+                                    <th style="padding: 12px 16px; text-align: center;">Não Justificados</th>
+                                    <th style="padding: 12px 16px; text-align: center;">Total Ano {{ current_year }}</th>
                                     <th style="padding: 12px 16px;">Responsável</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for row in atrasos_tabela %}
                                 <tr style="border-bottom: 1px solid var(--border-color);">
-                                    <td style="padding: 12px 16px; font-weight: 600;">{{ row.data|date:"d/m/Y" }}</td>
-                                    <td style="padding: 12px 16px; font-weight: 700; color: #d97706;">{{ row.horario }}</td>
-                                    <td style="padding: 12px 16px; font-weight: 700;">{{ row.aluno_nome }}</td>
-                                    <td style="padding: 12px 16px;">{{ row.turma_nome }}</td>
+                                    <td style="padding: 12px 16px; font-weight: 700; color: var(--text-primary);">{{ row.aluno_nome }}</td>
                                     <td style="padding: 12px 16px; text-align: center;">
-                                        <span style="padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px; {% if row.is_justificado %}background: #ecfdf5; color: #047857;{% else %}background: #fef2f2; color: #b91c1c;{% endif %}">
-                                            {{ row.tipo_atraso }}
-                                        </span>
-                                    </td>
-                                    <td style="padding: 12px 16px; font-size: 12.5px; color: var(--text-secondary);">
-                                        {% if row.motivo %}
-                                            {{ row.motivo }}
+                                        {% if row.is_aluno_ativo %}
+                                            <span style="background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px;">Ativo</span>
                                         {% else %}
-                                            <em style="color: var(--text-light, #94a3b8); font-style: italic;">Sem justificativa</em>
+                                            <span style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px;">Inativo</span>
                                         {% endif %}
                                     </td>
-                                    <td style="padding: 12px 16px; text-align: center; font-weight: 700; color: #d97706;">
-                                        <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 24px; padding: 2px 7px; border-radius: 10px; font-weight: 700; font-size: 11.5px; background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a;">
-                                            {{ row.atrasos_registrados|default:row.atrasos_no_periodo|default:row.atrasos_no_ano|default:0 }}
+                                    <td style="padding: 12px 16px;">
+                                        <span style="background-color: {{ row.turma_style.bg }}; color: {{ row.turma_style.color }}; border: 1px solid {{ row.turma_style.border }}; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px;">
+                                            {{ row.turma_style.emoji }} Sala {{ row.turma_nome }}
                                         </span>
                                     </td>
-                                    <td style="padding: 12px 16px; font-size: 12.5px;">{{ row.responsavel }}</td>
+                                    <td style="padding: 12px 16px; text-align: center; font-weight: 700;">
+                                        <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 28px; padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 12px; background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a;">
+                                            {{ row.atrasos_registrados }}
+                                        </span>
+                                    </td>
+                                    <td style="padding: 12px 16px; text-align: center;">
+                                        <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 24px; padding: 2px 7px; border-radius: 10px; font-weight: 700; font-size: 11.5px; background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;">
+                                            {{ row.justificados_periodo }}
+                                        </span>
+                                    </td>
+                                    <td style="padding: 12px 16px; text-align: center;">
+                                        <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 24px; padding: 2px 7px; border-radius: 10px; font-weight: 700; font-size: 11.5px; background-color: #fef2f2; color: #b91c1c; border: 1px solid #fecaca;">
+                                            {{ row.nao_justificados_periodo }}
+                                        </span>
+                                    </td>
+                                    <td style="padding: 12px 16px; text-align: center; font-weight: 700; color: var(--text-primary);">
+                                        {{ row.atrasos_no_ano }}
+                                    </td>
+                                    <td style="padding: 12px 16px; font-size: 12.5px;">
+                                        <div>{{ row.responsavel }}</div>
+                                        {% if row.telefone_responsavel %}<small style="color: var(--text-secondary);">{{ row.telefone_responsavel }}</small>{% endif %}
+                                    </td>
                                 </tr>
                                 {% empty %}
                                 <tr><td colspan="8" style="text-align: center; padding: 36px; color: var(--text-secondary);">Nenhum registro de atraso no período.</td></tr>
@@ -1574,35 +1600,111 @@
                 });
             }
 
-            // Calendário de Frequência Diária
-            const calGrid = document.getElementById('calendar-days-grid');
-            if (calGrid) {
-                const totalDays = 31;
-                const startDayOfWeek = 6;
+            // 10. Renderizador Interativo do Calendário de Frequência Diária
+            const CAL_DATA = JSON.parse('{{ cal_by_day_json|escapejs }}' || '{}');
+            const CAL_MONTH_NAMES = [
+                'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+            ];
+
+            const dateStartStr = '{{ date_start }}';
+            let currentCalYear = dateStartStr ? parseInt(dateStartStr.substring(0, 4), 10) : 2026;
+            let currentCalMonth = dateStartStr ? parseInt(dateStartStr.substring(5, 7), 10) - 1 : 9;
+            if (isNaN(currentCalMonth) || currentCalMonth < 0 || currentCalMonth > 11) {
+                currentCalMonth = new Date().getMonth();
+            }
+
+            function renderCalendarGrid() {
+                const calGrid = document.getElementById('calendar-days-grid');
+                const labelEl = document.getElementById('cal-current-month-label');
+                if (!calGrid) return;
+
+                if (labelEl) {
+                    labelEl.textContent = `${CAL_MONTH_NAMES[currentCalMonth]} / ${currentCalYear}`;
+                }
+
+                const firstDayOfWeek = new Date(currentCalYear, currentCalMonth, 1).getDay();
+                const totalDays = new Date(currentCalYear, currentCalMonth + 1, 0).getDate();
+                const prevMonthDays = new Date(currentCalYear, currentCalMonth, 0).getDate();
+
                 let html = '';
-                for (let i = 0; i < startDayOfWeek; i++) {
-                    html += `<div style="padding: 10px; background: transparent;"></div>`;
+                for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+                    const pDay = prevMonthDays - i;
+                    html += `<div style="background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 8px; min-height: 52px; padding: 4px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; opacity: 0.35;">
+                        <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary);">${pDay}</span>
+                    </div>`;
                 }
                 for (let d = 1; d <= totalDays; d++) {
-                    const dayOfWeek = (startDayOfWeek + d - 1) % 7;
+                    const dateKey = `${currentCalYear}-${String(currentCalMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                    const dayOfWeek = new Date(currentCalYear, currentCalMonth, d).getDay();
                     const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
-                    let bg = '#f8fafc';
-                    let textCol = '#64748b';
-                    let subText = '0/0 (0%)';
-                    if (!isWeekend) {
-                        bg = '#ecfdf5';
-                        textCol = '#047857';
-                        subText = '100/105 (95%)';
+                    const info = CAL_DATA[dateKey];
+
+                    let pctBadge = '';
+                    let bgCell = 'var(--bg-card)';
+                    let borderCell = 'var(--border-color)';
+                    let titleAttr = `${String(d).padStart(2, '0')}/${String(currentCalMonth + 1).padStart(2, '0')}/${currentCalYear}`;
+
+                    if (isWeekend) {
+                        bgCell = 'rgba(148, 163, 184, 0.08)';
+                        pctBadge = `<span style="font-size: 8.5px; color: var(--text-secondary); font-weight: 600;">Fim Sem.</span>`;
+                        titleAttr += ' - Fim de Semana';
+                    } else if (info) {
+                        const pct = info.taxa;
+                        let colorClass = '#047857';
+                        let bgBadge = '#ecfdf5';
+                        let borderBadge = '#a7f3d0';
+                        if (pct < 75) {
+                            colorClass = '#b91c1c';
+                            bgBadge = '#fef2f2';
+                            borderBadge = '#fecaca';
+                        } else if (pct < 90) {
+                            colorClass = '#b45309';
+                            bgBadge = '#fffbeb';
+                            borderBadge = '#fde68a';
+                        }
+                        pctBadge = `<span style="font-size: 10px; font-weight: 800; color: ${colorClass}; background: ${bgBadge}; border: 1px solid ${borderBadge}; padding: 1px 4px; border-radius: 4px; width: 100%; text-align: center;">${pct}%</span>`;
+                        titleAttr += `: ${pct}% de frequência (${info.presentes}/${info.total} alunos)`;
+                    } else {
+                        pctBadge = `<span style="font-size: 9px; color: var(--text-secondary); font-weight: 600;">-</span>`;
+                        titleAttr += ' - Sem registro de chamada';
                     }
-                    html += `
-                        <div style="background: ${bg}; border: 1px solid var(--border-color); border-radius: 8px; padding: 6px 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 52px;">
-                            <span style="font-weight: 800; font-size: 13px; color: ${textCol};">${d}</span>
-                            <span style="font-size: 9.5px; font-weight: 700; color: ${textCol}; margin-top: 2px;">${subText}</span>
-                        </div>
-                    `;
+
+                    html += `<div style="background: ${bgCell}; border: 1px solid ${borderCell}; border-radius: 8px; min-height: 52px; padding: 4px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.15s ease;" title="${titleAttr}">
+                        <span style="font-size: 11px; font-weight: 700; color: var(--text-primary);">${d}</span>
+                        ${pctBadge}
+                    </div>`;
+                }
+                const totalCells = firstDayOfWeek + totalDays;
+                const remainingCells = (totalCells % 7 === 0) ? 0 : 7 - (totalCells % 7);
+                for (let n = 1; n <= remainingCells; n++) {
+                    html += `<div style="background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 8px; min-height: 52px; padding: 4px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; opacity: 0.35;">
+                        <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary);">${n}</span>
+                    </div>`;
                 }
                 calGrid.innerHTML = html;
             }
+
+            window.navigateCalendar = function(delta) {
+                currentCalMonth += delta;
+                if (currentCalMonth < 0) {
+                    currentCalMonth = 11;
+                    currentCalYear--;
+                } else if (currentCalMonth > 11) {
+                    currentCalMonth = 0;
+                    currentCalYear++;
+                }
+                renderCalendarGrid();
+            };
+
+            window.resetCalendarToToday = function() {
+                const now = new Date();
+                currentCalYear = now.getFullYear();
+                currentCalMonth = now.getMonth();
+                renderCalendarGrid();
+            };
+
+            renderCalendarGrid();
         });
     </script>
     {% endif %}
@@ -1639,15 +1741,14 @@
                     const rows = [
                         {% for row in atrasos_tabela %}
                         {
-                            "Data": "{{ row.data|date:'d/m/Y' }}",
-                            "Horário": "{{ row.horario }}",
                             "Criança": "{{ row.aluno_nome|escapejs }}",
                             "Status do Aluno": "{{ row.aluno_status_display|default:'Ativo'|escapejs }}",
-                            "Sala": "{{ row.turma_nome|escapejs }}",
-                            "Tipo": "{{ row.tipo_atraso }}",
-                            "Motivo": "{{ row.motivo|escapejs }}",
-                            "Responsável": "{{ row.responsavel|escapejs }}",
-                            "Atrasos Registrados": {{ row.atrasos_registrados|default:row.atrasos_no_periodo|default:row.atrasos_no_ano|default:0 }}
+                            "Sala": "Sala {{ row.turma_nome|escapejs }}",
+                            "Atrasos Registrados": {{ row.atrasos_registrados|default:0 }},
+                            "Justificados": {{ row.justificados_periodo|default:0 }},
+                            "Não Justificados": {{ row.nao_justificados_periodo|default:0 }},
+                            "Total no Ano": {{ row.atrasos_no_ano|default:0 }},
+                            "Responsável": "{{ row.responsavel|escapejs }}"
                         }{% if not forloop.last %},{% endif %}
                         {% endfor %}
                     ];
@@ -1729,19 +1830,18 @@
                     ];
                 } else if (activeTab === 'atrasos') {
                     title = "Relatório Oficial de Gestão de Atrasos - Consulta Externa";
-                    head = [['Data', 'Horário', 'Criança', 'Status', 'Sala', 'Tipo', 'Motivo', 'Responsável', 'Atrasos Registrados']];
+                    head = [['Criança', 'Status', 'Sala', 'Atrasos no Mês', 'Justificados', 'Não Justificados', 'Total Ano', 'Responsável']];
                     body = [
                         {% for row in atrasos_tabela %}
                         [
-                            "{{ row.data|date:'d/m/Y' }}",
-                            "{{ row.horario }}",
                             "{{ row.aluno_nome|escapejs }}",
                             "{{ row.aluno_status_display|default:'Ativo'|escapejs }}",
-                            "{{ row.turma_nome|escapejs }}",
-                            "{{ row.tipo_atraso }}",
-                            "{{ row.motivo|escapejs }}",
-                            "{{ row.responsavel|escapejs }}",
-                            "{{ row.atrasos_registrados|default:row.atrasos_no_periodo|default:row.atrasos_no_ano|default:0 }}"
+                            "Sala {{ row.turma_nome|escapejs }}",
+                            "{{ row.atrasos_registrados|default:0 }}",
+                            "{{ row.justificados_periodo|default:0 }}",
+                            "{{ row.nao_justificados_periodo|default:0 }}",
+                            "{{ row.atrasos_no_ano|default:0 }}",
+                            "{{ row.responsavel|escapejs }}"
                         ]{% if not forloop.last %},{% endif %}
                         {% endfor %}
                     ];

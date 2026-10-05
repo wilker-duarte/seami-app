@@ -619,11 +619,9 @@ def build_dashboard_context(request):
     }
 
     # =========================================================================
-    # 6. DADOS DO CALENDÁRIO DIÁRIO DE FREQUÊNCIA
+    # 6. DADOS DO CALENDÁRIO DIÁRIO DE FREQUÊNCIA (TODOS OS MESES DISPONÍVEIS)
     # =========================================================================
-    cal_year = date_start.year
-    cal_month = date_start.month
-    cal_regs = RegistroPresenca.objects.filter(data__year=cal_year, data__month=cal_month)
+    cal_regs = RegistroPresenca.objects.all()
     if is_professor:
         cal_regs = cal_regs.filter(turma__in=turmas_qs)
     if classroom_filter:
@@ -1011,13 +1009,8 @@ def build_relatorios_context(request):
     elif justified_filter == 'nao':
         ocorrencias_atrasos_qs = ocorrencias_atrasos_qs.filter(justificado=False)
 
-    # Mapa de atrasos do período filtrado por aluno
-    atrasos_periodo_agg = (
-        ocorrencias_atrasos_qs.values('aluno_id').annotate(total_periodo=Count('id'))
-    )
-    mapa_atrasos_periodo = {item['aluno_id']: item['total_periodo'] for item in atrasos_periodo_agg if item['aluno_id']}
-
-    atrasos_tabela_list = []
+    # Agrupamento por Criança para a Tabela e Modal de Ocorrências (1 registro por criança)
+    atrasos_por_aluno = {}
     criancas_impactadas_atrasos_set = set()
     total_atrasos_periodo = 0
     total_justificados_atrasos_periodo = 0
@@ -1025,42 +1018,61 @@ def build_relatorios_context(request):
 
     for oc in ocorrencias_atrasos_qs:
         total_atrasos_periodo += 1
-        if oc.aluno_id:
-            criancas_impactadas_atrasos_set.add(oc.aluno_id)
         if oc.justificado:
             total_justificados_atrasos_periodo += 1
         else:
             total_nao_justificados_atrasos_periodo += 1
 
-        nome_sala = oc.turma.nome.lower().strip() if oc.turma else ''
-        turma_style = cores_salas.get(nome_sala, {'bg': '#f1f5f9', 'color': '#475569', 'border': '#cbd5e1', 'emoji': '🏫'})
-        atrasos_aluno_ano = mapa_atrasos_ano.get(oc.aluno_id, 0)
-        atrasos_aluno_periodo = mapa_atrasos_periodo.get(oc.aluno_id, 1)
+        aid = oc.aluno_id or f"sem_aluno_{oc.id}"
+        criancas_impactadas_atrasos_set.add(aid)
 
-        is_aluno_ativo = oc.aluno.ativo if oc.aluno else True
-        aluno_status_display = 'Ativo' if is_aluno_ativo else 'Inativo'
+        if aid not in atrasos_por_aluno:
+            nome_sala = oc.turma.nome.lower().strip() if oc.turma else (oc.aluno.turma.nome.lower().strip() if oc.aluno and oc.aluno.turma else '')
+            turma_style = cores_salas.get(nome_sala, {'bg': '#f1f5f9', 'color': '#475569', 'border': '#cbd5e1', 'emoji': '🏫'})
+            is_aluno_ativo = oc.aluno.ativo if oc.aluno else True
+            aluno_status_display = 'Ativo' if is_aluno_ativo else 'Inativo'
+            atrasos_aluno_ano = mapa_atrasos_ano.get(oc.aluno_id, 0)
 
-        atrasos_tabela_list.append({
-            'data': oc.data,
+            atrasos_por_aluno[aid] = {
+                'aluno_id': oc.aluno_id or 0,
+                'aluno': oc.aluno,
+                'aluno_nome': oc.aluno.nome if oc.aluno else 'Não informado',
+                'is_aluno_ativo': is_aluno_ativo,
+                'aluno_status_display': aluno_status_display,
+                'turma': oc.turma or (oc.aluno.turma if oc.aluno else None),
+                'turma_nome': oc.turma.nome if oc.turma else (oc.aluno.turma.nome if oc.aluno and oc.aluno.turma else 'Geral'),
+                'turma_style': turma_style,
+                'responsavel': oc.aluno.nome_responsavel if (oc.aluno and oc.aluno.nome_responsavel) else 'Responsável familiar',
+                'telefone_responsavel': oc.aluno.telefone_responsavel if oc.aluno else '',
+                'atrasos_registrados': 0,
+                'justificados_periodo': 0,
+                'nao_justificados_periodo': 0,
+                'atrasos_no_ano': atrasos_aluno_ano,
+                'ocorrencias': []
+            }
+
+        item = atrasos_por_aluno[aid]
+        item['atrasos_registrados'] += 1
+        if oc.justificado:
+            item['justificados_periodo'] += 1
+        else:
+            item['nao_justificados_periodo'] += 1
+
+        item['ocorrencias'].append({
+            'id': oc.id,
+            'data': oc.data.strftime('%d/%m/%Y'),
+            'data_raw': oc.data.strftime('%Y-%m-%d'),
             'horario': oc.horario.strftime('%H:%M') if oc.horario else '08:00',
-            'aluno': oc.aluno,
-            'aluno_nome': oc.aluno.nome if oc.aluno else 'Não informado',
-            'is_aluno_ativo': is_aluno_ativo,
-            'aluno_status_display': aluno_status_display,
-            'turma': oc.turma,
-            'turma_nome': oc.turma.nome if oc.turma else 'Geral',
-            'turma_style': turma_style,
             'tipo_atraso': 'Justificado' if oc.justificado else 'Não Justificado',
             'is_justificado': oc.justificado,
-            'motivo': oc.motivo.strip() if oc.motivo and oc.motivo.strip() else '',
-            'responsavel': oc.aluno.nome_responsavel if oc.aluno and oc.aluno.nome_responsavel else 'Responsável familiar',
-            'telefone_responsavel': oc.aluno.telefone_responsavel if oc.aluno else '',
-            'atrasos_registrados': atrasos_aluno_periodo,
-            'atrasos_no_periodo': atrasos_aluno_periodo,
-            'atrasos_no_ano': atrasos_aluno_ano,
-            'documento': oc.documento,
-            'comprovante': oc.documento,
+            'motivo': oc.motivo.strip() if (oc.motivo and oc.motivo.strip()) else 'Sem justificativa declarada',
+            'documento_url': oc.documento.url if oc.documento else None,
+            'responsavel': oc.aluno.nome_responsavel if (oc.aluno and oc.aluno.nome_responsavel) else 'Responsável familiar',
         })
+
+    atrasos_tabela_list = list(atrasos_por_aluno.values())
+    # Ordena decrescente pela quantidade de atrasos registrados no período
+    atrasos_tabela_list.sort(key=lambda x: x['atrasos_registrados'], reverse=True)
 
 
     # =========================================================================
@@ -1474,18 +1486,18 @@ def relatorios_view(request):
                     row['faltas_no_ano']
                 ])
         elif active_tab == 'atrasos':
-            writer.writerow(['Data', 'Horário Entrada', 'Criança', 'Status do Aluno', 'Sala', 'Tipo de Atraso', 'Justificativa / Motivo', 'Responsável', 'Atrasos Registrados'])
+            writer.writerow(['Criança', 'Status do Aluno', 'Sala', 'Atrasos Registrados (Período)', 'Justificados', 'Não Justificados', 'Total no Ano', 'Responsável', 'Telefone'])
             for row in context['atrasos_tabela']:
                 writer.writerow([
-                    row['data'].strftime('%d/%m/%Y'),
-                    row['horario'],
-                    row['aluno_nome'],
+                    row.get('aluno_nome', ''),
                     row.get('aluno_status_display', 'Ativo'),
-                    row['turma'].nome if row.get('turma') else row.get('turma_nome', ''),
-                    row['tipo_atraso'],
-                    row['motivo'],
-                    row['responsavel'],
-                    row.get('atrasos_registrados', row.get('atrasos_no_periodo', row.get('atrasos_no_ano', 0)))
+                    row.get('turma_nome', ''),
+                    row.get('atrasos_registrados', 0),
+                    row.get('justificados_periodo', 0),
+                    row.get('nao_justificados_periodo', 0),
+                    row.get('atrasos_no_ano', 0),
+                    row.get('responsavel', ''),
+                    row.get('telefone_responsavel', ''),
                 ])
         elif active_tab == 'frequencia':
             writer.writerow(['Data / Mês', 'Alunos Matriculados', 'Alunos Presentes', 'Faltas / Ausentes', 'Frequência (%)'])

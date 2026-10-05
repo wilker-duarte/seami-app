@@ -386,9 +386,22 @@
                                 Frequência dos alunos em relação à quantidade de matriculados
                             </span>
                         </div>
-                        <span style="background-color: #f1f5f9; color: #475569; font-size: 11.5px; padding: 4px 10px; border-radius: 8px; font-weight: 700;">
-                            Agosto / 2026
-                        </span>
+
+                        <!-- Navegador de Mês / Ano do Calendário -->
+                        <div style="display: flex; align-items: center; gap: 4px; background: var(--bg-input); padding: 4px; border-radius: 8px; border: 1px solid var(--border-color);">
+                            <button type="button" onclick="navigateCalendar(-1)" style="padding: 4px 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); border-radius: 6px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; transition: all 0.15s;" title="Mês Anterior" onmouseenter="this.style.background='var(--bg-body)'" onmouseleave="this.style.background='var(--bg-card)'">
+                                ◀
+                            </button>
+                            <span id="cal-current-month-label" style="font-size: 12px; font-weight: 800; color: var(--text-primary); min-width: 120px; text-align: center; user-select: none;">
+                                Carregando...
+                            </span>
+                            <button type="button" onclick="navigateCalendar(1)" style="padding: 4px 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); border-radius: 6px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; transition: all 0.15s;" title="Próximo Mês" onmouseenter="this.style.background='var(--bg-body)'" onmouseleave="this.style.background='var(--bg-card)'">
+                                ▶
+                            </button>
+                            <button type="button" onclick="resetCalendarToToday()" style="padding: 4px 8px; border: 1px solid transparent; background: var(--brand-primary); color: #ffffff; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; margin-left: 2px;" title="Ir para o mês atual">
+                                Hoje
+                            </button>
+                        </div>
                     </div>
 
                     <!-- GRID DO CALENDÁRIO -->
@@ -1184,15 +1197,33 @@
             });
         }
 
-        // 10. Renderizador do Calendário de Frequência Diária
-        const calGrid = document.getElementById('calendar-days-grid');
-        if (calGrid) {
-            const calData = JSON.parse('{{ cal_by_day_json|escapejs }}' || '{}');
-            const year = 2026;
-            const month = 7; // Agosto (0-indexed: 7)
-            const firstDayOfWeek = new Date(year, month, 1).getDay();
-            const totalDays = new Date(year, month + 1, 0).getDate();
-            const prevMonthDays = new Date(year, month, 0).getDate();
+        // 10. Renderizador Interativo do Calendário de Frequência Diária
+        const CAL_DATA = JSON.parse('{{ cal_by_day_json|escapejs }}' || '{}');
+        const CAL_MONTH_NAMES = [
+            'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+            'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+        ];
+
+        // Define o mês inicial do calendário (padrão: Outubro de 2026 ou mês de date_start)
+        const dateStartStr = '{{ date_start }}';
+        let currentCalYear = dateStartStr ? parseInt(dateStartStr.substring(0, 4), 10) : 2026;
+        let currentCalMonth = dateStartStr ? parseInt(dateStartStr.substring(5, 7), 10) - 1 : 9;
+        if (isNaN(currentCalMonth) || currentCalMonth < 0 || currentCalMonth > 11) {
+            currentCalMonth = new Date().getMonth();
+        }
+
+        function renderCalendarGrid() {
+            const calGrid = document.getElementById('calendar-days-grid');
+            const labelEl = document.getElementById('cal-current-month-label');
+            if (!calGrid) return;
+
+            if (labelEl) {
+                labelEl.textContent = `${CAL_MONTH_NAMES[currentCalMonth]} / ${currentCalYear}`;
+            }
+
+            const firstDayOfWeek = new Date(currentCalYear, currentCalMonth, 1).getDay();
+            const totalDays = new Date(currentCalYear, currentCalMonth + 1, 0).getDate();
+            const prevMonthDays = new Date(currentCalYear, currentCalMonth, 0).getDate();
 
             let html = '';
             for (let i = firstDayOfWeek - 1; i >= 0; i--) {
@@ -1202,35 +1233,42 @@
                 </div>`;
             }
             for (let d = 1; d <= totalDays; d++) {
-                const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                const dayOfWeek = new Date(year, month, d).getDay();
+                const dateKey = `${currentCalYear}-${String(currentCalMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                const dayOfWeek = new Date(currentCalYear, currentCalMonth, d).getDay();
                 const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
-                const info = calData[dateKey];
+                const info = CAL_DATA[dateKey];
 
                 let pctBadge = '';
                 let bgCell = 'var(--bg-card)';
                 let borderCell = 'var(--border-color)';
+                let titleAttr = `${String(d).padStart(2, '0')}/${String(currentCalMonth + 1).padStart(2, '0')}/${currentCalYear}`;
 
                 if (isWeekend) {
                     bgCell = 'rgba(148, 163, 184, 0.08)';
                     pctBadge = `<span style="font-size: 8.5px; color: var(--text-secondary); font-weight: 600;">Fim Sem.</span>`;
+                    titleAttr += ' - Fim de Semana';
                 } else if (info) {
                     const pct = info.taxa;
-                    let colorClass = '#10b981';
+                    let colorClass = '#047857';
                     let bgBadge = '#ecfdf5';
+                    let borderBadge = '#a7f3d0';
                     if (pct < 75) {
-                        colorClass = '#ef4444';
+                        colorClass = '#b91c1c';
                         bgBadge = '#fef2f2';
+                        borderBadge = '#fecaca';
                     } else if (pct < 90) {
-                        colorClass = '#d97706';
+                        colorClass = '#b45309';
                         bgBadge = '#fffbeb';
+                        borderBadge = '#fde68a';
                     }
-                    pctBadge = `<span style="font-size: 10px; font-weight: 800; color: ${colorClass}; background: ${bgBadge}; padding: 1px 4px; border-radius: 4px; width: 100%; text-align: center;">${pct}%</span>`;
+                    pctBadge = `<span style="font-size: 10px; font-weight: 800; color: ${colorClass}; background: ${bgBadge}; border: 1px solid ${borderBadge}; padding: 1px 4px; border-radius: 4px; width: 100%; text-align: center;">${pct}%</span>`;
+                    titleAttr += `: ${pct}% de frequência (${info.presentes}/${info.total} alunos)`;
                 } else {
                     pctBadge = `<span style="font-size: 9px; color: var(--text-secondary); font-weight: 600;">-</span>`;
+                    titleAttr += ' - Sem registro de chamada';
                 }
 
-                html += `<div style="background: ${bgCell}; border: 1px solid ${borderCell}; border-radius: 8px; min-height: 52px; padding: 4px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.15s ease;" title="${dateKey}${info ? ': ' + info.taxa + '% presença (' + info.presentes + ' presentes)' : ''}">
+                html += `<div style="background: ${bgCell}; border: 1px solid ${borderCell}; border-radius: 8px; min-height: 52px; padding: 4px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.15s ease;" title="${titleAttr}">
                     <span style="font-size: 11px; font-weight: 700; color: var(--text-primary);">${d}</span>
                     ${pctBadge}
                 </div>`;
@@ -1244,6 +1282,28 @@
             }
             calGrid.innerHTML = html;
         }
+
+        window.navigateCalendar = function(delta) {
+            currentCalMonth += delta;
+            if (currentCalMonth < 0) {
+                currentCalMonth = 11;
+                currentCalYear--;
+            } else if (currentCalMonth > 11) {
+                currentCalMonth = 0;
+                currentCalYear++;
+            }
+            renderCalendarGrid();
+        };
+
+        window.resetCalendarToToday = function() {
+            const now = new Date();
+            currentCalYear = now.getFullYear();
+            currentCalMonth = now.getMonth();
+            renderCalendarGrid();
+        };
+
+        // Renderização inicial
+        renderCalendarGrid();
 
         // 11. Consolidado Mês a Mês: Frequência vs Matriculados (Stacked Bar)
         if (document.getElementById('chart-frequencia-mes-a-mes')) {

@@ -320,64 +320,80 @@
             </div>
         </div>
 
-        <!-- Tabela: Data | Horário Entrada | Criança | Sala | Tipo de Atraso | Justificativa / Motivo | Responsável | Atrasos Registrados | Comprovante -->
+        <!-- Tabela Agrupada por Aluno: Criança | Status | Sala | Atrasos Registrados | Justificados | Não Justificados | Total no Ano | Responsável | Ação -->
         <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden;">
             <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); background-color: var(--bg-body); font-weight: 700; color: var(--text-primary); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                <span>Quadro Detalhado de Atrasos</span>
-                <span style="font-size: 12px; font-weight: 500; color: var(--text-secondary);">💡 Clique nas colunas para ordenar</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="clock" style="width: 18px; height: 18px; color: #f59e0b;"></i>
+                    <span>Quadro de Atrasos por Aluno</span>
+                </div>
+                <span style="font-size: 12px; font-weight: 500; color: var(--text-secondary);">💡 Clique no nome da criança ou no botão para ver os dias no caderno</span>
             </div>
             <div style="overflow-x: auto;">
                 <table id="table-atrasos" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13.5px;">
                     <thead>
                         <tr style="border-bottom: 1.5px solid var(--border-color); background-color: var(--bg-body); color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">
-                            <th style="padding: 12px 16px; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 0, 'date')" title="Clique para ordenar por Data">Data <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
-                            <th style="padding: 12px 16px; text-align: center; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 1, 'time')" title="Clique para ordenar por Horário de Entrada">Horário Entrada <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
-                            <th style="padding: 12px 16px; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 2, 'text')" title="Clique para ordenar por Criança">Criança <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
-                            <th style="padding: 12px 16px; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 3, 'text')" title="Clique para ordenar por Sala">Sala <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
-                            <th style="padding: 12px 16px; text-align: center; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 4, 'text')" title="Clique para ordenar por Tipo de Atraso">Tipo de Atraso <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
-                            <th style="padding: 12px 16px; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 5, 'text')" title="Clique para ordenar por Justificativa">Justificativa / Motivo <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
-                            <th style="padding: 12px 16px; text-align: center; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 6, 'number')" title="Clique para ordenar pela quantidade de atrasos registrados no período filtrado">Atrasos Registrados <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
-                            <th style="padding: 12px 16px; text-align: center;">Comprovante</th>
+                            <th style="padding: 12px 16px; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 0, 'text')" title="Clique para ordenar por Nome da Criança">Criança <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
+                            <th style="padding: 12px 16px; text-align: center; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 1, 'text')" title="Clique para ordenar por Status">Status <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
+                            <th style="padding: 12px 16px; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 2, 'text')" title="Clique para ordenar por Sala">Sala <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
+                            <th style="padding: 12px 16px; text-align: center; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 3, 'number')" title="Clique para ordenar pela quantidade de atrasos registrados no período filtrado">Atrasos Registrados <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
+                            <th style="padding: 12px 16px; text-align: center; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 4, 'number')" title="Clique para ordenar por Justificados">Justificados <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
+                            <th style="padding: 12px 16px; text-align: center; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 5, 'number')" title="Clique para ordenar por Não Justificados">Não Justificados <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
+                            <th style="padding: 12px 16px; text-align: center; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 6, 'number')" title="Clique para ordenar por Total de Atrasos no Ano">Total Ano {{ current_year }} <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
+                            <th style="padding: 12px 16px; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 7, 'text')" title="Clique para ordenar por Responsável">Responsável <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
+                            <th style="padding: 12px 16px; text-align: center;">Caderno SEAMI</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for row in atrasos_tabela %}
                         <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.15s;" onmouseenter="this.style.backgroundColor='var(--bg-input)'" onmouseleave="this.style.backgroundColor='transparent'">
-                            <td style="padding: 12px 16px; font-weight: 600; white-space: nowrap;" data-value="{{ row.data|date:'Y-m-d' }}">{{ row.data|date:"d/m/Y" }}</td>
-                            <td style="padding: 12px 16px; text-align: center; font-weight: 700; color: #b45309;" data-value="{{ row.horario }}">{{ row.horario }}</td>
-                            <td style="padding: 12px 16px; font-weight: 700; color: var(--text-primary);" data-value="{{ row.aluno_nome }}">{{ row.aluno_nome }}</td>
+                            <td style="padding: 12px 16px; font-weight: 700;" data-value="{{ row.aluno_nome }}">
+                                <a href="javascript:void(0)" onclick="openAtrasosAlunoModal('{{ row.aluno_id }}')" style="color: #4338ca; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;" title="Clique para ver os dias no caderno">
+                                    <span>{{ row.aluno_nome }}</span>
+                                    <span style="font-size: 10.5px; color: #6366f1; background: #e0e7ff; padding: 2px 6px; border-radius: 4px; font-weight: 700;">Ver Dias</span>
+                                </a>
+                            </td>
+                            <td style="padding: 12px 16px; text-align: center;" data-value="{{ row.aluno_status_display }}">
+                                {% if row.is_aluno_ativo %}
+                                    <span style="background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px;">Ativo</span>
+                                {% else %}
+                                    <span style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px;">Inativo</span>
+                                {% endif %}
+                            </td>
                             <td style="padding: 12px 16px;" data-value="{{ row.turma_nome }}">
                                 <span style="background-color: {{ row.turma_style.bg }}; color: {{ row.turma_style.color }}; border: 1px solid {{ row.turma_style.border }}; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11.5px;">
                                     {{ row.turma_style.emoji }} Sala {{ row.turma_nome }}
                                 </span>
                             </td>
-                            <td style="padding: 12px 16px; text-align: center;" data-value="{{ row.tipo_atraso }}">
-                                {% if row.is_justificado %}
-                                     <span style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px;">✅ Justificado</span>
-                                {% else %}
-                                     <span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px;">❌ Não Justificado</span>
-                                {% endif %}
-                            </td>
-                            <td style="padding: 12px 16px; font-size: 12.5px; color: var(--text-secondary);" data-value="{{ row.motivo }}">
-                                {% if row.motivo %}
-                                    {{ row.motivo }}
-                                {% else %}
-                                    <em style="color: var(--text-light, #94a3b8); font-style: italic;">Sem justificativa</em>
-                                {% endif %}
-                            </td>
                             <td style="padding: 12px 16px; text-align: center;" data-value="{{ row.atrasos_registrados }}">
-                                <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 28px; padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 12px; background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a;" title="{{ row.atrasos_registrados }} atraso(s) registrado(s) no período filtrado">
+                                <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 32px; padding: 3px 10px; border-radius: 12px; font-weight: 800; font-size: 12.5px; background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a;" title="{{ row.atrasos_registrados }} atraso(s) registrado(s) no período filtrado">
                                     {{ row.atrasos_registrados }}
                                 </span>
                             </td>
-                            <td style="padding: 12px 16px; text-align: center;">
-                                {% if row.documento %}
-                                    <button type="button" onclick="viewDoc('{{ row.documento.url }}', '{{ row.aluno_nome|escapejs }}')" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-body); font-size: 11.5px; cursor: pointer;">
-                                        📄 Ver
-                                    </button>
-                                {% else %}
-                                    <span style="color: var(--text-light); font-size: 12px;">-</span>
+                            <td style="padding: 12px 16px; text-align: center;" data-value="{{ row.justificados_periodo }}">
+                                <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 26px; padding: 2px 8px; border-radius: 10px; font-weight: 700; font-size: 11.5px; background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;">
+                                    {{ row.justificados_periodo }}
+                                </span>
+                            </td>
+                            <td style="padding: 12px 16px; text-align: center;" data-value="{{ row.nao_justificados_periodo }}">
+                                <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 26px; padding: 2px 8px; border-radius: 10px; font-weight: 700; font-size: 11.5px; background-color: #fef2f2; color: #b91c1c; border: 1px solid #fecaca;">
+                                    {{ row.nao_justificados_periodo }}
+                                </span>
+                            </td>
+                            <td style="padding: 12px 16px; text-align: center; font-weight: 700; color: var(--text-primary);" data-value="{{ row.atrasos_no_ano }}">
+                                {{ row.atrasos_no_ano }}
+                            </td>
+                            <td style="padding: 12px 16px; font-size: 12.5px;" data-value="{{ row.responsavel }}">
+                                <div style="font-weight: 600; color: var(--text-primary);">{{ row.responsavel }}</div>
+                                {% if row.telefone_responsavel %}
+                                    <div style="font-size: 11.5px; color: var(--text-secondary); font-weight: 500;">📞 {{ row.telefone_responsavel }}</div>
                                 {% endif %}
+                            </td>
+                            <td style="padding: 12px 16px; text-align: center;">
+                                <button type="button" onclick="openAtrasosAlunoModal('{{ row.aluno_id }}')" style="padding: 5px 12px; border-radius: 8px; border: 1px solid #c7d2fe; background: #e0e7ff; color: #4338ca; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.15s;" onmouseenter="this.style.background='#c7d2fe'" onmouseleave="this.style.background='#e0e7ff'" title="Ver dias e detalhes dos registros no caderno">
+                                    <i data-lucide="calendar" style="width: 13px; height: 13px;"></i>
+                                    <span>Ver Dias ({{ row.atrasos_registrados }})</span>
+                                </button>
                             </td>
                         </tr>
                         {% empty %}
@@ -801,6 +817,81 @@
     </div>
 </div>
 
+<!-- ========================================================================= -->
+<!-- MODAL DE DETALHES DE ATRASOS POR CRIANÇA (VERIFICAÇÃO DOS DIAS NO CADERNO) -->
+<!-- ========================================================================= -->
+<div id="modal-atrasos-aluno" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); z-index: 1050; justify-content: center; align-items: center; padding: 20px;" onclick="if(event.target === this) closeAtrasosAlunoModal()">
+    <div style="background: var(--bg-card, #ffffff); width: 100%; max-width: 860px; max-height: 85vh; border-radius: 16px; border: 1px solid var(--border-color); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2), 0 8px 10px -6px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden; animation: modalFadeIn 0.2s ease-out;" onclick="event.stopPropagation()">
+        
+        <!-- Modal Header -->
+        <div style="padding: 18px 24px; border-bottom: 1px solid var(--border-color); background: var(--bg-body, #f8fafc); display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;">
+            <div>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <h3 id="modal-atrasos-aluno-nome" style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0;">Nome da Criança</h3>
+                    <span id="modal-atrasos-aluno-status" style="font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px;">Ativo</span>
+                    <span id="modal-atrasos-aluno-turma" style="font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 6px;">Sala</span>
+                </div>
+                <div style="font-size: 13px; color: var(--text-secondary); margin-top: 4px; display: flex; align-items: center; gap: 6px;">
+                    <i data-lucide="clock" style="width: 14px; height: 14px; color: #f59e0b;"></i>
+                    <span id="modal-atrasos-aluno-periodo">Período de Referência</span>
+                </div>
+            </div>
+            <button type="button" onclick="closeAtrasosAlunoModal()" style="background: transparent; border: none; font-size: 20px; color: var(--text-secondary); cursor: pointer; padding: 4px 8px; border-radius: 8px; line-height: 1;" onmouseenter="this.style.background='var(--bg-input)'" onmouseleave="this.style.background='transparent'">✕</button>
+        </div>
+
+        <!-- Modal Body -->
+        <div style="padding: 20px 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;">
+            <!-- 4 Mini Cards de Indicadores do Aluno -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px;">
+                <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 10px 14px;">
+                    <div style="font-size: 11.5px; font-weight: 600; color: #92400e;">Atrasos no Mês / Período</div>
+                    <div id="modal-atrasos-stat-total" style="font-size: 20px; font-weight: 800; color: #b45309;">0</div>
+                </div>
+                <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px; padding: 10px 14px;">
+                    <div style="font-size: 11.5px; font-weight: 600; color: #047857;">Justificados (Avisados)</div>
+                    <div id="modal-atrasos-stat-just" style="font-size: 20px; font-weight: 800; color: #059669;">0</div>
+                </div>
+                <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 10px 14px;">
+                    <div style="font-size: 11.5px; font-weight: 600; color: #b91c1c;">Não Justificados</div>
+                    <div id="modal-atrasos-stat-nao-just" style="font-size: 20px; font-weight: 800; color: #dc2626;">0</div>
+                </div>
+                <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 10px 14px;">
+                    <div style="font-size: 11.5px; font-weight: 600; color: #1d4ed8;">Total Acumulado no Ano</div>
+                    <div id="modal-atrasos-stat-ano" style="font-size: 20px; font-weight: 800; color: #2563eb;">0</div>
+                </div>
+            </div>
+
+            <!-- Tabela dos Dias Registrados no Caderno SEAMI -->
+            <div style="border: 1px solid var(--border-color); border-radius: 10px; overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                    <thead>
+                        <tr style="background: var(--bg-body, #f8fafc); border-bottom: 1.5px solid var(--border-color); color: var(--text-secondary); font-size: 11.5px; text-transform: uppercase;">
+                            <th style="padding: 10px 14px;">Data</th>
+                            <th style="padding: 10px 14px; text-align: center;">Horário</th>
+                            <th style="padding: 10px 14px; text-align: center;">Tipo</th>
+                            <th style="padding: 10px 14px;">Justificativa / Motivo Declarado</th>
+                            <th style="padding: 10px 14px;">Responsável</th>
+                            <th style="padding: 10px 14px; text-align: center;">Comprovante</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-atrasos-table-body">
+                        <!-- Linhas geradas dinamicamente via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div style="padding: 14px 24px; border-top: 1px solid var(--border-color); background: var(--bg-body, #f8fafc); display: flex; justify-content: space-between; align-items: center;">
+            <span id="modal-atrasos-count-label" style="font-size: 12.5px; color: var(--text-secondary); font-weight: 600;">0 registro(s) no caderno</span>
+            <button type="button" onclick="closeAtrasosAlunoModal()" style="padding: 8px 18px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 13px; font-weight: 600; cursor: pointer;">
+                Fechar
+            </button>
+        </div>
+
+    </div>
+</div>
+
 <style>
 .report-tab-btn {
     background-color: var(--bg-card);
@@ -858,6 +949,103 @@
         const el = document.getElementById(id);
         if (el) {
             el.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+    }
+
+    // =========================================================================
+    // MODAL DE VERIFICAÇÃO DOS DIAS DE ATRASO DA CRIANÇA NO CADERNO SEAMI
+    // =========================================================================
+    function openAtrasosAlunoModal(studentId) {
+        const rawEl = document.getElementById('json-report-atrasos');
+        if (!rawEl) return;
+        const allStudents = JSON.parse(rawEl.textContent || '[]');
+        const student = allStudents.find(s => String(s.aluno_id) === String(studentId));
+        if (!student) {
+            alert('Dados da criança não encontrados.');
+            return;
+        }
+
+        const modal = document.getElementById('modal-atrasos-aluno');
+        if (!modal) return;
+
+        // Preenche cabeçalho
+        document.getElementById('modal-atrasos-aluno-nome').textContent = student.student_name;
+        
+        const statusEl = document.getElementById('modal-atrasos-aluno-status');
+        if (student.is_aluno_ativo) {
+            statusEl.textContent = 'Ativo';
+            statusEl.style.background = '#ecfdf5';
+            statusEl.style.color = '#059669';
+            statusEl.style.border = '1px solid #a7f3d0';
+        } else {
+            statusEl.textContent = 'Inativo';
+            statusEl.style.background = '#fef2f2';
+            statusEl.style.color = '#dc2626';
+            statusEl.style.border = '1px solid #fecaca';
+        }
+
+        const turmaEl = document.getElementById('modal-atrasos-aluno-turma');
+        turmaEl.textContent = student.classroom;
+        turmaEl.style.background = '#f1f5f9';
+        turmaEl.style.color = '#475569';
+        turmaEl.style.border = '1px solid #cbd5e1';
+
+        const startLabel = document.getElementById('json-report-date-start')?.textContent?.replace(/"/g, '') || '';
+        const endLabel = document.getElementById('json-report-date-end')?.textContent?.replace(/"/g, '') || '';
+        const startBr = startLabel ? startLabel.split('-').reverse().join('/') : '';
+        const endBr = endLabel ? endLabel.split('-').reverse().join('/') : '';
+        document.getElementById('modal-atrasos-aluno-periodo').textContent = `Período: ${startBr} a ${endBr}`;
+
+        // Preenche indicadores
+        document.getElementById('modal-atrasos-stat-total').textContent = student.atrasos_registrados || 0;
+        document.getElementById('modal-atrasos-stat-just').textContent = student.justificados || 0;
+        document.getElementById('modal-atrasos-stat-nao-just').textContent = student.nao_justificados || 0;
+        document.getElementById('modal-atrasos-stat-ano').textContent = student.atrasos_ano || 0;
+
+        // Preenche tabela de ocorrências
+        const tbody = document.getElementById('modal-atrasos-table-body');
+        tbody.innerHTML = '';
+
+        const ocorrencias = student.ocorrencias || [];
+        if (ocorrencias.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 24px; color: var(--text-secondary);">Nenhum registro detalhado encontrado no período.</td></tr>';
+        } else {
+            ocorrencias.forEach(oc => {
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid var(--border-color)';
+                
+                const badgeTipo = oc.is_just
+                    ? '<span style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 2px 7px; border-radius: 6px; font-weight: 700; font-size: 11px;">✅ Justificado</span>'
+                    : '<span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 2px 7px; border-radius: 6px; font-weight: 700; font-size: 11px;">❌ Não Justificado</span>';
+
+                const docBtn = oc.documento_url
+                    ? `<button type="button" onclick="viewDoc('${oc.documento_url}', '${student.student_name.replace(/'/g, "\\'")}')" style="padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-body); font-size: 11.5px; cursor: pointer;">📄 Ver</button>`
+                    : '<span style="color: var(--text-light); font-size: 12px;">-</span>';
+
+                tr.innerHTML = `
+                    <td style="padding: 10px 14px; font-weight: 600; white-space: nowrap;">${oc.data}</td>
+                    <td style="padding: 10px 14px; text-align: center; font-weight: 700; color: #b45309;">${oc.horario}</td>
+                    <td style="padding: 10px 14px; text-align: center;">${badgeTipo}</td>
+                    <td style="padding: 10px 14px; font-size: 12.5px; color: var(--text-secondary);">${oc.motivo || 'Sem justificativa'}</td>
+                    <td style="padding: 10px 14px; font-size: 12px;">${oc.responsavel || student.responsavel || '-'}</td>
+                    <td style="padding: 10px 14px; text-align: center;">${docBtn}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        document.getElementById('modal-atrasos-count-label').textContent = `${ocorrencias.length} registro(s) no caderno no período`;
+
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function closeAtrasosAlunoModal() {
+        const modal = document.getElementById('modal-atrasos-aluno');
+        if (modal) {
+            modal.style.display = 'none';
             document.body.style.overflow = 'auto';
         }
     }
@@ -1292,18 +1480,31 @@
 [
     {% for row in atrasos_tabela %}
     {
-        "date_br": "{{ row.data|date:'d/m/Y' }}",
-        "horario": "{{ row.horario }}",
+        "aluno_id": "{{ row.aluno_id|default:0 }}",
         "student_name": "{{ row.aluno_nome|escapejs }}",
         "student_status": "{{ row.aluno_status_display|default:'Ativo'|escapejs }}",
         "is_aluno_ativo": {{ row.is_aluno_ativo|default:True|yesno:"true,false" }},
-        "classroom": "{{ row.turma_nome|escapejs }}",
-        "tipo_atraso": "{{ row.tipo_atraso }}",
-        "is_just": {{ row.is_justificado|default:False|yesno:"true,false" }},
-        "motivo": "{{ row.motivo|escapejs }}",
-        "responsavel": "{{ row.responsavel|escapejs }}",
-        "atrasos_registrados": {{ row.atrasos_registrados|default:row.atrasos_no_periodo|default:row.atrasos_no_ano|default:0 }},
-        "atrasos_ano": {{ row.atrasos_registrados|default:row.atrasos_no_periodo|default:row.atrasos_no_ano|default:0 }}
+        "classroom": "Sala {{ row.turma_nome|escapejs }}",
+        "atrasos_registrados": {{ row.atrasos_registrados|default:0 }},
+        "justificados": {{ row.justificados_periodo|default:0 }},
+        "nao_justificados": {{ row.nao_justificados_periodo|default:0 }},
+        "atrasos_ano": {{ row.atrasos_no_ano|default:0 }},
+        "responsavel": "{{ row.responsavel|escapejs }}{% if row.telefone_responsavel %} ({{ row.telefone_responsavel }}){% endif %}",
+        "ocorrencias": [
+            {% for oc in row.ocorrencias %}
+            {
+                "id": {{ oc.id|default:0 }},
+                "data": "{{ oc.data }}",
+                "data_raw": "{{ oc.data_raw }}",
+                "horario": "{{ oc.horario }}",
+                "tipo_atraso": "{{ oc.tipo_atraso }}",
+                "is_just": {{ oc.is_justificado|default:False|yesno:"true,false" }},
+                "motivo": "{{ oc.motivo|escapejs }}",
+                "responsavel": "{{ oc.responsavel|escapejs }}",
+                "documento_url": {% if oc.documento_url %}"{{ oc.documento_url }}"{% else %}null{% endif %}
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ]
     }{% if not forloop.last %},{% endif %}
     {% endfor %}
 ]
@@ -1508,19 +1709,18 @@
                 }
 
                 const rows = data.map(r => ({
-                    "Data": r.date_br,
-                    "Horário de Entrada": r.horario,
                     "Criança": r.student_name,
                     "Status do Aluno": r.student_status || "Ativo",
                     "Sala / Turma": r.classroom,
-                    "Tipo de Atraso": r.tipo_atraso,
-                    "Justificativa / Motivo": r.motivo,
-                    "Responsável": r.responsavel,
-                    "Atrasos Registrados": r.atrasos_registrados || r.atrasos_ano
+                    "Atrasos Registrados": r.atrasos_registrados || 0,
+                    "Justificados": r.justificados || 0,
+                    "Não Justificados": r.nao_justificados || 0,
+                    "Total no Ano": r.atrasos_ano || 0,
+                    "Responsável": r.responsavel
                 }));
 
                 const ws = XLSX.utils.json_to_sheet(rows);
-                ws['!cols'] = [{wch: 14}, {wch: 16}, {wch: 30}, {wch: 16}, {wch: 16}, {wch: 18}, {wch: 35}, {wch: 30}, {wch: 20}];
+                ws['!cols'] = [{wch: 32}, {wch: 16}, {wch: 18}, {wch: 22}, {wch: 16}, {wch: 18}, {wch: 16}, {wch: 32}];
                 XLSX.utils.book_append_sheet(wb, ws, "Relatório de Atrasos");
                 XLSX.writeFile(wb, `Relatorio_Atrasos_SEAMI_${todayStr}.xlsx`);
 
@@ -2018,23 +2218,22 @@
                 return;
             }
 
-            drawInstitutionalHeader("Relatório Oficial de Gestão de Atrasos (Justificados e Não Justificados)", "", [217, 119, 6]);
+            drawInstitutionalHeader("Relatório Oficial de Gestão de Atrasos (Agrupado por Criança)", "", [217, 119, 6]);
 
             const bodyRows = data.map(r => [
-                r.date_br,
-                r.horario,
                 r.student_name,
                 r.student_status || "Ativo",
                 r.classroom,
-                r.tipo_atraso,
-                r.motivo,
-                r.responsavel,
-                String(r.atrasos_registrados || r.atrasos_ano)
+                String(r.atrasos_registrados || 0),
+                String(r.justificados || 0),
+                String(r.nao_justificados || 0),
+                String(r.atrasos_ano || 0),
+                r.responsavel
             ]);
 
             doc.autoTable({
                 startY: 36,
-                head: [['Data', 'Horário', 'Criança', 'Status', 'Sala', 'Tipo de Atraso', 'Justificativa / Motivo', 'Responsável', 'Atrasos Registrados']],
+                head: [['Criança', 'Status', 'Sala', 'Atrasos no Mês', 'Justificados', 'Não Justificados', 'Total Ano', 'Responsável']],
                 body: bodyRows,
                 theme: 'grid',
                 headStyles: { fillColor: [217, 119, 6], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
