@@ -82,7 +82,7 @@
                     <span>Exportar PDF (.pdf)</span>
                 </button>
 
-                <a href="?tab={{ active_tab_nav }}&export=csv&date_start={{ date_start }}&date_end={{ date_end }}{% if classroom_filter %}&classroom={{ classroom_filter|urlencode }}{% endif %}&status_aluno={{ status_aluno_filter }}{% if student_id_filter %}&student_id={{ student_id_filter }}{% endif %}{% if justified_filter %}&justified={{ justified_filter }}{% endif %}" class="secondary-btn" style="padding: 8px 14px; border-radius: 8px; border: 1px solid #93c5fd; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; background-color: #eff6ff; color: #1d4ed8; text-decoration: none; transition: all 0.2s;">
+                <a href="?tab={{ active_tab_nav }}&export=csv&date_start={{ date_start }}&date_end={{ date_end }}{% if classroom_filter %}&classroom={{ classroom_filter|urlencode }}{% endif %}&status_aluno={{ status_aluno_filter }}{% if student_id_filter %}&student_id={{ student_id_filter }}{% endif %}{% if justified_filter %}&justified={{ justified_filter }}{% endif %}{% if perfil_atraso_filter %}&perfil_atraso={{ perfil_atraso_filter }}{% endif %}" class="secondary-btn" style="padding: 8px 14px; border-radius: 8px; border: 1px solid #93c5fd; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; background-color: #eff6ff; color: #1d4ed8; text-decoration: none; transition: all 0.2s;">
                     <i data-lucide="file-spreadsheet" style="width: 15px; height: 15px;"></i>
                     <span>Exportar CSV (.csv)</span>
                 </a>
@@ -139,9 +139,20 @@
                 </div>
                 {% elif active_tab_nav == 'atrasos' %}
                 <div class="filter-group">
-                    <label>Tipo de Atraso</label>
+                    <label>Perfil de Atrasos</label>
+                    <select name="perfil_atraso" onchange="this.form.submit()">
+                        <option value="todos_atrasos" {% if perfil_atraso_filter == 'todos_atrasos' or not perfil_atraso_filter %}selected{% endif %}>Todos com atraso ({{ atrasos_counts.todos_atraso }})</option>
+                        <option value="sem_nao_justificados" {% if perfil_atraso_filter == 'sem_nao_justificados' %}selected{% endif %}>Sem atrasos não justificados ({{ atrasos_counts.sem_nao_justificados }})</option>
+                        <option value="zero_atrasos" {% if perfil_atraso_filter == 'zero_atrasos' %}selected{% endif %}>Sem nenhum registro de atraso ({{ atrasos_counts.zero_atrasos }})</option>
+                        <option value="mais_1_injustificado" {% if perfil_atraso_filter == 'mais_1_injustificado' %}selected{% endif %}>Mais de 1 não justificado ({{ atrasos_counts.mais_1_injustificado }})</option>
+                        <option value="sem_justificados" {% if perfil_atraso_filter == 'sem_justificados' %}selected{% endif %}>Nenhum justificado ({{ atrasos_counts.sem_justificados }})</option>
+                        <option value="todos_alunos" {% if perfil_atraso_filter == 'todos_alunos' %}selected{% endif %}>Todos os alunos ({{ atrasos_counts.todos_alunos }})</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Tipo de Registro</label>
                     <select name="justified" onchange="this.form.submit()">
-                        <option value="all" {% if justified_filter == 'all' %}selected{% endif %}>Todos os atrasos</option>
+                        <option value="all" {% if justified_filter == 'all' %}selected{% endif %}>Todos os registros</option>
                         <option value="sim" {% if justified_filter == 'sim' %}selected{% endif %}>Apenas Justificados</option>
                         <option value="nao" {% if justified_filter == 'nao' %}selected{% endif %}>Apenas Não Justificados</option>
                     </select>
@@ -320,7 +331,66 @@
             </div>
         </div>
 
-        <!-- Tabela Agrupada por Aluno: Criança | Status | Sala | Atrasos Registrados | Justificados | Não Justificados | Total no Ano | Responsável | Ação -->
+        <!-- Barra de Filtros Rápidos de Perfil de Pontualidade / Atrasos (Chips SEAMI) -->
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; background: var(--bg-card); padding: 12px 18px; border-radius: var(--radius-lg); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span style="font-size: 12.5px; font-weight: 700; color: var(--text-secondary); display: inline-flex; align-items: center; gap: 5px;">
+                    <i data-lucide="filter" style="width: 14px; height: 14px;"></i>
+                    <span>Filtros Rápidos:</span>
+                </span>
+
+                <a href="?tab=atrasos&perfil_atraso=todos_atrasos{% if date_start %}&date_start={{ date_start }}{% endif %}{% if date_end %}&date_end={{ date_end }}{% endif %}{% if classroom_filter %}&classroom={{ classroom_filter|urlencode }}{% endif %}{% if status_aluno_filter %}&status_aluno={{ status_aluno_filter }}{% endif %}{% if student_id_filter %}&student_id={{ student_id_filter }}{% endif %}"
+                   style="text-decoration: none; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;
+                          {% if perfil_atraso_filter == 'todos_atrasos' or not perfil_atraso_filter %}background: #4338ca; color: white; box-shadow: 0 2px 6px rgba(67, 56, 202, 0.3);{% else %}background: var(--bg-body); color: var(--text-secondary); border: 1px solid var(--border-color);{% endif %}">
+                    <span>Todos com Atraso</span>
+                    <span style="font-size: 11px; padding: 1px 6px; border-radius: 10px; {% if perfil_atraso_filter == 'todos_atrasos' or not perfil_atraso_filter %}background: rgba(255,255,255,0.25); color: white;{% else %}background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color);{% endif %}">{{ atrasos_counts.todos_atraso }}</span>
+                </a>
+
+                <a href="?tab=atrasos&perfil_atraso=sem_nao_justificados{% if date_start %}&date_start={{ date_start }}{% endif %}{% if date_end %}&date_end={{ date_end }}{% endif %}{% if classroom_filter %}&classroom={{ classroom_filter|urlencode }}{% endif %}{% if status_aluno_filter %}&status_aluno={{ status_aluno_filter }}{% endif %}{% if student_id_filter %}&student_id={{ student_id_filter }}{% endif %}"
+                   style="text-decoration: none; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;
+                          {% if perfil_atraso_filter == 'sem_nao_justificados' %}background: #047857; color: white; box-shadow: 0 2px 6px rgba(4, 120, 87, 0.3);{% else %}background: var(--bg-body); color: var(--text-secondary); border: 1px solid var(--border-color);{% endif %}"
+                   title="Alunos com nenhum registro de atraso não justificado (inclui pontuais e atrasos exclusivamente justificados)">
+                    <span>🛡️ Sem Não Justificados</span>
+                    <span style="font-size: 11px; padding: 1px 6px; border-radius: 10px; {% if perfil_atraso_filter == 'sem_nao_justificados' %}background: rgba(255,255,255,0.25); color: white;{% else %}background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color);{% endif %}">{{ atrasos_counts.sem_nao_justificados }}</span>
+                </a>
+
+                <a href="?tab=atrasos&perfil_atraso=zero_atrasos{% if date_start %}&date_start={{ date_start }}{% endif %}{% if date_end %}&date_end={{ date_end }}{% endif %}{% if classroom_filter %}&classroom={{ classroom_filter|urlencode }}{% endif %}{% if status_aluno_filter %}&status_aluno={{ status_aluno_filter }}{% endif %}{% if student_id_filter %}&student_id={{ student_id_filter }}{% endif %}"
+                   style="text-decoration: none; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;
+                          {% if perfil_atraso_filter == 'zero_atrasos' %}background: #059669; color: white; box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);{% else %}background: var(--bg-body); color: var(--text-secondary); border: 1px solid var(--border-color);{% endif %}"
+                   title="Alunos que não possuem nenhum registro de atraso no período (100% Pontuais)">
+                    <span>⭐ 100% Pontuais (0 atrasos)</span>
+                    <span style="font-size: 11px; padding: 1px 6px; border-radius: 10px; {% if perfil_atraso_filter == 'zero_atrasos' %}background: rgba(255,255,255,0.25); color: white;{% else %}background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color);{% endif %}">{{ atrasos_counts.zero_atrasos }}</span>
+                </a>
+
+                <a href="?tab=atrasos&perfil_atraso=mais_1_injustificado{% if date_start %}&date_start={{ date_start }}{% endif %}{% if date_end %}&date_end={{ date_end }}{% endif %}{% if classroom_filter %}&classroom={{ classroom_filter|urlencode }}{% endif %}{% if status_aluno_filter %}&status_aluno={{ status_aluno_filter }}{% endif %}{% if student_id_filter %}&student_id={{ student_id_filter }}{% endif %}"
+                   style="text-decoration: none; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;
+                          {% if perfil_atraso_filter == 'mais_1_injustificado' %}background: #dc2626; color: white; box-shadow: 0 2px 6px rgba(220, 38, 38, 0.3);{% else %}background: var(--bg-body); color: var(--text-secondary); border: 1px solid var(--border-color);{% endif %}"
+                   title="Alunos com mais de 1 atraso sem justificativa (Atenção / Reincidência)">
+                    <span>🚨 > 1 Não Justificado</span>
+                    <span style="font-size: 11px; padding: 1px 6px; border-radius: 10px; {% if perfil_atraso_filter == 'mais_1_injustificado' %}background: rgba(255,255,255,0.25); color: white;{% else %}background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color);{% endif %}">{{ atrasos_counts.mais_1_injustificado }}</span>
+                </a>
+
+                <a href="?tab=atrasos&perfil_atraso=sem_justificados{% if date_start %}&date_start={{ date_start }}{% endif %}{% if date_end %}&date_end={{ date_end }}{% endif %}{% if classroom_filter %}&classroom={{ classroom_filter|urlencode }}{% endif %}{% if status_aluno_filter %}&status_aluno={{ status_aluno_filter }}{% endif %}{% if student_id_filter %}&student_id={{ student_id_filter }}{% endif %}"
+                   style="text-decoration: none; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;
+                          {% if perfil_atraso_filter == 'sem_justificados' %}background: #b45309; color: white; box-shadow: 0 2px 6px rgba(180, 83, 9, 0.3);{% else %}background: var(--bg-body); color: var(--text-secondary); border: 1px solid var(--border-color);{% endif %}"
+                   title="Alunos com atrasos mas nenhum deles justificado">
+                    <span>⚠️ Nenhum Justificado</span>
+                    <span style="font-size: 11px; padding: 1px 6px; border-radius: 10px; {% if perfil_atraso_filter == 'sem_justificados' %}background: rgba(255,255,255,0.25); color: white;{% else %}background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color);{% endif %}">{{ atrasos_counts.sem_justificados }}</span>
+                </a>
+
+                <a href="?tab=atrasos&perfil_atraso=todos_alunos{% if date_start %}&date_start={{ date_start }}{% endif %}{% if date_end %}&date_end={{ date_end }}{% endif %}{% if classroom_filter %}&classroom={{ classroom_filter|urlencode }}{% endif %}{% if status_aluno_filter %}&status_aluno={{ status_aluno_filter }}{% endif %}{% if student_id_filter %}&student_id={{ student_id_filter }}{% endif %}"
+                   style="text-decoration: none; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;
+                          {% if perfil_atraso_filter == 'todos_alunos' %}background: #475569; color: white; box-shadow: 0 2px 6px rgba(71, 85, 105, 0.3);{% else %}background: var(--bg-body); color: var(--text-secondary); border: 1px solid var(--border-color);{% endif %}">
+                    <span>Todos os Alunos ({{ atrasos_counts.todos_alunos }})</span>
+                </a>
+            </div>
+            
+            <div style="font-size: 12px; font-weight: 700; color: var(--text-secondary);">
+                Mostrando <strong style="color: var(--text-primary);">{{ atrasos_tabela|length }}</strong> crianças
+            </div>
+        </div>
+
+        <!-- Tabela Agrupada por Aluno: Criança | Status | Sala | Perfil | Atrasos Registrados | Justificados | Não Justificados | Total no Ano | Responsável | Ação -->
         <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden;">
             <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); background-color: var(--bg-body); font-weight: 700; color: var(--text-primary); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
@@ -336,11 +406,12 @@
                             <th style="padding: 12px 16px; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 0, 'text')" title="Clique para ordenar por Nome da Criança">Criança <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
                             <th style="padding: 12px 16px; text-align: center; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 1, 'text')" title="Clique para ordenar por Status">Status <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
                             <th style="padding: 12px 16px; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 2, 'text')" title="Clique para ordenar por Sala">Sala <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
-                            <th style="padding: 12px 16px; text-align: center; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 3, 'number')" title="Clique para ordenar pela quantidade de atrasos registrados no período filtrado">Atrasos Registrados <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
-                            <th style="padding: 12px 16px; text-align: center; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 4, 'number')" title="Clique para ordenar por Justificados">Justificados <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
-                            <th style="padding: 12px 16px; text-align: center; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 5, 'number')" title="Clique para ordenar por Não Justificados">Não Justificados <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
-                            <th style="padding: 12px 16px; text-align: center; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 6, 'number')" title="Clique para ordenar por Total de Atrasos no Ano">Total Ano {{ current_year }} <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
-                            <th style="padding: 12px 16px; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 7, 'text')" title="Clique para ordenar por Responsável">Responsável <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
+                            <th style="padding: 12px 16px; text-align: center; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 3, 'text')" title="Clique para ordenar por Perfil de Pontualidade">Perfil <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
+                            <th style="padding: 12px 16px; text-align: center; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 4, 'number')" title="Clique para ordenar pela quantidade de atrasos registrados no período filtrado">Atrasos Registrados <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
+                            <th style="padding: 12px 16px; text-align: center; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 5, 'number')" title="Clique para ordenar por Justificados">Justificados <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
+                            <th style="padding: 12px 16px; text-align: center; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 6, 'number')" title="Clique para ordenar por Não Justificados">Não Justificados <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
+                            <th style="padding: 12px 16px; text-align: center; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 7, 'number')" title="Clique para ordenar por Total de Atrasos no Ano">Total Ano {{ current_year }} <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
+                            <th style="padding: 12px 16px; cursor: pointer; user-select: none;" onclick="sortTable('table-atrasos', 8, 'text')" title="Clique para ordenar por Responsável">Responsável <span class="sort-icon" style="font-size: 11px; opacity: 0.4;">⇅</span></th>
                             <th style="padding: 12px 16px; text-align: center;">Caderno SEAMI</th>
                         </tr>
                     </thead>
@@ -350,7 +421,9 @@
                             <td style="padding: 12px 16px; font-weight: 700;" data-value="{{ row.aluno_nome }}">
                                 <a href="javascript:void(0)" onclick="openAtrasosAlunoModal('{{ row.aluno_id }}')" style="color: #4338ca; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;" title="Clique para ver os dias no caderno">
                                     <span>{{ row.aluno_nome }}</span>
+                                    {% if row.atrasos_registrados > 0 %}
                                     <span style="font-size: 10.5px; color: #6366f1; background: #e0e7ff; padding: 2px 6px; border-radius: 4px; font-weight: 700;">Ver Dias</span>
+                                    {% endif %}
                                 </a>
                             </td>
                             <td style="padding: 12px 16px; text-align: center;" data-value="{{ row.aluno_status_display }}">
@@ -365,10 +438,19 @@
                                     {{ row.turma_style.emoji }} Sala {{ row.turma_nome }}
                                 </span>
                             </td>
+                            <td style="padding: 12px 16px; text-align: center;" data-value="{{ row.perfil_label }}">
+                                <span style="background-color: {{ row.perfil_badge.bg }}; color: {{ row.perfil_badge.color }}; border: 1px solid {{ row.perfil_badge.border }}; padding: 3px 9px; border-radius: 6px; font-weight: 700; font-size: 11px; white-space: nowrap;">
+                                    {{ row.perfil_label }}
+                                </span>
+                            </td>
                             <td style="padding: 12px 16px; text-align: center;" data-value="{{ row.atrasos_registrados }}">
-                                <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 32px; padding: 3px 10px; border-radius: 12px; font-weight: 800; font-size: 12.5px; background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a;" title="{{ row.atrasos_registrados }} atraso(s) registrado(s) no período filtrado">
+                                {% if row.atrasos_registrados > 0 %}
+                                <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 32px; padding: 3px 10px; border-radius: 12px; font-weight: 800; font-size: 12.5px; background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a;" title="{{ row.atrasos_registrados }} atraso(s) registrado(s) no período">
                                     {{ row.atrasos_registrados }}
                                 </span>
+                                {% else %}
+                                <span style="color: #059669; font-weight: 700; font-size: 12px;">0</span>
+                                {% endif %}
                             </td>
                             <td style="padding: 12px 16px; text-align: center;" data-value="{{ row.justificados_periodo }}">
                                 <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 26px; padding: 2px 8px; border-radius: 10px; font-weight: 700; font-size: 11.5px; background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;">
@@ -376,7 +458,7 @@
                                 </span>
                             </td>
                             <td style="padding: 12px 16px; text-align: center;" data-value="{{ row.nao_justificados_periodo }}">
-                                <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 26px; padding: 2px 8px; border-radius: 10px; font-weight: 700; font-size: 11.5px; background-color: #fef2f2; color: #b91c1c; border: 1px solid #fecaca;">
+                                <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 26px; padding: 2px 8px; border-radius: 10px; font-weight: 700; font-size: 11.5px; {% if row.nao_justificados_periodo > 0 %}background-color: #fef2f2; color: #b91c1c; border: 1px solid #fecaca;{% else %}background-color: #f8fafc; color: #64748b; border: 1px solid #e2e8f0;{% endif %}">
                                     {{ row.nao_justificados_periodo }}
                                 </span>
                             </td>
@@ -386,18 +468,31 @@
                             <td style="padding: 12px 16px; font-size: 12.5px;" data-value="{{ row.responsavel }}">
                                 <div style="font-weight: 600; color: var(--text-primary);">{{ row.responsavel }}</div>
                                 {% if row.telefone_responsavel %}
-                                    <div style="font-size: 11.5px; color: var(--text-secondary); font-weight: 500;">📞 {{ row.telefone_responsavel }}</div>
+                                    <div style="font-size: 11.5px; color: var(--text-secondary); font-weight: 500; margin-top: 2px;">📞 {{ row.telefone_responsavel }}</div>
+                                    <a href="https://wa.me/55{{ row.telefone_responsavel|cut:' '|cut:'-'|cut:'('|cut:')' }}?text=Ol%C3%A1%2C%20aqui%20%C3%A9%20do%20SEAMI.%20Gostar%C3%ADamos%20de%20conversar%20sobre%20a%20rotina%20de%20chegada%20do(a)%20{{ row.aluno_nome|urlencode }}." 
+                                       target="_blank" 
+                                       style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; text-decoration: none; margin-top: 4px;"
+                                       title="Conversar com o responsável via WhatsApp">
+                                        <span>💬 WhatsApp</span>
+                                    </a>
                                 {% endif %}
                             </td>
                             <td style="padding: 12px 16px; text-align: center;">
+                                {% if row.atrasos_registrados > 0 %}
                                 <button type="button" onclick="openAtrasosAlunoModal('{{ row.aluno_id }}')" style="padding: 5px 12px; border-radius: 8px; border: 1px solid #c7d2fe; background: #e0e7ff; color: #4338ca; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.15s;" onmouseenter="this.style.background='#c7d2fe'" onmouseleave="this.style.background='#e0e7ff'" title="Ver dias e detalhes dos registros no caderno">
                                     <i data-lucide="calendar" style="width: 13px; height: 13px;"></i>
                                     <span>Ver Dias ({{ row.atrasos_registrados }})</span>
                                 </button>
+                                {% else %}
+                                <span style="color: #059669; font-size: 11.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+                                    <i data-lucide="check-circle" style="width: 13px; height: 13px;"></i>
+                                    <span>Pontual</span>
+                                </span>
+                                {% endif %}
                             </td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="9" style="text-align: center; padding: 36px; color: var(--text-secondary);">Nenhum atraso registrado no período.</td></tr>
+                        <tr><td colspan="10" style="text-align: center; padding: 36px; color: var(--text-secondary);">Nenhum aluno encontrado para este perfil/filtro.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -421,9 +516,9 @@
             </div>
 
             <div class="metric-card" style="border-left: 4px solid #3b82f6;">
-                <div class="metric-header"><span class="metric-title">Total de Matriculados</span><div class="metric-icon-box" style="background: #eff6ff; color: #3b82f6;"><i data-lucide="users"></i></div></div>
+                <div class="metric-header"><span class="metric-title">Matriculados (Máxima)</span><div class="metric-icon-box" style="background: #eff6ff; color: #3b82f6;"><i data-lucide="users"></i></div></div>
                 <div class="metric-value" style="color: #1d4ed8;">{{ freq_cards.total_matriculados }}</div>
-                <div class="metric-footer" style="color: #1d4ed8;"><span>Alunos com matrícula ativa</span></div>
+                <div class="metric-footer" style="color: #1d4ed8;"><span>Pico máximo no período</span></div>
             </div>
 
             <div class="metric-card" style="border-left: 4px solid #10b981;">
@@ -529,12 +624,13 @@
                     </button>
                 </div>
             </div>
-            <div style="overflow-x: auto; max-height: 480px;">
+            <div style="overflow-x: auto; max-height: 520px;">
                 <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13.5px;">
                     <thead>
                         <tr style="border-bottom: 1.5px solid var(--border-color); background-color: var(--bg-body); color: var(--text-secondary); font-size: 12px; text-transform: uppercase; position: sticky; top: 0; z-index: 1;">
                             <th style="padding: 12px 16px; background-color: var(--bg-body);">Mês / Ano</th>
-                            <th style="padding: 12px 16px; text-align: center; background-color: var(--bg-body);">Alunos Matriculados</th>
+                            <th style="padding: 12px 16px; text-align: center; background-color: var(--bg-body);">Origem</th>
+                            <th style="padding: 12px 16px; text-align: center; background-color: var(--bg-body);">Alunos Matriculados (Máxima)</th>
                             <th style="padding: 12px 16px; text-align: center; background-color: var(--bg-body);">Média de Presentes / Dia</th>
                             <th style="padding: 12px 16px; text-align: center; background-color: var(--bg-body);">Ausentes / Faltas Médias</th>
                             <th style="padding: 12px 16px; text-align: center; background-color: var(--bg-body);">Frequência (%)</th>
@@ -544,6 +640,17 @@
                         {% for row in historical_data %}
                         <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.15s;" onmouseenter="this.style.backgroundColor='var(--bg-input)'" onmouseleave="this.style.backgroundColor='transparent'">
                             <td style="padding: 12px 16px; font-weight: 700; color: var(--text-primary);">{{ row.month_formatted }}</td>
+                            <td style="padding: 12px 16px; text-align: center;">
+                                {% if row.origem == 'sistema' %}
+                                    <span style="background: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px;" title="Consolidado automaticamente pelo Diário de Classe do sistema">
+                                        💻 Diário SEAMI
+                                    </span>
+                                {% else %}
+                                    <span style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 11px;" title="Registro histórico importado do banco de dados/Supabase">
+                                        📁 Histórico
+                                    </span>
+                                {% endif %}
+                            </td>
                             <td style="padding: 12px 16px; text-align: center; font-weight: 700;">{{ row.enrolled }}</td>
                             <td style="padding: 12px 16px; text-align: center; font-weight: 700; color: #047857;">{{ row.present }}</td>
                             <td style="padding: 12px 16px; text-align: center; font-weight: 700; color: #b91c1c;">{{ row.absences }}</td>
@@ -557,9 +664,39 @@
                             </td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="5" style="text-align: center; padding: 36px; color: var(--text-secondary);">Nenhum histórico lançado.</td></tr>
+                        <tr><td colspan="6" style="text-align: center; padding: 36px; color: var(--text-secondary);">Nenhum histórico lançado.</td></tr>
                         {% endfor %}
                     </tbody>
+                    {% if consolidado_sistema and consolidado_sistema.total_meses > 0 %}
+                    <tfoot style="background-color: var(--bg-body); border-top: 2px solid var(--border-color); font-weight: 800;">
+                        <tr style="background: #f8fafc;">
+                            <td style="padding: 14px 16px; color: #4338ca; font-size: 13.5px; font-weight: 800;">
+                                ⭐ CONSOLIDADO GERAL (Ago/2026 até Hoje)
+                                <div style="font-size: 11px; font-weight: 500; color: var(--text-secondary);">Período preenchido diretamente pelo sistema ({{ consolidado_sistema.total_meses }} meses)</div>
+                            </td>
+                            <td style="padding: 14px 16px; text-align: center;">
+                                <span style="background: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px;">Consolidado Sistema</span>
+                            </td>
+                            <td style="padding: 14px 16px; text-align: center; font-size: 14px; font-weight: 800; color: #1e293b;" title="Máxima capacidade atingida no período">
+                                {{ consolidado_sistema.matriculados_max }} <span style="font-size: 10px; color: var(--text-secondary);">(Pico)</span>
+                            </td>
+                            <td style="padding: 14px 16px; text-align: center; font-size: 14px; font-weight: 800; color: #047857;">
+                                {{ consolidado_sistema.media_presentes }}
+                            </td>
+                            <td style="padding: 14px 16px; text-align: center; font-size: 14px; font-weight: 800; color: #b91c1c;">
+                                {{ consolidado_sistema.media_ausentes }}
+                            </td>
+                            <td style="padding: 14px 16px; text-align: center;">
+                                <span style="font-weight: 800; font-size: 13px; padding: 3px 12px; border-radius: 20px;
+                                    {% if consolidado_sistema.taxa_frequencia >= 90 %}background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;
+                                    {% elif consolidado_sistema.taxa_frequencia >= 75 %}background: #fffbeb; color: #d97706; border: 1px solid #fcd34d;
+                                    {% else %}background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5;{% endif %}">
+                                    {{ consolidado_sistema.taxa_frequencia }}%
+                                </span>
+                            </td>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
                 </table>
             </div>
         </div>
@@ -1485,6 +1622,8 @@
         "student_status": "{{ row.aluno_status_display|default:'Ativo'|escapejs }}",
         "is_aluno_ativo": {{ row.is_aluno_ativo|default:True|yesno:"true,false" }},
         "classroom": "Sala {{ row.turma_nome|escapejs }}",
+        "perfil_atraso": "{{ row.perfil_atraso|default:'regular'|escapejs }}",
+        "perfil_label": "{{ row.perfil_label|default:'Regular'|escapejs }}",
         "atrasos_registrados": {{ row.atrasos_registrados|default:0 }},
         "justificados": {{ row.justificados_periodo|default:0 }},
         "nao_justificados": {{ row.nao_justificados_periodo|default:0 }},
@@ -1712,6 +1851,7 @@
                     "Criança": r.student_name,
                     "Status do Aluno": r.student_status || "Ativo",
                     "Sala / Turma": r.classroom,
+                    "Perfil de Pontualidade": r.perfil_label || "Regular",
                     "Atrasos Registrados": r.atrasos_registrados || 0,
                     "Justificados": r.justificados || 0,
                     "Não Justificados": r.nao_justificados || 0,
@@ -1720,7 +1860,7 @@
                 }));
 
                 const ws = XLSX.utils.json_to_sheet(rows);
-                ws['!cols'] = [{wch: 32}, {wch: 16}, {wch: 18}, {wch: 22}, {wch: 16}, {wch: 18}, {wch: 16}, {wch: 32}];
+                ws['!cols'] = [{wch: 32}, {wch: 16}, {wch: 18}, {wch: 24}, {wch: 20}, {wch: 16}, {wch: 18}, {wch: 16}, {wch: 32}];
                 XLSX.utils.book_append_sheet(wb, ws, "Relatório de Atrasos");
                 XLSX.writeFile(wb, `Relatorio_Atrasos_SEAMI_${todayStr}.xlsx`);
 
@@ -2224,6 +2364,7 @@
                 r.student_name,
                 r.student_status || "Ativo",
                 r.classroom,
+                r.perfil_label || "Regular",
                 String(r.atrasos_registrados || 0),
                 String(r.justificados || 0),
                 String(r.nao_justificados || 0),
@@ -2233,7 +2374,7 @@
 
             doc.autoTable({
                 startY: 36,
-                head: [['Criança', 'Status', 'Sala', 'Atrasos no Mês', 'Justificados', 'Não Justificados', 'Total Ano', 'Responsável']],
+                head: [['Criança', 'Status', 'Sala', 'Perfil', 'Atrasos no Período', 'Justificados', 'Não Justificados', 'Total Ano', 'Responsável']],
                 body: bodyRows,
                 theme: 'grid',
                 headStyles: { fillColor: [217, 119, 6], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },

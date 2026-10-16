@@ -1070,21 +1070,132 @@ def build_relatorios_context(request):
             'responsavel': oc.aluno.nome_responsavel if (oc.aluno and oc.aluno.nome_responsavel) else 'Responsável familiar',
         })
 
-    atrasos_tabela_list = list(atrasos_por_aluno.values())
-    # Ordena decrescente pela quantidade de atrasos registrados no período
-    atrasos_tabela_list.sort(key=lambda x: x['atrasos_registrados'], reverse=True)
+    # Base completa de alunos para atender filtros como "zero_atrasos", "sem_nao_justificados" e "todos_alunos"
+    alunos_base_atraso_qs = Aluno.objects.all().select_related('turma')
+    if classroom_filter:
+        alunos_base_atraso_qs = alunos_base_atraso_qs.filter(
+            Q(turma__nome__iexact=classroom_filter) |
+            Q(turma__nome__iexact=classroom_clean) |
+            Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
+        )
+    if student_id_filter and student_id_filter.isdigit():
+        alunos_base_atraso_qs = alunos_base_atraso_qs.filter(id=int(student_id_filter))
+    if status_aluno_filter == 'ativos':
+        alunos_base_atraso_qs = alunos_base_atraso_qs.filter(ativo=True)
+    elif status_aluno_filter == 'inativos':
+        alunos_base_atraso_qs = alunos_base_atraso_qs.filter(ativo=False)
+
+    # Inclui alunos da base que tiveram 0 atrasos no período
+    for al in alunos_base_atraso_qs:
+        if al.id not in atrasos_por_aluno:
+            nome_sala = al.turma.nome.lower().strip() if al.turma else ''
+            turma_style = cores_salas.get(nome_sala, {'bg': '#f1f5f9', 'color': '#475569', 'border': '#cbd5e1', 'emoji': '🏫'})
+            is_aluno_ativo = al.ativo
+            aluno_status_display = 'Ativo' if is_aluno_ativo else 'Inativo'
+            atrasos_aluno_ano = mapa_atrasos_ano.get(al.id, 0)
+
+            atrasos_por_aluno[al.id] = {
+                'aluno_id': al.id,
+                'aluno': al,
+                'aluno_nome': al.nome,
+                'is_aluno_ativo': is_aluno_ativo,
+                'aluno_status_display': aluno_status_display,
+                'turma': al.turma,
+                'turma_nome': al.turma.nome if al.turma else 'Geral',
+                'turma_style': turma_style,
+                'responsavel': al.nome_responsavel if al.nome_responsavel else 'Responsável familiar',
+                'telefone_responsavel': al.telefone_responsavel or '',
+                'atrasos_registrados': 0,
+                'justificados_periodo': 0,
+                'nao_justificados_periodo': 0,
+                'atrasos_no_ano': atrasos_aluno_ano,
+                'ocorrencias': []
+            }
+
+    # Classificação semântica de perfis e cálculo de contadores rápidos
+    perfil_atraso_filter = request.GET.get('perfil_atraso', 'todos_atrasos')
+
+    count_todos_atraso = 0
+    count_zero_atrasos = 0
+    count_sem_nao_justificados = 0
+    count_mais_1_injustificado = 0
+    count_sem_justificados = 0
+    count_todos_alunos = len(atrasos_por_aluno)
+
+    for item in atrasos_por_aluno.values():
+        tot = item['atrasos_registrados']
+        just = item['justificados_periodo']
+        injust = item['nao_justificados_periodo']
+
+        if tot > 0:
+            count_todos_atraso += 1
+
+        if tot == 0:
+            count_zero_atrasos += 1
+            count_sem_nao_justificados += 1
+            item['perfil_atraso'] = 'zero_atrasos'
+            item['perfil_label'] = '100% Pontual (0 atrasos)'
+            item['perfil_badge'] = {'bg': '#ecfdf5', 'color': '#047857', 'border': '#a7f3d0'}
+        elif injust == 0:
+            count_sem_nao_justificados += 1
+            item['perfil_atraso'] = 'apenas_justificados'
+            item['perfil_label'] = 'Apenas Justificados'
+            item['perfil_badge'] = {'bg': '#f0fdf4', 'color': '#16a34a', 'border': '#bbf7d0'}
+        elif injust > 1 and just == 0:
+            count_mais_1_injustificado += 1
+            count_sem_justificados += 1
+            item['perfil_atraso'] = 'critico'
+            item['perfil_label'] = f'Crítico ({injust} s/ just.)'
+            item['perfil_badge'] = {'bg': '#fef2f2', 'color': '#991b1b', 'border': '#fecaca'}
+        elif injust > 1:
+            count_mais_1_injustificado += 1
+            item['perfil_atraso'] = 'mais_1_injustificado'
+            item['perfil_label'] = f'Reincidente ({injust} injust.)'
+            item['perfil_badge'] = {'bg': '#fff1f2', 'color': '#e11d48', 'border': '#fecdd3'}
+        elif just == 0:
+            count_sem_justificados += 1
+            item['perfil_atraso'] = 'sem_justificados'
+            item['perfil_label'] = '100% Injustificado'
+            item['perfil_badge'] = {'bg': '#fffbeb', 'color': '#b45309', 'border': '#fde68a'}
+        else:
+            item['perfil_atraso'] = 'regular'
+            item['perfil_label'] = 'Atraso Misto'
+            item['perfil_badge'] = {'bg': '#f8fafc', 'color': '#475569', 'border': '#cbd5e1'}
+
+    todos_alunos_list = list(atrasos_por_aluno.values())
+
+    # Aplicação do filtro de perfil solicitado
+    if perfil_atraso_filter == 'sem_nao_justificados':
+        # Quem tem NENHUM registro de atraso não justificado (inclui pontuais e quem só teve justificados)
+        atrasos_tabela_list = [a for a in todos_alunos_list if a['nao_justificados_periodo'] == 0]
+        atrasos_tabela_list.sort(key=lambda x: (x['atrasos_registrados'], x['aluno_nome']))
+    elif perfil_atraso_filter == 'zero_atrasos':
+        # Quem NÃO TEM NENHUM registro de atraso (100% pontual)
+        atrasos_tabela_list = [a for a in todos_alunos_list if a['atrasos_registrados'] == 0]
+        atrasos_tabela_list.sort(key=lambda x: x['aluno_nome'])
+    elif perfil_atraso_filter == 'mais_1_injustificado':
+        # Quem tem mais de 1 atraso não justificado
+        atrasos_tabela_list = [a for a in todos_alunos_list if a['nao_justificados_periodo'] > 1]
+        atrasos_tabela_list.sort(key=lambda x: (x['nao_justificados_periodo'], x['atrasos_registrados']), reverse=True)
+    elif perfil_atraso_filter == 'sem_justificados':
+        # Quem tem atrasos, mas NENHUM justificado
+        atrasos_tabela_list = [a for a in todos_alunos_list if a['justificados_periodo'] == 0 and a['atrasos_registrados'] > 0]
+        atrasos_tabela_list.sort(key=lambda x: x['atrasos_registrados'], reverse=True)
+    elif perfil_atraso_filter == 'todos_alunos':
+        atrasos_tabela_list = list(todos_alunos_list)
+        atrasos_tabela_list.sort(key=lambda x: (x['atrasos_registrados'], x['aluno_nome']), reverse=True)
+    else: # 'todos_atrasos' (padrão)
+        atrasos_tabela_list = [a for a in todos_alunos_list if a['atrasos_registrados'] > 0]
+        atrasos_tabela_list.sort(key=lambda x: x['atrasos_registrados'], reverse=True)
 
 
     # =========================================================================
-    # 3. ABA FREQUÊNCIA VS MATRICULADOS
+    # 3. ABA FREQUÊNCIA VS MATRICULADOS & DADOS HISTÓRICOS UNIFICADOS
     # =========================================================================
-    # =========================================================================
-    # 3. ABA FREQUÊNCIA VS MATRICULADOS & DADOS HISTÓRICOS DO SUPABASE
-    # =========================================================================
-    from presencas.services import get_historical_frequency_data
+    from presencas.services import get_historical_frequency_data, calcular_consolidado_mensal_sistema
     historical_raw_data = get_historical_frequency_data()
 
-    # Formata a lista histórica completa (2019 a 2026)
+    # Formata a lista histórica legada (2019 até Julho de 2026)
     historical_formatted_list = []
     historical_by_year_map = {}
     available_years_set = set()
@@ -1095,6 +1206,10 @@ def build_relatorios_context(request):
             continue
         try:
             y_val, m_val = int(m_str.split('-')[0]), int(m_str.split('-')[1])
+            # Se for Agosto/2026 em diante, será gerado em tempo real pelo sistema
+            if y_val == 2026 and m_val >= 8:
+                continue
+
             available_years_set.add(y_val)
             enrolled = int(h.get('enrolled', 0))
             present = int(h.get('present', 0))
@@ -1113,6 +1228,9 @@ def build_relatorios_context(request):
                 'present': present,
                 'absences': absences,
                 'percentage': pct,
+                'origem': 'historico',
+                'origem_label': 'Histórico',
+                'dias_letivos': '-',
             }
             historical_formatted_list.append(item)
             if y_val not in historical_by_year_map:
@@ -1121,6 +1239,24 @@ def build_relatorios_context(request):
         except Exception:
             continue
 
+    # Calcula e injeta os meses operacionais do sistema (Agosto/2026 até hoje) com a MÁXIMA de matriculados
+    turma_id_int = int(classroom_filter) if (classroom_filter and classroom_filter.isdigit()) else None
+    meses_sistema, consolidado_sistema = calcular_consolidado_mensal_sistema(
+        ano_inicio=2026,
+        mes_inicio=8,
+        turma_id=turma_id_int,
+        status_aluno=status_aluno_filter
+    )
+
+    for ms in meses_sistema:
+        historical_formatted_list.append(ms)
+        available_years_set.add(ms['year'])
+        if ms['year'] not in historical_by_year_map:
+            historical_by_year_map[ms['year']] = []
+        historical_by_year_map[ms['year']].append(ms)
+
+    # Ordena a tabela histórica unificada decrescente (mais recente no topo)
+    historical_formatted_list.sort(key=lambda x: (x['year'], x['month_num']), reverse=True)
     available_years = sorted(list(available_years_set), reverse=True)
 
     # Considera estritamente dias úteis (Segunda a Sexta)
@@ -1144,16 +1280,33 @@ def build_relatorios_context(request):
     dias_com_chamada_count = len(datas_chamada_distintas) or 1
 
     aluno_mat_base = Aluno.objects.all()
+    if classroom_filter:
+        aluno_mat_base = aluno_mat_base.filter(Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None))
     if status_aluno_filter == 'ativos':
         aluno_mat_base = aluno_mat_base.filter(ativo=True)
     elif status_aluno_filter == 'inativos':
         aluno_mat_base = aluno_mat_base.filter(ativo=False)
 
-    total_matriculados_ativos = aluno_mat_base.filter(
-        Q(data_entrada__isnull=True) | Q(data_entrada__lte=date_end)
-    ).filter(
-        Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=date_start)
-    ).count()
+    # MÁXIMA de alunos matriculados ativos no período selecionado (Pico simultâneo de matrículas)
+    max_matriculados_periodo = 0
+    dias_para_pico = sorted(list(datas_chamada_distintas)) if datas_chamada_distintas else [date_start, date_end]
+    for d_pico in dias_para_pico:
+        c_pico = aluno_mat_base.filter(
+            Q(data_entrada__isnull=True) | Q(data_entrada__lte=d_pico)
+        ).filter(
+            Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=d_pico)
+        ).count()
+        if c_pico > max_matriculados_periodo:
+            max_matriculados_periodo = c_pico
+
+    if max_matriculados_periodo == 0:
+        max_matriculados_periodo = aluno_mat_base.filter(
+            Q(data_entrada__isnull=True) | Q(data_entrada__lte=date_end)
+        ).filter(
+            Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=date_start)
+        ).count()
+
+    total_matriculados_ativos = max_matriculados_periodo
 
     total_pres_p = registros_periodo_all.filter(status=StatusPresenca.PRESENTE).count()
     total_falt_p = registros_periodo_all.filter(status__in=[StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO]).count()
@@ -1163,34 +1316,28 @@ def build_relatorios_context(request):
     frequencia_media_taxa = round((total_pres_p / total_reg_p) * 100) if total_reg_p > 0 else 100
 
     # Monta os dados para o gráfico consolidado mês a mês do ano atual (2026) combinando histórico + tempo real
-    # Mapeia Jan a Ago de 2026
-    freq_mes_labels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago']
+    MONTH_ABBREV_LIST = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+    import calendar as _cal
+    from django.utils import timezone as _tz
+    _mes_atual_sistema = _tz.localdate().month if current_year == _tz.localdate().year else 12
+    max_mes_grafico = max(_mes_atual_sistema, 8) if current_year == 2026 else 12
+
+    freq_mes_labels = [MONTH_ABBREV_LIST[m] for m in range(1, max_mes_grafico + 1)]
     freq_mes_presentes = []
     freq_mes_ausentes = []
     freq_mes_matriculados = []
 
-    for m_i in range(1, 9):
+    for m_i in range(1, max_mes_grafico + 1):
         m_k = f"{current_year}-{m_i:02d}"
         h_found = next((h for h in historical_formatted_list if h['month'] == m_k), None)
-        if h_found and status_aluno_filter == 'all':
+        if h_found and status_aluno_filter == 'all' and not classroom_filter:
             freq_mes_presentes.append(h_found['present'])
             freq_mes_ausentes.append(h_found['absences'])
             freq_mes_matriculados.append(h_found['enrolled'])
         else:
-            import calendar as _cal
             _last_day = _cal.monthrange(current_year, m_i)[1]
             start_m_i = date(current_year, m_i, 1)
             end_m_i = date(current_year, m_i, _last_day)
-
-            # Total Geral de Matriculados no mês (pertencem quem entrou e quem saiu no mês)
-            mat_mes_qs = aluno_mat_base.filter(
-                Q(data_entrada__isnull=True) | Q(data_entrada__lte=end_m_i)
-            ).filter(
-                Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=start_m_i)
-            )
-            if classroom_filter:
-                mat_mes_qs = mat_mes_qs.filter(Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None))
-            m_val = mat_mes_qs.count()
 
             # Chamadas do mês estritamente em dias úteis (Segunda a Sexta)
             regs_mes = RegistroPresenca.objects.filter(
@@ -1206,10 +1353,29 @@ def build_relatorios_context(request):
                 regs_mes = regs_mes.filter(aluno__ativo=False)
 
             dias_chamada_mes = len(set(regs_mes.values_list('data', flat=True)))
+            
+            # MÁXIMA de matriculados no mês (Pico simultâneo de matrículas)
+            max_m_val = 0
+            datas_chamada_m = set(regs_mes.values_list('data', flat=True)) if dias_chamada_mes > 0 else set()
+            dias_teste_m = sorted(list(datas_chamada_m)) if datas_chamada_m else [
+                date(current_year, m_i, _d) for _d in range(1, _last_day + 1)
+                if date(current_year, m_i, _d).weekday() < 5
+            ]
+            for _d_t in dias_teste_m:
+                _c_m = aluno_mat_base.filter(
+                    Q(data_entrada__isnull=True) | Q(data_entrada__lte=_d_t)
+                ).filter(
+                    Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=_d_t)
+                ).count()
+                if _c_m > max_m_val:
+                    max_m_val = _c_m
+
+            m_val = max_m_val or aluno_mat_base.count()
+
             p_val = 0
             if dias_chamada_mes > 0:
                 pres_mes = regs_mes.filter(status=StatusPresenca.PRESENTE).count()
-                p_val = pres_mes // dias_chamada_mes
+                p_val = round(pres_mes / dias_chamada_mes)
 
             a_val = max(m_val - p_val, 0)
 
@@ -1234,9 +1400,7 @@ def build_relatorios_context(request):
         ).filter(
             Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=d)
         )
-        if classroom_filter:
-            mat_d_qs = mat_d_qs.filter(Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None))
-        mat_d = mat_d_qs.count() or total_matriculados_ativos
+        mat_d = mat_d_qs.count() or max_matriculados_periodo
 
         freq_tabela_list.append({
             'data': d,
@@ -1354,12 +1518,23 @@ def build_relatorios_context(request):
         # ==========================================
         # 2. DADOS ABA ATRASOS
         # ==========================================
+        'perfil_atraso_filter': perfil_atraso_filter,
+        'atrasos_counts': {
+            'todos_atraso': count_todos_atraso,
+            'zero_atrasos': count_zero_atrasos,
+            'sem_nao_justificados': count_sem_nao_justificados,
+            'mais_1_injustificado': count_mais_1_injustificado,
+            'sem_justificados': count_sem_justificados,
+            'todos_alunos': count_todos_alunos,
+        },
         'atrasos_cards': {
             'total_periodo': total_atrasos_periodo,
             'justificados_periodo': total_justificados_atrasos_periodo,
             'nao_justificados_periodo': total_nao_justificados_atrasos_periodo,
             'total_ano': total_atrasos_ano_geral,
             'criancas_impactadas': len(criancas_impactadas_atrasos_set),
+            'count_zero_atrasos': count_zero_atrasos,
+            'count_mais_1_injustificado': count_mais_1_injustificado,
         },
         'atrasos_tabela': atrasos_tabela_list,
 
@@ -1368,10 +1543,11 @@ def build_relatorios_context(request):
         # ==========================================
         'freq_cards': {
             'dias_com_chamada': dias_com_chamada_count,
-            'total_matriculados': total_matriculados_ativos,
+            'total_matriculados': max_matriculados_periodo,
             'media_presentes_dia': media_presentes_dia,
             'frequencia_media': frequencia_media_taxa,
         },
+        'consolidado_sistema': consolidado_sistema,
         'freq_chart_json': json.dumps({
             'labels': freq_mes_labels,
             'presentes': freq_mes_presentes,
@@ -1486,12 +1662,13 @@ def relatorios_view(request):
                     row['faltas_no_ano']
                 ])
         elif active_tab == 'atrasos':
-            writer.writerow(['Criança', 'Status do Aluno', 'Sala', 'Atrasos Registrados (Período)', 'Justificados', 'Não Justificados', 'Total no Ano', 'Responsável', 'Telefone'])
+            writer.writerow(['Criança', 'Status do Aluno', 'Sala', 'Perfil de Pontualidade', 'Atrasos Registrados (Período)', 'Justificados', 'Não Justificados', 'Total no Ano', 'Responsável', 'Telefone'])
             for row in context['atrasos_tabela']:
                 writer.writerow([
                     row.get('aluno_nome', ''),
                     row.get('aluno_status_display', 'Ativo'),
                     row.get('turma_nome', ''),
+                    row.get('perfil_label', ''),
                     row.get('atrasos_registrados', 0),
                     row.get('justificados_periodo', 0),
                     row.get('nao_justificados_periodo', 0),
@@ -1500,10 +1677,11 @@ def relatorios_view(request):
                     row.get('telefone_responsavel', ''),
                 ])
         elif active_tab == 'frequencia':
-            writer.writerow(['Data / Mês', 'Alunos Matriculados', 'Alunos Presentes', 'Faltas / Ausentes', 'Frequência (%)'])
+            writer.writerow(['Data / Mês', 'Tipo / Origem', 'Alunos Matriculados (Máxima)', 'Alunos Presentes (Média)', 'Faltas / Ausentes', 'Frequência (%)'])
             for row in context['freq_tabela']:
                 writer.writerow([
                     row['data'].strftime('%d/%m/%Y'),
+                    'Diário de Classe (Dia)',
                     row['matriculados'],
                     row['presentes'],
                     row['faltas'],
@@ -1512,7 +1690,7 @@ def relatorios_view(request):
             for h in context['historical_data']:
                 writer.writerow([
                     h['month_formatted'],
-                    'Consolidado Histórico',
+                    h.get('origem_label', 'Histórico'),
                     h['enrolled'],
                     h['present'],
                     h['absences'],

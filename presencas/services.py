@@ -268,6 +268,148 @@ def get_historical_frequency_data():
     ]
 
 
+def calcular_consolidado_mensal_sistema(ano_inicio: int = 2026, mes_inicio: int = 8, turma_id=None, status_aluno='all'):
+    """
+    Consolida mês a mês as chamadas do Diário de Classe do sistema a partir de Agosto de 2026 até o presente.
+    Calcula:
+      - Matriculados: MÁXIMA de alunos matriculados ativos no mês (capacidade de pico diária).
+      - Presentes: Média diária de alunos presentes em dias úteis com chamada.
+      - Ausentes: Máxima de matriculados - Média de presentes.
+      - Taxa de Frequência: (Presentes / Máxima de Matriculados) * 100.
+    Retorna a lista de meses calculados e o resumo consolidado do período inteiro preenchido pelo sistema.
+    """
+    import calendar
+    from datetime import date
+    from django.utils import timezone
+    from django.db.models import Q
+    from .models import Aluno, RegistroPresenca, StatusPresenca
+
+    hoje = timezone.localdate()
+    ano_atual = hoje.year
+    mes_atual = hoje.month
+
+    MONTH_NAMES_EXTENSO = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+
+    aluno_base = Aluno.objects.all()
+    if turma_id:
+        aluno_base = aluno_base.filter(turma_id=turma_id)
+    if status_aluno == 'ativos':
+        aluno_base = aluno_base.filter(ativo=True)
+    elif status_aluno == 'inativos':
+        aluno_base = aluno_base.filter(ativo=False)
+
+    meses_calculados = []
+    total_presentes_acumulado = 0
+    total_dias_letivos_acumulado = 0
+    max_matriculados_geral = 0
+
+    for ano in range(ano_inicio, ano_atual + 1):
+        m_start = mes_inicio if ano == ano_inicio else 1
+        m_end = mes_atual if ano == ano_atual else 12
+
+        for mes in range(m_start, m_end + 1):
+            ultimo_dia = calendar.monthrange(ano, mes)[1]
+            data_inicio_mes = date(ano, mes, 1)
+            data_fim_mes = date(ano, mes, ultimo_dia)
+            mes_key = f"{ano}-{mes:02d}"
+
+            # Registros de Presença em dias úteis (Segunda a Sexta)
+            regs_mes = RegistroPresenca.objects.filter(
+                data__gte=data_inicio_mes,
+                data__lte=data_fim_mes,
+                data__week_day__in=[2, 3, 4, 5, 6]
+            )
+            if turma_id:
+                regs_mes = regs_mes.filter(turma_id=turma_id)
+            if status_aluno == 'ativos':
+                regs_mes = regs_mes.filter(aluno__ativo=True)
+            elif status_aluno == 'inativos':
+                regs_mes = regs_mes.filter(aluno__ativo=False)
+
+            dias_com_chamada = len(set(regs_mes.values_list('data', flat=True)))
+            
+            # Se for mês sem chamadas lançadas, ignora para não poluir com 0%
+            if dias_com_chamada == 0:
+                continue
+
+            # 1. MÁXIMA de alunos matriculados ativos no mês
+            max_matriculados_mes = 0
+            datas_chamada = set(regs_mes.values_list('data', flat=True)) if dias_com_chamada > 0 else set()
+            
+            dias_para_checar = sorted(list(datas_chamada)) if datas_chamada else [
+                date(ano, mes, d) for d in range(1, ultimo_dia + 1)
+                if date(ano, mes, d).weekday() < 5 and date(ano, mes, d) <= hoje
+            ]
+
+            for d_check in dias_para_checar:
+                count_dia = aluno_base.filter(
+                    Q(data_entrada__isnull=True) | Q(data_entrada__lte=d_check)
+                ).filter(
+                    Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=d_check)
+                ).count()
+                if count_dia > max_matriculados_mes:
+                    max_matriculados_mes = count_dia
+
+            if max_matriculados_mes == 0:
+                max_matriculados_mes = aluno_base.filter(
+                    Q(data_entrada__isnull=True) | Q(data_entrada__lte=data_fim_mes)
+                ).filter(
+                    Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=data_inicio_mes)
+                ).count()
+
+            if max_matriculados_mes > max_matriculados_geral:
+                max_matriculados_geral = max_matriculados_mes
+
+            # 2. Média de alunos presentes / dia
+            if dias_com_chamada > 0:
+                pres_count = regs_mes.filter(status=StatusPresenca.PRESENTE).count()
+                p_media = round(pres_count / dias_com_chamada)
+                total_presentes_acumulado += pres_count
+                total_dias_letivos_acumulado += dias_com_chamada
+            else:
+                p_media = 0
+
+            a_media = max(0, max_matriculados_mes - p_media)
+            pct = round((p_media / max_matriculados_mes) * 100) if max_matriculados_mes > 0 else 0
+            m_ext = MONTH_NAMES_EXTENSO[mes] if (0 <= mes < len(MONTH_NAMES_EXTENSO)) else str(mes)
+
+            meses_calculados.append({
+                'id': f"sistema_{mes_key}",
+                'month': mes_key,
+                'month_formatted': f"{m_ext} / {ano}",
+                'year': ano,
+                'month_num': mes,
+                'enrolled': max_matriculados_mes,  # MÁXIMA
+                'present': p_media,
+                'absences': a_media,
+                'percentage': pct,
+                'origem': 'sistema',
+                'origem_label': 'Diário SEAMI',
+                'dias_letivos': dias_com_chamada,
+            })
+
+    # Resumo Consolidado Geral do Período do Sistema (Agosto/2026 até Hoje)
+    if total_dias_letivos_acumulado > 0:
+        media_presentes_geral = round(total_presentes_acumulado / total_dias_letivos_acumulado)
+    else:
+        media_presentes_geral = 0
+    
+    media_ausentes_geral = max(0, max_matriculados_geral - media_presentes_geral)
+    taxa_frequencia_geral = round((media_presentes_geral / max_matriculados_geral) * 100) if max_matriculados_geral > 0 else 0
+
+    consolidado_resumo = {
+        'matriculados_max': max_matriculados_geral,
+        'media_presentes': media_presentes_geral,
+        'media_ausentes': media_ausentes_geral,
+        'taxa_frequencia': taxa_frequencia_geral,
+        'total_dias_letivos': total_dias_letivos_acumulado,
+        'total_meses': len(meses_calculados),
+    }
+
+    return meses_calculados, consolidado_resumo
+
+
+
 def sincronizar_automacoes_enfermaria(atendimento, user=None):
     """
     Sincroniza as ocorrências do Caderno SEAMI e registros de presença vinculados ao atendimento:
