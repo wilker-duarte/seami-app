@@ -1891,6 +1891,10 @@ def central_exportacao_view(request):
                         "comorbidades": a.comorbidades or "",
                         "nome_responsavel": a.nome_responsavel,
                         "telefone_responsavel": a.telefone_responsavel,
+                        "email_responsavel": a.email_responsavel,
+                        "nome_responsavel_2": a.nome_responsavel_2,
+                        "telefone_responsavel_2": a.telefone_responsavel_2,
+                        "email_responsavel_2": a.email_responsavel_2,
                     }
                     for a in qs
                 ]
@@ -1905,7 +1909,8 @@ def central_exportacao_view(request):
                     "ID", "Nome da Criança", "Turma ID", "Turma / Sala", "Turno", "Data de Nascimento",
                     "Data de Entrada", "Data de Desligamento", "Status Ativo", "Acompanhamento Especial",
                     "Observações Acompanhamento", "Dias de Acompanhamento", "Alergias", "Restrições Alimentares", "Comorbidades",
-                    "Nome do Responsável", "Telefone do Responsável"
+                    "Nome do Responsável", "Telefone do Responsável", "E-mail do Responsável",
+                    "Nome do 2º Responsável", "Telefone do 2º Responsável", "E-mail do 2º Responsável"
                 ])
                 for a in qs:
                     w.writerow([
@@ -1926,6 +1931,10 @@ def central_exportacao_view(request):
                         a.comorbidades or "",
                         a.nome_responsavel,
                         a.telefone_responsavel,
+                        a.email_responsavel,
+                        a.nome_responsavel_2,
+                        a.telefone_responsavel_2,
+                        a.email_responsavel_2,
                     ])
                 return resp
 

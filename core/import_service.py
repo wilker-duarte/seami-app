@@ -150,6 +150,10 @@ def import_alunos(rows, user=None):
             comorbidades = r.get('Comorbidades') or r.get('comorbidades') or ''
             resp = r.get('Nome do Responsável') or r.get('nome_responsavel') or ''
             tel = r.get('Telefone do Responsável') or r.get('telefone_responsavel') or ''
+            email = r.get('E-mail do Responsável') or r.get('Email do Responsável') or r.get('email_responsavel') or ''
+            resp2 = r.get('Nome do 2º Responsável') or r.get('nome_responsavel_2') or ''
+            tel2 = r.get('Telefone do 2º Responsável') or r.get('telefone_responsavel_2') or ''
+            email2 = r.get('E-mail do 2º Responsável') or r.get('Email do 2º Responsável') or r.get('email_responsavel_2') or ''
 
             aluno_id = r.get('ID') or r.get('id')
             aluno = None
@@ -174,6 +178,10 @@ def import_alunos(rows, user=None):
                         'comorbidades': comorbidades,
                         'nome_responsavel': resp,
                         'telefone_responsavel': tel,
+                        'email_responsavel': email,
+                        'nome_responsavel_2': resp2,
+                        'telefone_responsavel_2': tel2,
+                        'email_responsavel_2': email2,
                     }
                 )
                 if was_created:
@@ -193,6 +201,10 @@ def import_alunos(rows, user=None):
                     if comorbidades: aluno.comorbidades = comorbidades
                     if resp: aluno.nome_responsavel = resp
                     if tel: aluno.telefone_responsavel = tel
+                    if email: aluno.email_responsavel = email
+                    if resp2: aluno.nome_responsavel_2 = resp2
+                    if tel2: aluno.telefone_responsavel_2 = tel2
+                    if email2: aluno.email_responsavel_2 = email2
                     aluno.save()
                     updated += 1
             else:
@@ -211,6 +223,10 @@ def import_alunos(rows, user=None):
                 if comorbidades: aluno.comorbidades = comorbidades
                 if resp: aluno.nome_responsavel = resp
                 if tel: aluno.telefone_responsavel = tel
+                if email: aluno.email_responsavel = email
+                if resp2: aluno.nome_responsavel_2 = resp2
+                if tel2: aluno.telefone_responsavel_2 = tel2
+                if email2: aluno.email_responsavel_2 = email2
                 aluno.save()
                 updated += 1
     return created, updated

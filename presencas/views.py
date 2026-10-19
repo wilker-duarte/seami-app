@@ -1035,8 +1035,14 @@ def lista_alunos_view(request):
 
             nome_responsavel = request.POST.get('nome_responsavel', '').strip()
             telefone_responsavel = request.POST.get('telefone_responsavel', '').strip()
+            email_responsavel = request.POST.get('email_responsavel', '').strip()
+            nome_responsavel_2 = request.POST.get('nome_responsavel_2', '').strip()
+            telefone_responsavel_2 = request.POST.get('telefone_responsavel_2', '').strip()
+            email_responsavel_2 = request.POST.get('email_responsavel_2', '').strip()
             ativo = request.POST.get('ativo') == 'on'
 
+            data_nascimento_str = request.POST.get('data_nascimento', '').strip()
+            data_nascimento = datetime.strptime(data_nascimento_str, '%Y-%m-%d').date() if data_nascimento_str else None
             data_entrada = datetime.strptime(data_entrada_str, '%Y-%m-%d').date() if data_entrada_str else today
             data_desligamento = datetime.strptime(data_desligamento_str, '%Y-%m-%d').date() if data_desligamento_str else None
             turma = get_object_or_404(Turma, id=turma_id)
@@ -1054,6 +1060,7 @@ def lista_alunos_view(request):
                     nome=nome,
                     turma=turma,
                     turno=turno,
+                    data_nascimento=data_nascimento,
                     data_entrada=data_entrada,
                     data_desligamento=data_desligamento,
                     has_acompanhamento=has_acompanhamento,
@@ -1064,6 +1071,10 @@ def lista_alunos_view(request):
                     comorbidades=comorbidades,
                     nome_responsavel=nome_responsavel,
                     telefone_responsavel=telefone_responsavel,
+                    email_responsavel=email_responsavel,
+                    nome_responsavel_2=nome_responsavel_2,
+                    telefone_responsavel_2=telefone_responsavel_2,
+                    email_responsavel_2=email_responsavel_2,
                     ativo=ativo
                 )
             elif action == 'update' and aluno_id:
@@ -1071,6 +1082,7 @@ def lista_alunos_view(request):
                 aluno.nome = nome
                 aluno.turma = turma
                 aluno.turno = turno
+                aluno.data_nascimento = data_nascimento
                 aluno.data_entrada = data_entrada
                 aluno.data_desligamento = data_desligamento
                 aluno.has_acompanhamento = has_acompanhamento
@@ -1081,6 +1093,10 @@ def lista_alunos_view(request):
                 aluno.comorbidades = comorbidades
                 aluno.nome_responsavel = nome_responsavel
                 aluno.telefone_responsavel = telefone_responsavel
+                aluno.email_responsavel = email_responsavel
+                aluno.nome_responsavel_2 = nome_responsavel_2
+                aluno.telefone_responsavel_2 = telefone_responsavel_2
+                aluno.email_responsavel_2 = email_responsavel_2
                 aluno.ativo = ativo
                 aluno.save()
 
@@ -1112,7 +1128,11 @@ def lista_alunos_view(request):
         alunos_qs = alunos_qs.filter(
             Q(nome__icontains=search) |
             Q(nome_responsavel__icontains=search) |
-            Q(telefone_responsavel__icontains=search)
+            Q(telefone_responsavel__icontains=search) |
+            Q(email_responsavel__icontains=search) |
+            Q(nome_responsavel_2__icontains=search) |
+            Q(telefone_responsavel_2__icontains=search) |
+            Q(email_responsavel_2__icontains=search)
         )
 
     if classroom_filter:
@@ -1170,6 +1190,7 @@ def lista_alunos_view(request):
             'turma_style': turma_style,
             'turno': aluno.get_turno_display(),
             'turno_raw': aluno.turno,
+            'data_nascimento': aluno.data_nascimento,
             'data_entrada': aluno.data_entrada,
             'data_desligamento': aluno.data_desligamento,
             'is_desligamento_futuro': is_desligamento_futuro,
@@ -1182,6 +1203,12 @@ def lista_alunos_view(request):
             'comorbidades': aluno.comorbidades or '',
             'nome_responsavel': aluno.nome_responsavel or '',
             'telefone_responsavel': aluno.telefone_responsavel or '',
+            'email_responsavel': aluno.email_responsavel or '',
+            'nome_responsavel_2': aluno.nome_responsavel_2 or '',
+            'telefone_responsavel_2': aluno.telefone_responsavel_2 or '',
+            'email_responsavel_2': aluno.email_responsavel_2 or '',
+            'idade_formatada': aluno.idade_extenso,
+            'is_aniversariante_hoje': aluno.is_aniversariante_hoje,
             'ativo': aluno.is_ativo_hoje,
         })
 
@@ -1195,6 +1222,10 @@ def lista_alunos_view(request):
             'turma_nome': a['turma'].nome if a['turma'] else 'Sem Sala',
             'turno': a['turno'],
             'turno_raw': a['turno_raw'],
+            'data_nascimento': a['data_nascimento'].strftime('%Y-%m-%d') if a['data_nascimento'] else '',
+            'data_nascimento_br': a['data_nascimento'].strftime('%d/%m/%Y') if a['data_nascimento'] else '',
+            'idade_formatada': a['idade_formatada'],
+            'is_aniversariante_hoje': a['is_aniversariante_hoje'],
             'data_entrada': a['data_entrada'].strftime('%Y-%m-%d') if a['data_entrada'] else '',
             'data_entrada_br': a['data_entrada'].strftime('%d/%m/%Y') if a['data_entrada'] else 'Não informada',
             'data_desligamento': a['data_desligamento'].strftime('%Y-%m-%d') if a['data_desligamento'] else '',
@@ -1208,14 +1239,21 @@ def lista_alunos_view(request):
             'comorbidades': a['comorbidades'] or '',
             'nome_responsavel': a['nome_responsavel'] or '',
             'telefone_responsavel': a['telefone_responsavel'] or '',
+            'email_responsavel': a['email_responsavel'] or '',
+            'nome_responsavel_2': a['nome_responsavel_2'] or '',
+            'telefone_responsavel_2': a['telefone_responsavel_2'] or '',
+            'email_responsavel_2': a['email_responsavel_2'] or '',
             'ativo': a['ativo'],
         }
+
+    aniversariantes_count = sum(1 for a in alunos_list if a['is_aniversariante_hoje'])
 
     context = {
         'today': today.isoformat(),
         'alunos': alunos_list,
         'alunos_json': json.dumps(alunos_map),
         'total_count': len(alunos_list),
+        'aniversariantes_count': aniversariantes_count,
         'turmas': turmas_qs,
         'search': search,
         'classroom_filter': classroom_filter,

@@ -31,7 +31,11 @@ class TurmaAdmin(ExportActionMixin, admin.ModelAdmin):
 class AlunoAdmin(ExportActionMixin, admin.ModelAdmin):
     list_display = ('nome', 'turma', 'turno', 'data_entrada', 'data_desligamento', 'has_acompanhamento', 'ativo')
     list_filter = ('turma', 'turno', 'has_acompanhamento', 'ativo')
-    search_fields = ('nome', 'nome_responsavel', 'telefone_responsavel', 'acompanhamento_obs')
+    search_fields = (
+        'nome', 'nome_responsavel', 'telefone_responsavel', 'email_responsavel',
+        'nome_responsavel_2', 'telefone_responsavel_2', 'email_responsavel_2',
+        'acompanhamento_obs'
+    )
     list_editable = ('ativo',)
 
 

@@ -118,6 +118,10 @@ class Aluno(models.Model):
     comorbidades = models.TextField(blank=True, default='', verbose_name='Comorbidades / Condições de Saúde')
     nome_responsavel = models.CharField(max_length=150, blank=True, verbose_name='Nome do Responsável')
     telefone_responsavel = models.CharField(max_length=20, blank=True, verbose_name='Telefone do Responsável')
+    email_responsavel = models.EmailField(blank=True, verbose_name='E-mail do Responsável')
+    nome_responsavel_2 = models.CharField(max_length=150, blank=True, verbose_name='Nome do 2º Responsável')
+    telefone_responsavel_2 = models.CharField(max_length=20, blank=True, verbose_name='Telefone do 2º Responsável')
+    email_responsavel_2 = models.EmailField(blank=True, verbose_name='E-mail do 2º Responsável')
     ativo = models.BooleanField(default=True, verbose_name='Ativo')
     criado_em = models.DateTimeField(auto_now_add=True)
 
@@ -157,6 +161,58 @@ class Aluno(models.Model):
         if self.data_desligamento and self.data_desligamento <= today:
             return False
         return True
+
+    @property
+    def idade_extenso(self):
+        """Retorna a idade atual formatada (anos e meses)."""
+        if not self.data_nascimento:
+            return ""
+        today = timezone.localdate()
+        if self.data_nascimento > today:
+            return ""
+
+        years = today.year - self.data_nascimento.year
+        months = today.month - self.data_nascimento.month
+        days = today.day - self.data_nascimento.day
+
+        if days < 0:
+            months -= 1
+        if months < 0:
+            years -= 1
+            months += 12
+
+        if years == 0:
+            if months == 0:
+                diff_days = (today - self.data_nascimento).days
+                if diff_days <= 1:
+                    return "Recém-nascido"
+                return f"{diff_days} dias"
+            elif months == 1:
+                return "1 mês"
+            else:
+                return f"{months} meses"
+        elif years == 1:
+            if months == 0:
+                return "1 ano"
+            elif months == 1:
+                return "1 ano e 1 mês"
+            else:
+                return f"1 ano e {months} meses"
+        else:
+            if months == 0:
+                return f"{years} anos"
+            elif months == 1:
+                return f"{years} anos e 1 mês"
+            else:
+                return f"{years} anos e {months} meses"
+
+    @property
+    def is_aniversariante_hoje(self):
+        """Retorna True se hoje for a data de aniversário da criança."""
+        if not self.data_nascimento:
+            return False
+        today = timezone.localdate()
+        return self.data_nascimento.day == today.day and self.data_nascimento.month == today.month
 
 
 class DiarioDeClasse(models.Model):

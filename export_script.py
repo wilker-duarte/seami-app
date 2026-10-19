@@ -62,6 +62,10 @@ alunos_json = [
         "comorbidades": a.comorbidades or "",
         "nome_responsavel": a.nome_responsavel,
         "telefone_responsavel": a.telefone_responsavel,
+        "email_responsavel": a.email_responsavel,
+        "nome_responsavel_2": a.nome_responsavel_2,
+        "telefone_responsavel_2": a.telefone_responsavel_2,
+        "email_responsavel_2": a.email_responsavel_2,
     }
     for a in alunos
 ]
@@ -74,7 +78,8 @@ with open('export_data/2_alunos_seami.csv', 'w', encoding='utf-8-sig', newline='
         "ID", "Nome da Criança", "Turma ID", "Turma / Sala", "Turno", "Data de Nascimento",
         "Data de Entrada", "Data de Desligamento", "Status Ativo", "Acompanhamento Especial",
         "Observações Acompanhamento", "Dias de Acompanhamento", "Alergias", "Restrições Alimentares", "Comorbidades",
-        "Nome do Responsável", "Telefone do Responsável"
+        "Nome do Responsável", "Telefone do Responsável", "E-mail do Responsável",
+        "Nome do 2º Responsável", "Telefone do 2º Responsável", "E-mail do 2º Responsável"
     ])
     for a in alunos:
         w.writerow([
@@ -85,7 +90,8 @@ with open('export_data/2_alunos_seami.csv', 'w', encoding='utf-8-sig', newline='
             "Sim" if a.ativo else "Não", "Sim" if a.has_acompanhamento else "Não",
             a.acompanhamento_obs, a.acompanhamento_dias, a.alergias or "",
             a.restricoes_alimentares or "", a.comorbidades or "",
-            a.nome_responsavel, a.telefone_responsavel
+            a.nome_responsavel, a.telefone_responsavel, a.email_responsavel,
+            a.nome_responsavel_2, a.telefone_responsavel_2, a.email_responsavel_2
         ])
 
 print("Exportando Presenças...")

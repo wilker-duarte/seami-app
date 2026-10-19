@@ -87,13 +87,18 @@
     <!-- TABELA DE ALUNOS (EXATA, ELEGANTE E MODERNA)                      -->
     <!-- ================================================================= -->
     <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden;">
-        <div style="padding: 18px 24px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; background-color: var(--bg-body);">
-            <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+        <div style="padding: 18px 24px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; background-color: var(--bg-body); flex-wrap: wrap; gap: 10px;">
+            <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <i data-lucide="users" style="width: 18px; height: 18px; color: var(--brand-primary);"></i>
                 <span>Lista Geral de Alunos</span>
                 <span style="font-size: 12px; font-weight: 600; background-color: var(--color-primary-light); color: var(--color-primary); padding: 2px 8px; border-radius: 999px;">
                     {{ total_count }} {{ total_count|pluralize:"aluno,alunos" }}
                 </span>
+                {% if aniversariantes_count > 0 %}
+                    <span style="font-size: 12px; font-weight: 700; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); color: #92400e; border: 1px solid #fcd34d; padding: 2px 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 3px rgba(245, 158, 11, 0.2);">
+                        🎉 {{ aniversariantes_count }} aniversariante{{ aniversariantes_count|pluralize:" de hoje" }}! 🎂
+                    </span>
+                {% endif %}
             </div>
         </div>
 
@@ -111,23 +116,49 @@
                 </thead>
                 <tbody style="font-size: 13.5px; color: var(--text-primary);">
                     {% for item in alunos %}
-                    <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.15s ease;" onmouseenter="this.style.backgroundColor='var(--bg-input)'" onmouseleave="this.style.backgroundColor='transparent'">
+                    <tr class="{% if item.is_aniversariante_hoje %}aniversariante-row{% endif %}"
+                        style="border-bottom: 1px solid var(--border-color); transition: all 0.15s ease; {% if item.is_aniversariante_hoje %}background-color: #fffdf2; border-left: 4.5px solid #f59e0b; box-shadow: inset 0 0 16px rgba(245, 158, 11, 0.08);{% endif %}" 
+                        onmouseenter="this.style.backgroundColor='{% if item.is_aniversariante_hoje %}#fef9c3{% else %}var(--bg-input){% endif %}'" 
+                        onmouseleave="this.style.backgroundColor='{% if item.is_aniversariante_hoje %}#fffdf2{% else %}transparent{% endif %}'">
                         
-                        <!-- Coluna 1: Criança (Nome, Data de Entrada e Desligamento/Warning) -->
+                        <!-- Coluna 1: Criança (Nome, Idade, Aniversário, Data de Entrada e Desligamento/Warning) -->
                         <td style="padding: 16px 20px;">
                             <div style="display: flex; align-items: flex-start; gap: 12px;">
-                                <div style="width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); color: #4338ca; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; flex-shrink: 0; box-shadow: 0 2px 6px rgba(99, 102, 241, 0.15);">
-                                    {{ item.nome|slice:":1" }}
-                                </div>
+                                {% if item.is_aniversariante_hoje %}
+                                    <div style="width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, #fef08a 0%, #fde047 100%); color: #854d0e; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; flex-shrink: 0; box-shadow: 0 2px 10px rgba(234, 179, 8, 0.4); border: 2px solid #f59e0b;" title="🎉 Aniversariante de Hoje!">
+                                        🎂
+                                    </div>
+                                {% else %}
+                                    <div style="width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); color: #4338ca; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; flex-shrink: 0; box-shadow: 0 2px 6px rgba(99, 102, 241, 0.15);">
+                                        {{ item.nome|slice:":1" }}
+                                    </div>
+                                {% endif %}
                                 <div style="display: flex; flex-direction: column; gap: 4px;">
-                                    <div style="font-weight: 700; font-size: 14.5px; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                                    <div style="font-weight: 700; font-size: 14.5px; color: var(--text-primary); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                                         <span>{{ item.nome }}</span>
+                                        {% if item.idade_formatada %}
+                                            <span style="font-size: 11.5px; font-weight: 700; color: #475569; background: var(--bg-card); border: 1px solid var(--border-color); padding: 1.5px 7px; border-radius: 6px; display: inline-flex; align-items: center; gap: 3px;" title="Idade atual">
+                                                <span>👶</span> {{ item.idade_formatada }}
+                                            </span>
+                                        {% endif %}
+                                        {% if item.is_aniversariante_hoje %}
+                                            <span style="font-size: 11px; font-weight: 800; background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e; border: 1px solid #fcd34d; padding: 2px 8px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 3px rgba(245, 158, 11, 0.25);">
+                                                🎉 Aniversário Hoje! 🎂
+                                            </span>
+                                        {% endif %}
                                         {% if item.has_acompanhamento %}
                                             <span title="Possui Acompanhamento Especial: {{ item.acompanhamento_obs|default:'Sim' }}" style="cursor: help; font-size: 14px;">🩺</span>
                                         {% endif %}
                                     </div>
                                     
                                     <div style="font-size: 12px; color: var(--text-secondary); display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+                                        {% if item.data_nascimento %}
+                                            <span style="display: inline-flex; align-items: center; gap: 4px;" title="Data de Nascimento">
+                                                <span>🎂</span>
+                                                Nasc: <strong>{{ item.data_nascimento|date:"d/m/Y" }}</strong>
+                                            </span>
+                                            <span>&bull;</span>
+                                        {% endif %}
                                         <span style="display: inline-flex; align-items: center; gap: 4px;">
                                             <i data-lucide="calendar" style="width: 13px; height: 13px; color: var(--slate-400);"></i>
                                             Entrada: <strong>{{ item.data_entrada|date:"d/m/Y"|default:"Não informada" }}</strong>
@@ -149,9 +180,22 @@
                                         </span>
                                     {% endif %}
 
-                                    {% if item.nome_responsavel %}
-                                        <div style="font-size: 11.5px; color: var(--slate-400);">
-                                            Resp: {{ item.nome_responsavel }} {% if item.telefone_responsavel %}&bull; {{ item.telefone_responsavel }}{% endif %}
+                                    {% if item.nome_responsavel or item.nome_responsavel_2 %}
+                                        <div style="font-size: 11.5px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 2px; margin-top: 3px;">
+                                            {% if item.nome_responsavel %}
+                                                <div>
+                                                    <span style="font-weight: 700; color: var(--text-primary);">Resp:</span> {{ item.nome_responsavel }}
+                                                    {% if item.telefone_responsavel %}&bull; {{ item.telefone_responsavel }}{% endif %}
+                                                    {% if item.email_responsavel %}&bull; <span style="font-size: 11px; opacity: 0.9;">{{ item.email_responsavel }}</span>{% endif %}
+                                                </div>
+                                            {% endif %}
+                                            {% if item.nome_responsavel_2 %}
+                                                <div style="font-size: 11px; opacity: 0.85;">
+                                                    <span style="font-weight: 700; color: var(--text-secondary);">2º Resp:</span> {{ item.nome_responsavel_2 }}
+                                                    {% if item.telefone_responsavel_2 %}&bull; {{ item.telefone_responsavel_2 }}{% endif %}
+                                                    {% if item.email_responsavel_2 %}&bull; {{ item.email_responsavel_2 }}{% endif %}
+                                                </div>
+                                            {% endif %}
                                         </div>
                                     {% endif %}
                                 </div>
@@ -298,7 +342,15 @@
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;">
+                <div>
+                    <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                        Data de Nascimento
+                    </label>
+                    <input type="date" name="data_nascimento" id="field-data-nascimento"
+                           style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 14px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                </div>
+
                 <div>
                     <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
                         Data de Entrada (Matrícula)
@@ -486,20 +538,71 @@
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                <div>
-                    <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
-                        Nome do Responsável
-                    </label>
-                    <input type="text" name="nome_responsavel" id="field-responsavel" placeholder="Pai, Mãe ou Tutor"
-                           style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 14px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+            <!-- Seção de Responsáveis e Contatos de Emergência -->
+            <div style="border-top: 1px solid var(--border-color); padding-top: 14px; display: flex; flex-direction: column; gap: 14px;">
+                <!-- 1º Responsável (Principal) -->
+                <div style="background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px;">
+                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 12px;">
+                        <span style="font-size: 16px;">👤</span>
+                        <strong style="font-size: 13px; color: var(--text-primary);">Responsável Principal (1º Contato)</strong>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                        <div>
+                            <label style="display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                                Nome do Responsável
+                            </label>
+                            <input type="text" name="nome_responsavel" id="field-responsavel" placeholder="Pai, Mãe ou Tutor"
+                                   style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                                Telefone / WhatsApp
+                            </label>
+                            <input type="text" name="telefone_responsavel" id="field-telefone" placeholder="(11) 99999-9999"
+                                   style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                                E-mail do Responsável
+                            </label>
+                            <input type="email" name="email_responsavel" id="field-email-responsavel" placeholder="responsavel@email.com"
+                                   style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
-                        Telefone / WhatsApp
-                    </label>
-                    <input type="text" name="telefone_responsavel" id="field-telefone" placeholder="(11) 99999-9999"
-                           style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 14px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+
+                <!-- 2º Responsável (Segundo Contato / Emergência) -->
+                <div style="background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 16px;">👥</span>
+                            <strong style="font-size: 13px; color: var(--text-primary);">Segundo Responsável (2º Contato / Emergência)</strong>
+                        </div>
+                        <span style="font-size: 11px; color: var(--text-light); font-weight: 600; background: var(--bg-card); padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border-color);">Opcional</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                        <div>
+                            <label style="display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                                Nome do 2º Responsável
+                            </label>
+                            <input type="text" name="nome_responsavel_2" id="field-responsavel-2" placeholder="Ex: Avó, Tio, Outro tutor"
+                                   style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                                Telefone / WhatsApp
+                            </label>
+                            <input type="text" name="telefone_responsavel_2" id="field-telefone-2" placeholder="(11) 99999-9999"
+                                   style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                                E-mail do 2º Responsável
+                            </label>
+                            <input type="email" name="email_responsavel_2" id="field-email-responsavel-2" placeholder="segundo.contato@email.com"
+                                   style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -653,6 +756,7 @@
         document.getElementById('form-action').value = 'create';
         document.getElementById('form-aluno-id').value = '';
         document.getElementById('field-nome').value = '';
+        document.getElementById('field-data-nascimento').value = '';
         document.getElementById('field-turno').value = 'integral';
         document.getElementById('field-data-entrada').value = '{{ today }}';
         document.getElementById('field-data-desligamento').value = '';
@@ -680,6 +784,10 @@
 
         document.getElementById('field-responsavel').value = '';
         document.getElementById('field-telefone').value = '';
+        document.getElementById('field-email-responsavel').value = '';
+        document.getElementById('field-responsavel-2').value = '';
+        document.getElementById('field-telefone-2').value = '';
+        document.getElementById('field-email-responsavel-2').value = '';
         document.getElementById('field-ativo').checked = true;
         toggleAcompObs(false);
 
@@ -706,6 +814,7 @@
             document.getElementById('field-turma').value = st.turma_id;
         }
         document.getElementById('field-turno').value = st.turno_raw || 'integral';
+        document.getElementById('field-data-nascimento').value = st.data_nascimento || '';
         document.getElementById('field-data-entrada').value = st.data_entrada || '';
         document.getElementById('field-data-desligamento').value = st.data_desligamento || '';
         document.getElementById('field-has-acompanhamento').checked = st.has_acompanhamento;
@@ -838,6 +947,10 @@
 
         document.getElementById('field-responsavel').value = st.nome_responsavel || '';
         document.getElementById('field-telefone').value = st.telefone_responsavel || '';
+        document.getElementById('field-email-responsavel').value = st.email_responsavel || '';
+        document.getElementById('field-responsavel-2').value = st.nome_responsavel_2 || '';
+        document.getElementById('field-telefone-2').value = st.telefone_responsavel_2 || '';
+        document.getElementById('field-email-responsavel-2').value = st.email_responsavel_2 || '';
         document.getElementById('field-ativo').checked = st.ativo;
         toggleAcompObs(st.has_acompanhamento);
 
@@ -885,8 +998,22 @@
             ? `<span style="background-color: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px;"><span style="width: 6px; height: 6px; border-radius: 999px; background-color: #16a34a;"></span> Matrícula Ativa</span>`
             : `<span style="background-color: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px;"><span style="width: 6px; height: 6px; border-radius: 999px; background-color: #dc2626;"></span> Inativo</span>`;
 
-        let telLink = st.telefone_responsavel
+        let tel1Link = st.telefone_responsavel
             ? `<a href="https://wa.me/55${st.telefone_responsavel.replace(/\D/g, '')}" target="_blank" style="color: #16a34a; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">${st.telefone_responsavel} <i data-lucide="message-circle" style="width: 13px; height: 13px;"></i></a>`
+            : `<span style="color: var(--text-light);">Não informado</span>`;
+
+        let email1Link = st.email_responsavel
+            ? `<a href="mailto:${st.email_responsavel}" style="color: var(--color-primary, #4f46e5); font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; word-break: break-all;">${st.email_responsavel} <i data-lucide="mail" style="width: 13px; height: 13px;"></i></a>`
+            : `<span style="color: var(--text-light);">Não informado</span>`;
+
+        let hasResp2 = Boolean(st.nome_responsavel_2 || st.telefone_responsavel_2 || st.email_responsavel_2);
+
+        let tel2Link = st.telefone_responsavel_2
+            ? `<a href="https://wa.me/55${st.telefone_responsavel_2.replace(/\D/g, '')}" target="_blank" style="color: #16a34a; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">${st.telefone_responsavel_2} <i data-lucide="message-circle" style="width: 13px; height: 13px;"></i></a>`
+            : `<span style="color: var(--text-light);">Não informado</span>`;
+
+        let email2Link = st.email_responsavel_2
+            ? `<a href="mailto:${st.email_responsavel_2}" style="color: var(--color-primary, #4f46e5); font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; word-break: break-all;">${st.email_responsavel_2} <i data-lucide="mail" style="width: 13px; height: 13px;"></i></a>`
             : `<span style="color: var(--text-light);">Não informado</span>`;
 
         body.innerHTML = `
@@ -894,7 +1021,11 @@
             <div style="background: var(--bg-body); border: 1.5px solid var(--border-color); border-radius: 12px; padding: 16px;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
                     <div>
-                        <h4 style="margin: 0; font-size: 17px; font-weight: 800; color: var(--text-primary);">${st.nome}</h4>
+                        <h4 style="margin: 0; font-size: 17px; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            ${st.nome}
+                            ${st.idade_formatada ? `<span style="font-size: 12px; font-weight: 700; color: #475569; background: var(--bg-card); border: 1px solid var(--border-color); padding: 2px 8px; border-radius: 6px;">👶 ${st.idade_formatada}</span>` : ''}
+                            ${st.is_aniversariante_hoje ? `<span style="font-size: 11.5px; font-weight: 800; background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e; border: 1px solid #fcd34d; padding: 2px 9px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 3px rgba(245, 158, 11, 0.25);">🎉 Aniversário Hoje! 🎂</span>` : ''}
+                        </h4>
                         <div style="display: flex; gap: 6px; margin-top: 6px; align-items: center; flex-wrap: wrap;">
                             <span style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 12px;">Sala ${st.turma_nome}</span>
                             <span style="background: #eff6ff; color: #1d4ed8; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 12px;">Turno ${st.turno}</span>
@@ -903,7 +1034,11 @@
                     ${statusPill}
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border-color); font-size: 12.5px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border-color); font-size: 12.5px;">
+                    <div>
+                        <span style="color: var(--text-secondary); display: block; font-size: 11.5px;">Data de Nascimento:</span>
+                        <strong style="color: var(--text-primary);">${st.data_nascimento_br || '—'}</strong>
+                    </div>
                     <div>
                         <span style="color: var(--text-secondary); display: block; font-size: 11.5px;">Data de Entrada:</span>
                         <strong style="color: var(--text-primary);">${st.data_entrada_br}</strong>
@@ -912,13 +1047,45 @@
                         <span style="color: var(--text-secondary); display: block; font-size: 11.5px;">Data de Desligamento:</span>
                         <strong style="color: ${st.data_desligamento_br ? '#b91c1c' : 'var(--text-primary)'};">${st.data_desligamento_br || '—'}</strong>
                     </div>
-                    <div>
-                        <span style="color: var(--text-secondary); display: block; font-size: 11.5px;">Responsável:</span>
-                        <strong style="color: var(--text-primary);">${st.nome_responsavel || 'Não informado'}</strong>
+                </div>
+            </div>
+
+            <!-- Card de Responsáveis e Contatos de Emergência -->
+            <div style="border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+                <div style="font-weight: 700; font-size: 13px; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                    <span>👨‍👩‍👧</span>
+                    <span>Contatos dos Responsáveis & Emergência</span>
+                </div>
+
+                <div style="display: grid; grid-template-columns: ${hasResp2 ? '1fr 1fr' : '1fr'}; gap: 12px;">
+                    <!-- 1º Responsável -->
+                    <div style="background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 5px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <span style="font-size: 11px; font-weight: 700; color: #4338ca; text-transform: uppercase; letter-spacing: 0.5px;">1º Responsável (Principal)</span>
+                            <span style="font-size: 12px;">👤</span>
+                        </div>
+                        <div style="font-size: 13.5px; font-weight: 700; color: var(--text-primary);">${st.nome_responsavel || 'Não informado'}</div>
+                        <div style="font-size: 12px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px; margin-top: 2px;">
+                            <div><strong style="color: var(--text-secondary);">Telefone:</strong> ${tel1Link}</div>
+                            <div><strong style="color: var(--text-secondary);">E-mail:</strong> ${email1Link}</div>
+                        </div>
                     </div>
-                    <div>
-                        <span style="color: var(--text-secondary); display: block; font-size: 11.5px;">Telefone / WhatsApp:</span>
-                        ${telLink}
+
+                    <!-- 2º Responsável -->
+                    <div style="background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 5px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <span style="font-size: 11px; font-weight: 700; color: #0284c7; text-transform: uppercase; letter-spacing: 0.5px;">2º Responsável (Emergência)</span>
+                            <span style="font-size: 12px;">👥</span>
+                        </div>
+                        ${hasResp2 ? `
+                            <div style="font-size: 13.5px; font-weight: 700; color: var(--text-primary);">${st.nome_responsavel_2 || 'Não informado'}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px; margin-top: 2px;">
+                                <div><strong style="color: var(--text-secondary);">Telefone:</strong> ${tel2Link}</div>
+                                <div><strong style="color: var(--text-secondary);">E-mail:</strong> ${email2Link}</div>
+                            </div>
+                        ` : `
+                            <span style="color: var(--text-light); font-style: italic; font-size: 12px; padding: 8px 0;">Nenhum segundo contato cadastrado</span>
+                        `}
                     </div>
                 </div>
             </div>
