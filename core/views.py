@@ -13,7 +13,7 @@ from django.db.models import Count, Q, Sum
 from presencas.models import (
     Turma, Aluno, RegistroPresenca, StatusPresenca,
     DiarioDeClasse, OcorrenciaCaderno, TipoOcorrencia,
-    RegistroAmamentacao, AtendimentoEnfermaria
+    RegistroAmamentacao, AtendimentoEnfermaria, Orgao
 )
 from presencas.services import (
     get_novas_matriculas_periodo,
@@ -117,7 +117,7 @@ def build_dashboard_context(request):
     if is_professor:
         turmas_qs = request.user.turmas_como_professor.filter(ativo=True).prefetch_related('professores', 'auxiliares').order_by('nome')
         sem_turma_vinculada = not turmas_qs.exists()
-        all_active_students = Aluno.objects.ativos().filter(turma__in=turmas_qs).select_related('turma').order_by('nome')
+        all_active_students = Aluno.objects.ativos().filter(turma__in=turmas_qs).select_related('turma', 'orgao', 'orgao_responsavel', 'orgao_responsavel_2').order_by('nome')
         # Sanitiza classroom_filter para o professor
         valid_salas = [t.nome.lower() for t in turmas_qs]
         valid_ids = [str(t.id) for t in turmas_qs]
@@ -126,7 +126,7 @@ def build_dashboard_context(request):
     else:
         turmas_qs = Turma.objects.filter(ativo=True).prefetch_related('professores', 'auxiliares').order_by('nome')
         sem_turma_vinculada = False
-        all_active_students = Aluno.objects.ativos().select_related('turma').order_by('nome')
+        all_active_students = Aluno.objects.ativos().select_related('turma', 'orgao', 'orgao_responsavel', 'orgao_responsavel_2').order_by('nome')
 
     total_alunos_ativos = all_active_students.count()
 
@@ -323,6 +323,15 @@ def build_dashboard_context(request):
             'turno_display': s.get_turno_display(),
             'has_acompanhamento': s.has_acompanhamento,
             'acompanhamento_obs': s.acompanhamento_obs,
+            'orgao_nome': s.orgao.nome if s.orgao else '',
+            'orgao_sigla': s.orgao.sigla if s.orgao else '',
+            'orgao_display': s.orgao_display,
+            'orgao_responsavel_nome': s.orgao_responsavel.nome if s.orgao_responsavel else '',
+            'orgao_responsavel_sigla': s.orgao_responsavel.sigla if s.orgao_responsavel else '',
+            'orgao_responsavel_display': s.orgao_responsavel_display,
+            'orgao_responsavel_2_nome': s.orgao_responsavel_2.nome if s.orgao_responsavel_2 else '',
+            'orgao_responsavel_2_sigla': s.orgao_responsavel_2.sigla if s.orgao_responsavel_2 else '',
+            'orgao_responsavel_2_display': s.orgao_responsavel_2_display,
         })
 
     # Gráficos Analíticos
@@ -693,9 +702,138 @@ def build_dashboard_context(request):
             'auxiliares_list': s['auxiliares_list'],
         }
 
+    # =========================================================================
+    # 8. ESTATÍSTICAS E DISTRIBUIÇÃO POR ÓRGÃO CONVENIADO & RESPONSÁVEIS
+    # =========================================================================
+    all_orgaos = list(Orgao.objects.filter(ativo=True).order_by('nome'))
+    
+    # Base de alunos ativos para estatísticas de órgãos (respeitando filtro de sala, se houver)
+    alunos_orgao_qs = all_active_students
+    if classroom_filter:
+        alunos_orgao_qs = alunos_orgao_qs.filter(
+            Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
+        )
+    if student_id_filter:
+        alunos_orgao_qs = alunos_orgao_qs.filter(id=student_id_filter)
+
+    total_alunos_base = alunos_orgao_qs.count()
+
+    from collections import defaultdict
+    orgao_alunos_count = defaultdict(int)
+    orgao_pais_count = defaultdict(int)
+    total_alunos_com_orgao = 0
+    total_responsaveis_computados = 0
+
+    for al in alunos_orgao_qs:
+        if al.orgao_id:
+            orgao_alunos_count[al.orgao_id] += 1
+            total_alunos_com_orgao += 1
+        if al.orgao_responsavel_id:
+            orgao_pais_count[al.orgao_responsavel_id] += 1
+            total_responsaveis_computados += 1
+        if al.orgao_responsavel_2_id:
+            orgao_pais_count[al.orgao_responsavel_2_id] += 1
+            total_responsaveis_computados += 1
+
+    alunos_sem_orgao = max(0, total_alunos_base - total_alunos_com_orgao)
+
+    orgao_palette = [
+        '#2563eb', # TJ / Azul Royal
+        '#7c3aed', # MP / Roxo Nobre
+        '#059669', # DPE / Esmeralda
+        '#d97706', # TCE / Âmbar
+        '#dc2626', # AL / Vermelho
+        '#0891b2', # SEDUC / Ciano
+        '#db2777', # SES / Rosa
+        '#4f46e5', # PREF / Índigo
+        '#16a34a', # Verde
+        '#ea580c', # Laranja
+        '#0284c7', # Azul Celeste
+        '#64748b', # Ardósia
+    ]
+
+    # Ordena órgãos pelo volume de alunos (decrescente) e depois por pais
+    orgaos_sorted = sorted(
+        all_orgaos,
+        key=lambda o: (orgao_alunos_count.get(o.id, 0), orgao_pais_count.get(o.id, 0)),
+        reverse=True
+    )
+
+    orgaos_ranking = []
+    chart_orgaos_labels = []
+    chart_orgaos_alunos = []
+    chart_orgaos_pais = []
+    chart_orgaos_colors = []
+
+    for idx, org in enumerate(orgaos_sorted):
+        c_alunos = orgao_alunos_count.get(org.id, 0)
+        c_pais = orgao_pais_count.get(org.id, 0)
+        pct = round((c_alunos / total_alunos_base) * 100, 1) if total_alunos_base > 0 else 0
+        color = orgao_palette[idx % len(orgao_palette)]
+        
+        orgaos_ranking.append({
+            'id': org.id,
+            'nome': org.nome,
+            'sigla': org.sigla or org.nome,
+            'descricao': org.descricao or '',
+            'count_alunos': c_alunos,
+            'pct_alunos': pct,
+            'count_pais': c_pais,
+            'color': color,
+        })
+
+        if c_alunos > 0 or c_pais > 0:
+            chart_orgaos_labels.append(org.sigla or org.nome)
+            chart_orgaos_alunos.append(c_alunos)
+            chart_orgaos_pais.append(c_pais)
+            chart_orgaos_colors.append(color)
+
+    if alunos_sem_orgao > 0:
+        pct_sem = round((alunos_sem_orgao / total_alunos_base) * 100, 1) if total_alunos_base > 0 else 0
+        orgaos_ranking.append({
+            'id': None,
+            'nome': 'Sem Convênio Vinculado',
+            'sigla': 'PARTICULAR/S.O.',
+            'descricao': 'Alunos matriculados sem órgão conveniado associado',
+            'count_alunos': alunos_sem_orgao,
+            'pct_alunos': pct_sem,
+            'count_pais': 0,
+            'color': '#94a3b8',
+        })
+        chart_orgaos_labels.append('Sem Convênio')
+        chart_orgaos_alunos.append(alunos_sem_orgao)
+        chart_orgaos_pais.append(0)
+        chart_orgaos_colors.append('#94a3b8')
+
+    valid_orgaos_alunos = [x for x in orgaos_ranking if x['id'] is not None and x['count_alunos'] > 0]
+    valid_orgaos_pais = [x for x in orgaos_ranking if x['id'] is not None and x['count_pais'] > 0]
+    top_orgao_alunos = max(valid_orgaos_alunos, key=lambda x: x['count_alunos'], default=None)
+    top_orgao_pais = max(valid_orgaos_pais, key=lambda x: x['count_pais'], default=None)
+    total_orgaos_com_alunos = len(valid_orgaos_alunos)
+    pct_cobertura_convenio = round((total_alunos_com_orgao / total_alunos_base) * 100, 1) if total_alunos_base > 0 else 0
+
+    top_orgao_alunos_list = []
+    if top_orgao_alunos and top_orgao_alunos.get('id'):
+        top_id = top_orgao_alunos['id']
+        top_orgao_alunos_list = list(
+            alunos_orgao_qs.filter(orgao_id=top_id).select_related('turma', 'orgao').order_by('nome')
+        )
+
+    orgaos_stats = {
+        'total_orgaos_com_alunos': total_orgaos_com_alunos,
+        'total_orgaos_cadastrados': len(all_orgaos),
+        'total_alunos_conveniados': total_alunos_com_orgao,
+        'total_alunos_sem_orgao': alunos_sem_orgao,
+        'total_pais_vinculados': total_responsaveis_computados,
+        'pct_cobertura_convenio': pct_cobertura_convenio,
+        'top_orgao_alunos': top_orgao_alunos,
+        'top_orgao_pais': top_orgao_pais,
+    }
+
     context = {
         'is_professor': is_professor,
         'sem_turma_vinculada': sem_turma_vinculada,
+        'top_orgao_alunos_list': top_orgao_alunos_list,
         'today': today.isoformat(),
         'date_start': date_start.isoformat(),
         'date_end': date_end.isoformat(),
@@ -720,6 +858,8 @@ def build_dashboard_context(request):
         'ranking_atrasos_json': json.dumps(ranking_atrasos),
         'ranking_atestados_json': json.dumps(ranking_atestados),
         'frequencia_anos_json': json.dumps(year_charts_data),
+        'orgaos_ranking': orgaos_ranking,
+        'orgaos_stats': orgaos_stats,
         'metrics': {
             'total_alunos': total_alunos_ativos,
             'assiduidade_rate': assiduidade_rate,
@@ -755,6 +895,22 @@ def build_dashboard_context(request):
             'matriculados_6m': {'labels': matriculados_labels, 'data': matriculados_data},
             'frequencia_mes_a_mes': year_charts_data.get('2026', {}),
             'amam_diaria': {'labels': amam_labels, 'data': amam_values, 'total': amam_total_periodo},
+            'orgaos_comparison': {
+                'labels': chart_orgaos_labels,
+                'alunos': chart_orgaos_alunos,
+                'pais': chart_orgaos_pais,
+                'colors': chart_orgaos_colors,
+            },
+            'orgaos_donut': {
+                'labels': chart_orgaos_labels,
+                'data': chart_orgaos_alunos,
+                'colors': chart_orgaos_colors,
+            },
+            'orgaos_pais_donut': {
+                'labels': chart_orgaos_labels,
+                'data': chart_orgaos_pais,
+                'colors': chart_orgaos_colors,
+            },
         }),
         'active_tab': 'home',
         'active_module': None,

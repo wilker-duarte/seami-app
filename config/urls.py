@@ -6,6 +6,7 @@ from accounts.views import logout_view
 from presencas.views import lista_alunos_view, lista_turmas_view, caderno_seami_view
 from core.views import relatorios_view, central_exportacao_view
 from core.enfermaria_views import enfermaria_dashboard_view
+from core.admin_views import central_administrativa_view
 
 urlpatterns = [
     # Intercepta qualquer logout (inclusive do Django Admin) para direcionar para o login do SEAMI
@@ -20,6 +21,7 @@ urlpatterns = [
     path('enfermaria/', enfermaria_dashboard_view, name='enfermaria'),
     path('caderno-seami/', caderno_seami_view, name='caderno_seami_root'),
     path('caderno-seami/<str:aba>/', caderno_seami_view, name='caderno_seami'),
+    path('administracao/', central_administrativa_view, name='central_administrativa'),
     path('', include('core.urls', namespace='core')),
     path('presencas/', include('presencas.urls', namespace='presencas')),
     

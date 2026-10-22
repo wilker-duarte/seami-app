@@ -1,0 +1,1130 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Central Administrativa - SEAMI{% endblock %}
+{% block page_title %}Central Administrativa{% endblock %}
+{% block page_subtitle %}Gestão integrada de órgãos conveniados, calendário escolar, turmas e parâmetros institucionais.{% endblock %}
+
+{% block content %}
+<section class="panel-section active">
+
+    <!-- ================================================================= -->
+    <!-- BARRA SUPERIOR DE NAVEGAÇÃO POR ABAS                              -->
+    <!-- ================================================================= -->
+    <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 8px 12px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; box-shadow: var(--shadow-sm);">
+        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <a href="?tab=geral" class="admin-tab-btn {% if subtab == 'geral' %}active{% endif %}">
+                <i data-lucide="layout-dashboard" style="width: 16px; height: 16px;"></i>
+                <span>Visão Geral</span>
+            </a>
+            <a href="?tab=orgaos" class="admin-tab-btn {% if subtab == 'orgaos' %}active{% endif %}">
+                <i data-lucide="building-2" style="width: 16px; height: 16px;"></i>
+                <span>Órgãos Conveniados</span>
+                <span class="admin-badge">{{ orgaos_cards|length }}</span>
+            </a>
+            <a href="?tab=feriados" class="admin-tab-btn {% if subtab == 'feriados' %}active{% endif %}">
+                <i data-lucide="calendar-off" style="width: 16px; height: 16px;"></i>
+                <span>Calendário & Feriados</span>
+                <span class="admin-badge">{{ feriados_lista|length }}</span>
+            </a>
+            <a href="?tab=turmas" class="admin-tab-btn {% if subtab == 'turmas' %}active{% endif %}">
+                <i data-lucide="school" style="width: 16px; height: 16px;"></i>
+                <span>Turmas & Salas</span>
+                <span class="admin-badge">{{ turmas_cards|length }}</span>
+            </a>
+            <a href="?tab=usuarios" class="admin-tab-btn {% if subtab == 'usuarios' %}active{% endif %}">
+                <i data-lucide="users" style="width: 16px; height: 16px;"></i>
+                <span>Usuários & Acessos</span>
+                <span class="admin-badge">{{ metrics.total_usuarios_ativos }}</span>
+            </a>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px;">
+            {% if user.is_superuser %}
+            <a href="/admin/" target="_blank" style="display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; color: var(--text-secondary); text-decoration: none; padding: 6px 12px; border-radius: 6px; border: 1px dashed var(--border-color); background: var(--bg-body);" title="Acesso técnico avançado ao banco de dados via Django Admin">
+                <i data-lucide="database" style="width: 13px; height: 13px;"></i>
+                <span>Django DB Técnico</span>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- ABA 1: VISÃO GERAL DA GESTÃO                                      -->
+    <!-- ================================================================= -->
+    {% if subtab == 'geral' %}
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+        <!-- Métricas Rápidas -->
+        <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+            <div class="metric-card" style="border-left: 4px solid var(--brand-primary);">
+                <div class="metric-header">
+                    <span class="metric-title" style="font-weight: 700;">Alunos Ativos</span>
+                    <div class="metric-icon-box" style="background-color: var(--brand-light); color: var(--brand-primary); font-size: 16px;">👶</div>
+                </div>
+                <div class="metric-value" style="font-size: 32px; font-weight: 800;">{{ metrics.total_alunos_ativos }}</div>
+                <div class="metric-footer text-secondary"><span>{{ metrics.total_alunos_conveniados }} via convênio institucional</span></div>
+            </div>
+
+            <div class="metric-card" style="border-left: 4px solid #2563eb;">
+                <div class="metric-header">
+                    <span class="metric-title" style="font-weight: 700; color: #1e40af;">Órgãos Conveniados</span>
+                    <div class="metric-icon-box" style="background-color: #dbeafe; color: #2563eb; font-size: 16px;">🏛️</div>
+                </div>
+                <div class="metric-value" style="font-size: 32px; font-weight: 800; color: #1e40af;">{{ metrics.total_orgaos_ativos }}</div>
+                <div class="metric-footer" style="color: #2563eb;"><span>de {{ metrics.total_orgaos }} cadastrados</span></div>
+            </div>
+
+            <div class="metric-card" style="border-left: 4px solid #059669;">
+                <div class="metric-header">
+                    <span class="metric-title" style="font-weight: 700; color: #065f46;">Turmas Ativas</span>
+                    <div class="metric-icon-box" style="background-color: #d1fae5; color: #059669; font-size: 16px;">🏫</div>
+                </div>
+                <div class="metric-value" style="font-size: 32px; font-weight: 800; color: #065f46;">{{ metrics.total_turmas }}</div>
+                <div class="metric-footer" style="color: #047857;"><span>Salas de aula em funcionamento</span></div>
+            </div>
+
+            <div class="metric-card" style="border-left: 4px solid #d97706;">
+                <div class="metric-header">
+                    <span class="metric-title" style="font-weight: 700; color: #92400e;">Feriados / Recessos ({{ current_year }})</span>
+                    <div class="metric-icon-box" style="background-color: #fef3c7; color: #d97706; font-size: 16px;">📅</div>
+                </div>
+                <div class="metric-value" style="font-size: 32px; font-weight: 800; color: #92400e;">{{ metrics.total_feriados_ano }}</div>
+                <div class="metric-footer" style="color: #b45309;"><span>Dias não letivos agendados</span></div>
+            </div>
+        </div>
+
+        <!-- Seções em Grid: Ações Rápidas & Resumo por Perfil -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 20px;">
+            <!-- Card de Ações Rápidas -->
+            <div class="chart-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                    <div class="chart-header" style="margin-bottom: 16px;">
+                        <div class="chart-title">
+                            <i data-lucide="zap" style="color: #f59e0b;"></i>
+                            <span>Ações Administrativas Frequentes</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <button type="button" onclick="abrirModalOrgao()" style="width: 100%; padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-card); display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: all 0.2s;" onmouseenter="this.style.borderColor='var(--brand-primary)'; this.style.backgroundColor='var(--brand-light)';" onmouseleave="this.style.borderColor='var(--border-color)'; this.style.backgroundColor='var(--bg-card)';">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div style="width: 32px; height: 32px; border-radius: 8px; background: #dbeafe; color: #2563eb; display: flex; align-items: center; justify-content: center;">
+                                    <i data-lucide="plus-circle" style="width: 18px; height: 18px;"></i>
+                                </div>
+                                <div style="text-align: left;">
+                                    <div style="font-size: 13.5px; font-weight: 700; color: var(--text-primary);">Cadastrar Novo Órgão Conveniado</div>
+                                    <div style="font-size: 11.5px; color: var(--text-secondary);">Cadastre novos órgãos parceiros para admissão de alunos</div>
+                                </div>
+                            </div>
+                            <i data-lucide="chevron-right" style="width: 16px; height: 16px; color: var(--text-secondary);"></i>
+                        </button>
+
+                        <button type="button" onclick="abrirModalFeriado()" style="width: 100%; padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-card); display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: all 0.2s;" onmouseenter="this.style.borderColor='#f59e0b'; this.style.backgroundColor='#fffbeb';" onmouseleave="this.style.borderColor='var(--border-color)'; this.style.backgroundColor='var(--bg-card)';">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div style="width: 32px; height: 32px; border-radius: 8px; background: #fef3c7; color: #d97706; display: flex; align-items: center; justify-content: center;">
+                                    <i data-lucide="calendar-plus" style="width: 18px; height: 18px;"></i>
+                                </div>
+                                <div style="text-align: left;">
+                                    <div style="font-size: 13.5px; font-weight: 700; color: var(--text-primary);">Agendar Feriado ou Recesso</div>
+                                    <div style="font-size: 11.5px; color: var(--text-secondary);">Dispensa chamada e anula presenças do dia com confirmação</div>
+                                </div>
+                            </div>
+                            <i data-lucide="chevron-right" style="width: 16px; height: 16px; color: var(--text-secondary);"></i>
+                        </button>
+
+                        <a href="{% url 'turmas' %}" style="width: 100%; padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-card); display: flex; align-items: center; justify-content: space-between; text-decoration: none; transition: all 0.2s;" onmouseenter="this.style.borderColor='#059669'; this.style.backgroundColor='#ecfdf5';" onmouseleave="this.style.borderColor='var(--border-color)'; this.style.backgroundColor='var(--bg-card)';">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div style="width: 32px; height: 32px; border-radius: 8px; background: #d1fae5; color: #059669; display: flex; align-items: center; justify-content: center;">
+                                    <i data-lucide="school" style="width: 18px; height: 18px;"></i>
+                                </div>
+                                <div style="text-align: left;">
+                                    <div style="font-size: 13.5px; font-weight: 700; color: var(--text-primary);">Gerenciar Turmas & Professores</div>
+                                    <div style="font-size: 11.5px; color: var(--text-secondary);">Atribuição de salas, professores e auxiliares</div>
+                                </div>
+                            </div>
+                            <i data-lucide="chevron-right" style="width: 16px; height: 16px; color: var(--text-secondary);"></i>
+                        </a>
+
+                        <a href="{% url 'accounts:usuarios_list' %}" style="width: 100%; padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-card); display: flex; align-items: center; justify-content: space-between; text-decoration: none; transition: all 0.2s;" onmouseenter="this.style.borderColor='#7c3aed'; this.style.backgroundColor='#f5f3ff';" onmouseleave="this.style.borderColor='var(--border-color)'; this.style.backgroundColor='var(--bg-card)';">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div style="width: 32px; height: 32px; border-radius: 8px; background: #ede9fe; color: #7c3aed; display: flex; align-items: center; justify-content: center;">
+                                    <i data-lucide="user-check" style="width: 18px; height: 18px;"></i>
+                                </div>
+                                <div style="text-align: left;">
+                                    <div style="font-size: 13.5px; font-weight: 700; color: var(--text-primary);">Gerenciar Usuários & Perfis</div>
+                                    <div style="font-size: 11.5px; color: var(--text-secondary);">Criar e editar logins de professores, enfermeiras e diretores</div>
+                                </div>
+                            </div>
+                            <i data-lucide="chevron-right" style="width: 16px; height: 16px; color: var(--text-secondary);"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card de Usuários por Perfil -->
+            <div class="chart-card">
+                <div class="chart-header" style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <div class="chart-title">
+                        <i data-lucide="shield" style="color: #7c3aed;"></i>
+                        <span>Equipe & Distribuição de Perfis</span>
+                    </div>
+                    <span style="font-size: 11.5px; font-weight: 700; background: var(--bg-body); padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border-color);">
+                        {{ metrics.total_usuarios_ativos }} usuários
+                    </span>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--bg-body); border-radius: 8px; border: 1px solid var(--border-color);">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">👑</span>
+                            <span style="font-size: 13px; font-weight: 700; color: var(--text-primary);">Administrador Master</span>
+                        </div>
+                        <span style="font-weight: 800; font-size: 14px; color: #7c3aed; background: #ede9fe; padding: 2px 10px; border-radius: 6px;">{{ metrics.usuarios_por_role.master }}</span>
+                    </div>
+
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--bg-body); border-radius: 8px; border: 1px solid var(--border-color);">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">👩‍💼</span>
+                            <span style="font-size: 13px; font-weight: 700; color: var(--text-primary);">Diretores e Coordenadores</span>
+                        </div>
+                        <span style="font-weight: 800; font-size: 14px; color: #2563eb; background: #dbeafe; padding: 2px 10px; border-radius: 6px;">{{ metrics.usuarios_por_role.diretor }}</span>
+                    </div>
+
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--bg-body); border-radius: 8px; border: 1px solid var(--border-color);">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">👩‍🏫</span>
+                            <span style="font-size: 13px; font-weight: 700; color: var(--text-primary);">Professores Titulares</span>
+                        </div>
+                        <span style="font-weight: 800; font-size: 14px; color: #059669; background: #d1fae5; padding: 2px 10px; border-radius: 6px;">{{ metrics.usuarios_por_role.professor }}</span>
+                    </div>
+
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--bg-body); border-radius: 8px; border: 1px solid var(--border-color);">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">🤝</span>
+                            <span style="font-size: 13px; font-weight: 700; color: var(--text-primary);">Auxiliares de Sala</span>
+                        </div>
+                        <span style="font-weight: 800; font-size: 14px; color: #d97706; background: #fef3c7; padding: 2px 10px; border-radius: 6px;">{{ metrics.usuarios_por_role.auxiliar }}</span>
+                    </div>
+
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--bg-body); border-radius: 8px; border: 1px solid var(--border-color);">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">🩺</span>
+                            <span style="font-size: 13px; font-weight: 700; color: var(--text-primary);">Enfermaria / Saúde</span>
+                        </div>
+                        <span style="font-weight: 800; font-size: 14px; color: #db2777; background: #fce7f3; padding: 2px 10px; border-radius: 6px;">{{ metrics.usuarios_por_role.enfermeira }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ================================================================= -->
+    <!-- ABA 2: GESTÃO DE ÓRGÃOS CONVENIADOS                               -->
+    <!-- ================================================================= -->
+    {% if subtab == 'orgaos' %}
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+        <!-- Header da Aba de Órgãos com Filtro e Botão de Novo -->
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; background: var(--bg-card); padding: 16px 20px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+            <form method="get" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex: 1;">
+                <input type="hidden" name="tab" value="orgaos">
+                <div style="position: relative; min-width: 260px;">
+                    <i data-lucide="search" style="position: absolute; left: 12px; top: 11px; width: 16px; height: 16px; color: var(--text-secondary);"></i>
+                    <input type="text" name="q_orgao" value="{{ orgaos_busca }}" placeholder="Buscar por nome, sigla..." style="width: 100%; padding: 9px 12px 9px 36px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); font-size: 13px; color: var(--text-primary); outline: none;">
+                </div>
+                <select name="status_orgao" onchange="this.form.submit()" style="padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); font-size: 13px; color: var(--text-primary); outline: none;">
+                    <option value="all" {% if orgaos_status == 'all' %}selected{% endif %}>Todos os status</option>
+                    <option value="ativos" {% if orgaos_status == 'ativos' %}selected{% endif %}>Somente Ativos</option>
+                    <option value="inativos" {% if orgaos_status == 'inativos' %}selected{% endif %}>Somente Inativos</option>
+                </select>
+                <button type="submit" class="secondary-btn" style="padding: 9px 16px; font-size: 13px; font-weight: 700;">Filtrar</button>
+            </form>
+
+            <button type="button" onclick="abrirModalOrgao()" class="primary-btn" style="padding: 9px 20px; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; background-color: #2563eb; color: #ffffff; border: none; border-radius: var(--radius-sm); cursor: pointer; box-shadow: 0 4px 12px rgba(37,99,235,0.25);">
+                <i data-lucide="plus" style="width: 16px; height: 16px;"></i>
+                <span>Novo Órgão Conveniado</span>
+            </button>
+        </div>
+
+        <!-- Tabela de Órgãos Conveniados -->
+        <div class="chart-card" style="padding: 0; overflow: hidden; border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;">
+                    <thead>
+                        <tr style="background-color: var(--bg-body); border-bottom: 1px solid var(--border-color); color: var(--text-secondary); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px;">
+                            <th style="padding: 12px 18px; font-weight: 700;">Órgão / Convênio</th>
+                            <th style="padding: 12px 14px; font-weight: 700; text-align: center;">Sigla</th>
+                            <th style="padding: 12px 16px; font-weight: 700; text-align: center;">Alunos (Contrato)</th>
+                            <th style="padding: 12px 16px; font-weight: 700; text-align: center;">Pais Vinculados</th>
+                            <th style="padding: 12px 14px; font-weight: 700; text-align: center;">Status</th>
+                            <th style="padding: 12px 18px; font-weight: 700; text-align: right;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for org in orgaos_cards %}
+                        <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.15s;" onmouseenter="this.style.backgroundColor='var(--bg-input)'" onmouseleave="this.style.backgroundColor='transparent'">
+                            <td style="padding: 14px 18px;">
+                                <div style="font-weight: 700; color: var(--text-primary); font-size: 14px;">{{ org.nome }}</div>
+                                {% if org.descricao %}
+                                <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 2px;">{{ org.descricao }}</div>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 14px; text-align: center;">
+                                <span style="background-color: var(--bg-body); color: var(--text-primary); font-weight: 800; font-size: 11.5px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border-color);">
+                                    {{ org.sigla }}
+                                </span>
+                            </td>
+                            <td style="padding: 14px 16px; text-align: center;">
+                                <span style="font-weight: 800; font-size: 14.5px; color: #1e40af;">{{ org.count_alunos }}</span>
+                                <span style="font-size: 11px; color: var(--text-secondary); margin-left: 2px;">({{ org.pct_alunos }}%)</span>
+                            </td>
+                            <td style="padding: 14px 16px; text-align: center; font-weight: 800; font-size: 14.5px; color: #6d28d9;">
+                                {{ org.count_pais }}
+                            </td>
+                            <td style="padding: 14px; text-align: center;">
+                                {% if org.ativo %}
+                                <span style="background-color: #ecfdf5; color: #047857; font-weight: 700; font-size: 11px; padding: 3px 9px; border-radius: 12px; border: 1px solid #a7f3d0; display: inline-flex; align-items: center; gap: 4px;">
+                                    <span style="width: 6px; height: 6px; border-radius: 50%; background-color: #10b981;"></span> Ativo
+                                </span>
+                                {% else %}
+                                <span style="background-color: #fef2f2; color: #b91c1c; font-weight: 700; font-size: 11px; padding: 3px 9px; border-radius: 12px; border: 1px solid #fecaca; display: inline-flex; align-items: center; gap: 4px;">
+                                    <span style="width: 6px; height: 6px; border-radius: 50%; background-color: #ef4444;"></span> Inativo
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 14px 18px; text-align: right;">
+                                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                                    <button type="button" onclick="editarOrgao({{ org.id }}, '{{ org.nome|escapejs }}', '{{ org.sigla|escapejs }}', '{{ org.descricao|escapejs }}', {{ org.ativo|yesno:'true,false' }})" style="padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Editar informações do órgão">
+                                        <i data-lucide="edit" style="width: 13px; height: 13px;"></i> Editar
+                                    </button>
+
+                                    <button type="button" onclick="alternarStatusOrgao({{ org.id }})" style="padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--text-secondary); font-size: 12px; font-weight: 600; cursor: pointer;" title="{% if org.ativo %}Desativar órgão{% else %}Ativar órgão{% endif %}">
+                                        {% if org.ativo %}Desativar{% else %}Ativar{% endif %}
+                                    </button>
+
+                                    <button type="button" onclick="excluirOrgao({{ org.id }}, '{{ org.nome|escapejs }}')" style="padding: 5px 8px; border-radius: 6px; border: 1px solid #fca5a5; background: #fff1f2; color: #b91c1c; font-size: 12px; cursor: pointer;" title="Excluir órgão">
+                                        <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" style="padding: 32px; text-align: center; color: var(--text-secondary); font-size: 13.5px;">
+                                Nenhum órgão conveniado encontrado para os filtros selecionados.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ================================================================= -->
+    <!-- ABA 3: GESTÃO DO CALENDÁRIO & FERIADOS / RECESSOS                 -->
+    <!-- ================================================================= -->
+    {% if subtab == 'feriados' %}
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+        <!-- Header da Aba de Feriados com Seletor de Ano e Botão Novo -->
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; background: var(--bg-card); padding: 16px 20px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+            <form method="get" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <input type="hidden" name="tab" value="feriados">
+                <span style="font-size: 12.5px; font-weight: 700; color: var(--text-secondary);">Ano Letivo:</span>
+                {% for y in available_years %}
+                <button type="submit" name="ano_feriado" value="{{ y }}" class="dash-year-btn {% if y == selected_year %}active{% endif %}">
+                    {{ y }}
+                </button>
+                {% endfor %}
+            </form>
+
+            <button type="button" onclick="abrirModalFeriado()" class="primary-btn" style="padding: 9px 20px; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; background-color: #d97706; color: #ffffff; border: none; border-radius: var(--radius-sm); cursor: pointer; box-shadow: 0 4px 12px rgba(217,119,6,0.25);">
+                <i data-lucide="calendar-plus" style="width: 16px; height: 16px;"></i>
+                <span>Novo Feriado / Recesso</span>
+            </button>
+        </div>
+
+        <!-- Tabela de Dias Não Letivos / Feriados / Recessos -->
+        <div class="chart-card" style="padding: 0; overflow: hidden; border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;">
+                    <thead>
+                        <tr style="background-color: var(--bg-body); border-bottom: 1px solid var(--border-color); color: var(--text-secondary); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px;">
+                            <th style="padding: 12px 18px; font-weight: 700;">Data / Período</th>
+                            <th style="padding: 12px 14px; font-weight: 700;">Tipo</th>
+                            <th style="padding: 12px 18px; font-weight: 700;">Descrição / Motivo</th>
+                            <th style="padding: 12px 16px; font-weight: 700;">Abrangência</th>
+                            <th style="padding: 12px 16px; font-weight: 700;">Registrado Por</th>
+                            <th style="padding: 12px 18px; font-weight: 700; text-align: right;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fer in feriados_lista %}
+                        <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.15s;" onmouseenter="this.style.backgroundColor='var(--bg-input)'" onmouseleave="this.style.backgroundColor='transparent'">
+                            <td style="padding: 14px 18px; white-space: nowrap;">
+                                <div style="font-weight: 800; font-size: 13.5px; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                                    <i data-lucide="calendar" style="width: 14px; height: 14px; color: #d97706;"></i>
+                                    {% if fer.is_intervalo %}
+                                        {{ fer.data_inicio_formatada }} a {{ fer.data_fim_formatada }}
+                                    {% else %}
+                                        {{ fer.data_inicio_formatada }}
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td style="padding: 14px;">
+                                <span style="background-color: #fef3c7; color: #92400e; font-weight: 800; font-size: 11px; padding: 4px 9px; border-radius: 6px; border: 1px solid #fde68a;">
+                                    {{ fer.tipo_display }}
+                                </span>
+                            </td>
+                            <td style="padding: 14px 18px; font-weight: 600; color: var(--text-primary);">
+                                {{ fer.descricao }}
+                            </td>
+                            <td style="padding: 14px 16px; color: var(--text-secondary); font-size: 12.5px;">
+                                {% if fer.turma %}
+                                    <span style="font-weight: 700; color: var(--color-primary);">Sala {{ fer.turma.nome }}</span>
+                                {% else %}
+                                    <span>Toda a Creche (Geral)</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 14px 16px; color: var(--text-secondary); font-size: 12px;">
+                                {{ fer.registrado_por }}
+                            </td>
+                            <td style="padding: 14px 18px; text-align: right;">
+                                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                                    <button type="button" onclick="editarFeriadoAdmin({{ fer.id }}, '{{ fer.tipo }}', '{{ fer.descricao|escapejs }}', '{{ fer.data_inicio_iso }}', '{{ fer.data_fim_iso }}', '{{ fer.turma.id|default:'' }}')" style="padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Editar feriado">
+                                        <i data-lucide="edit" style="width: 13px; height: 13px;"></i> Editar
+                                    </button>
+                                    <button type="button" onclick="excluirFeriadoAdmin({{ fer.id }}, '{{ fer.descricao|escapejs }}')" style="padding: 5px 8px; border-radius: 6px; border: 1px solid #fca5a5; background: #fff1f2; color: #b91c1c; font-size: 12px; cursor: pointer;" title="Excluir feriado">
+                                        <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" style="padding: 32px; text-align: center; color: var(--text-secondary); font-size: 13.5px;">
+                                Nenhum feriado ou recesso cadastrado para o ano letivo de {{ selected_year }}.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ================================================================= -->
+    <!-- ABA 4: TURMAS & SALAS DE AULA                                     -->
+    <!-- ================================================================= -->
+    {% if subtab == 'turmas' %}
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; background: var(--bg-card); padding: 16px 20px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+            <div>
+                <h4 style="margin: 0; font-size: 15px; font-weight: 800; color: var(--text-primary);">Salas de Aula e Equipe Pedagógica</h4>
+                <p style="margin: 2px 0 0 0; font-size: 12px; color: var(--text-secondary);">Estrutura de turmas, faixas etárias e corpo docente vinculado.</p>
+            </div>
+            <a href="{% url 'turmas' %}" class="primary-btn" style="text-decoration: none; padding: 9px 18px; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; background-color: var(--brand-primary); color: #ffffff; border-radius: var(--radius-sm);">
+                <i data-lucide="external-link" style="width: 15px; height: 15px;"></i>
+                <span>Abrir Gestor de Turmas</span>
+            </a>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px;">
+            {% for t in turmas_cards %}
+            <div class="chart-card" style="border-left: 4px solid var(--brand-primary); display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                        <div>
+                            <h4 style="margin: 0; font-size: 16px; font-weight: 800; color: var(--text-primary);">Sala {{ t.nome }}</h4>
+                            <span style="font-size: 12px; color: var(--text-secondary);">{{ t.faixa_etaria|default:"Faixa etária padrão" }}</span>
+                        </div>
+                        <span style="background: var(--brand-light); color: var(--brand-primary); font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 12px;">
+                            {{ t.total_alunos }} alunos
+                        </span>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; border-top: 1px dashed var(--border-color); padding-top: 10px;">
+                        <div>
+                            <strong style="color: var(--text-primary);">👩‍🏫 Professores:</strong>
+                            <span style="color: var(--text-secondary);">{{ t.professores }}</span>
+                        </div>
+                        <div>
+                            <strong style="color: var(--text-primary);">🤝 Auxiliares:</strong>
+                            <span style="color: var(--text-secondary);">{{ t.auxiliares }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end;">
+                    <a href="{% url 'presencas:lista_alunos' %}?turma={{ t.id }}" style="font-size: 12px; font-weight: 700; color: var(--brand-primary); text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                        Ver Alunos da Sala <i data-lucide="arrow-right" style="width: 14px; height: 14px;"></i>
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ================================================================= -->
+    <!-- ABA 5: USUÁRIOS & PERFIS                                          -->
+    <!-- ================================================================= -->
+    {% if subtab == 'usuarios' %}
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; background: var(--bg-card); padding: 16px 20px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+            <div>
+                <h4 style="margin: 0; font-size: 15px; font-weight: 800; color: var(--text-primary);">Gestão de Contas & Usuários</h4>
+                <p style="margin: 2px 0 0 0; font-size: 12px; color: var(--text-secondary);">Controle de acessos, papéis de usuários e redefinição de senhas.</p>
+            </div>
+            <a href="{% url 'accounts:usuarios_list' %}" class="primary-btn" style="text-decoration: none; padding: 9px 18px; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; background-color: #7c3aed; color: #ffffff; border-radius: var(--radius-sm);">
+                <i data-lucide="user-plus" style="width: 15px; height: 15px;"></i>
+                <span>Abrir Gestor Completo de Usuários</span>
+            </a>
+        </div>
+
+        <div class="chart-card" style="padding: 0; overflow: hidden; border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;">
+                    <thead>
+                        <tr style="background-color: var(--bg-body); border-bottom: 1px solid var(--border-color); color: var(--text-secondary); font-size: 11.5px; text-transform: uppercase;">
+                            <th style="padding: 12px 18px; font-weight: 700;">Nome Completo / Login</th>
+                            <th style="padding: 12px 16px; font-weight: 700;">E-mail</th>
+                            <th style="padding: 12px 14px; font-weight: 700; text-align: center;">Perfil / Papel</th>
+                            <th style="padding: 12px 14px; font-weight: 700; text-align: center;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in usuarios_recentes %}
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 14px 18px;">
+                                <div style="font-weight: 700; color: var(--text-primary);">{{ u.get_full_name|default:u.username }}</div>
+                                <div style="font-size: 11.5px; color: var(--text-secondary);">@{{ u.username }}</div>
+                            </td>
+                            <td style="padding: 14px 16px; color: var(--text-secondary);">
+                                {{ u.email|default:"-" }}
+                            </td>
+                            <td style="padding: 14px; text-align: center;">
+                                <span style="background: var(--bg-body); color: var(--text-primary); font-weight: 700; font-size: 11.5px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border-color);">
+                                    {{ u.get_role_display }}
+                                </span>
+                            </td>
+                            <td style="padding: 14px; text-align: center;">
+                                {% if u.is_active %}
+                                <span style="color: #047857; font-weight: 700; font-size: 11.5px;">Ativo</span>
+                                {% else %}
+                                <span style="color: #b91c1c; font-weight: 700; font-size: 11.5px;">Inativo</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</section>
+
+<!-- ================================================================= -->
+<!-- MODAL: CADASTRAR / EDITAR ÓRGÃO CONVENIADO                        -->
+<!-- ================================================================= -->
+<div id="modal-orgao-form" style="display: none; position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.6); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 16px;">
+    <div style="background-color: var(--bg-card); width: 100%; max-width: 520px; border-radius: var(--radius-lg); border: 1px solid var(--border-color); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden;" onclick="event.stopPropagation()">
+        <div style="padding: 18px 22px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 36px; height: 36px; border-radius: 8px; background: #dbeafe; color: #2563eb; display: flex; align-items: center; justify-content: center;">
+                    <i data-lucide="building-2" style="width: 20px; height: 20px;"></i>
+                </div>
+                <div>
+                    <h3 id="modal-orgao-title" style="margin: 0; font-size: 16px; font-weight: 800; color: var(--text-primary);">Novo Órgão Conveniado</h3>
+                    <span style="font-size: 11.5px; color: var(--text-secondary);">Cadastre o órgão conveniado para admissão e vinculação de responsáveis</span>
+                </div>
+            </div>
+            <button type="button" onclick="fecharModalOrgao()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-secondary);">&times;</button>
+        </div>
+
+        <form id="form-orgao" onsubmit="event.preventDefault(); salvarOrgaoSubmit();" style="padding: 22px; display: flex; flex-direction: column; gap: 14px;">
+            <input type="hidden" id="orgao-id" value="">
+
+            <div>
+                <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                    Nome Oficial do Órgão / Instituição *
+                </label>
+                <input type="text" id="orgao-nome" required placeholder="Ex: Tribunal de Justiça do Estado" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div>
+                    <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                        Sigla / Identificador
+                    </label>
+                    <input type="text" id="orgao-sigla" placeholder="Ex: TJ, MP, DPE" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none; box-sizing: border-box; text-transform: uppercase;">
+                </div>
+                <div style="display: flex; flex-direction: column; justify-content: center;">
+                    <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                        Status do Convênio
+                    </label>
+                    <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; padding: 10px 0;">
+                        <input type="checkbox" id="orgao-ativo" checked style="width: 17px; height: 17px; accent-color: #2563eb; cursor: pointer;">
+                        <span style="font-size: 13px; font-weight: 700; color: var(--text-primary);">Órgão Ativo / Convênio Vigente</span>
+                    </label>
+                </div>
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                    Descrição / Número do Contrato / Esfera (Opcional)
+                </label>
+                <textarea id="orgao-descricao" rows="3" placeholder="Informações do convênio, número do contrato ou observações administrativas..." style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); font-size: 13px; color: var(--text-primary); outline: none; resize: vertical; box-sizing: border-box;"></textarea>
+            </div>
+
+            <div style="padding-top: 14px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" onclick="fecharModalOrgao()" style="padding: 9px 18px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-weight: 700; font-size: 13px; cursor: pointer;">Cancelar</button>
+                <button type="submit" id="btn-submit-orgao" style="padding: 9px 22px; border-radius: 6px; background-color: #2563eb; color: #ffffff; border: none; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                    <i data-lucide="check" style="width: 16px; height: 16px;"></i>
+                    <span id="btn-submit-orgao-text">Salvar Órgão</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- MODAL: CADASTRAR / EDITAR FERIADO OU RECESSO COM INTEGRIDADE      -->
+<!-- ================================================================= -->
+<div id="modal-feriado-admin" style="display: none; position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.6); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 16px;">
+    <div style="background-color: var(--bg-card); width: 100%; max-width: 540px; border-radius: var(--radius-lg); border: 1px solid var(--border-color); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden;" onclick="event.stopPropagation()">
+        <div style="padding: 18px 22px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 36px; height: 36px; border-radius: 8px; background: #fef3c7; color: #d97706; display: flex; align-items: center; justify-content: center;">
+                    <i data-lucide="calendar-plus" style="width: 20px; height: 20px;"></i>
+                </div>
+                <div>
+                    <h3 id="modal-feriado-admin-title" style="margin: 0; font-size: 16px; font-weight: 800; color: var(--text-primary);">Marcar Feriado / Recesso</h3>
+                    <span style="font-size: 11.5px; color: var(--text-secondary);">Define dias não letivos e anula presenças/ocorrências com confirmação</span>
+                </div>
+            </div>
+            <button type="button" onclick="fecharModalFeriadoAdmin()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-secondary);">&times;</button>
+        </div>
+
+        <form id="form-feriado-admin" onsubmit="event.preventDefault(); salvarFeriadoAdminSubmit();" style="padding: 22px; display: flex; flex-direction: column; gap: 14px;">
+            <input type="hidden" id="admin-feriado-id" value="">
+
+            <div>
+                <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                    Classificação do Dia Não Letivo *
+                </label>
+                <select id="admin-feriado-tipo" required style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none;">
+                    {% for code, label in tipo_dias_choices %}
+                    <option value="{{ code }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                    Descrição / Nome do Feriado / Motivo *
+                </label>
+                <input type="text" id="admin-feriado-descricao" required placeholder="Ex: Proclamação da República" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+            </div>
+
+            <!-- Seleção de Modo: Dia Único vs Intervalo -->
+            <div style="background: var(--bg-body); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+                <span style="font-size: 12px; font-weight: 700; color: var(--text-primary);">Duração do Período:</span>
+                <div style="display: flex; gap: 14px;">
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">
+                        <input type="radio" name="admin_modo_periodo" id="admin-modo-unico" value="unico" checked onchange="toggleModoPeriodoAdmin('unico')" style="accent-color: var(--brand-primary);">
+                        <span>Dia Único</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">
+                        <input type="radio" name="admin_modo_periodo" id="admin-modo-intervalo" value="intervalo" onchange="toggleModoPeriodoAdmin('intervalo')" style="accent-color: var(--brand-primary);">
+                        <span>Intervalo Prolongado</span>
+                    </label>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div>
+                    <label id="lbl-admin-data-inicio" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                        Data do Feriado *
+                    </label>
+                    <input type="date" id="admin-feriado-data-inicio" required value="{{ today }}" style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); font-size: 13px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                </div>
+                <div id="wrapper-admin-data-fim" style="display: none;">
+                    <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                        Data Final *
+                    </label>
+                    <input type="date" id="admin-feriado-data-fim" value="{{ today }}" style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); font-size: 13px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                </div>
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                    Abrangência de Turmas
+                </label>
+                <select id="admin-feriado-turma" style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); font-size: 13px; color: var(--text-primary); outline: none;">
+                    <option value="all">Todas as Salas (Toda a Creche)</option>
+                    {% for t in turmas %}
+                    <option value="{{ t.id }}">Somente Sala {{ t.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="padding-top: 14px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" onclick="fecharModalFeriadoAdmin()" style="padding: 9px 18px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-weight: 700; font-size: 13px; cursor: pointer;">Cancelar</button>
+                <button type="submit" id="btn-submit-feriado-admin" style="padding: 9px 22px; border-radius: 6px; background-color: #d97706; color: #ffffff; border: none; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                    <i data-lucide="check" style="width: 16px; height: 16px;"></i>
+                    <span id="btn-submit-feriado-admin-text">Salvar Dia Não Letivo</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- MODAL DE CONFIRMAÇÃO DE ANULAÇÃO DE REGISTROS                     -->
+<!-- ================================================================= -->
+<div id="modal-confirmar-anulacao-admin" style="display: none; position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.75); z-index: 10000; align-items: center; justify-content: center; backdrop-filter: blur(5px); padding: 16px;">
+    <div style="background-color: var(--bg-card); width: 100%; max-width: 520px; border-radius: var(--radius-lg); border: 1.5px solid #fca5a5; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden;">
+        <div style="padding: 20px 24px; background: linear-gradient(to right, #fff1f2, #fff7ed); border-bottom: 1px solid #fed7aa; display: flex; align-items: flex-start; gap: 14px;">
+            <div style="width: 44px; height: 44px; border-radius: 12px; background-color: #fee2e2; color: #dc2626; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 22px;">
+                ⚠️
+            </div>
+            <div>
+                <h3 style="margin: 0; font-size: 16.5px; font-weight: 800; color: #991b1b;">Confirmar Anulação de Registros</h3>
+                <p style="margin: 4px 0 0 0; font-size: 12px; color: #9a3412; font-weight: 600;">Registros existentes serão excluídos permanentemente</p>
+            </div>
+        </div>
+
+        <div style="padding: 24px; display: flex; flex-direction: column; gap: 14px;">
+            <p id="confirm-anulacao-admin-texto" style="margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--text-primary);">
+                Existem registros nesta data que serão deletados ao marcar como dia não letivo.
+            </p>
+
+            <div style="background-color: #fff1f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px;">
+                <div style="font-weight: 700; color: #991b1b; display: flex; align-items: center; gap: 6px;">
+                    <i data-lucide="trash-2" style="width: 15px; height: 15px;"></i>
+                    <span>Detalhamento dos registros que serão excluídos:</span>
+                </div>
+                <div id="confirm-anulacao-admin-detalhes" style="color: #7f1d1d; display: flex; flex-direction: column; gap: 4px; padding-left: 10px;">
+                </div>
+            </div>
+
+            <div style="font-size: 11.5px; color: var(--text-secondary); background: var(--bg-body); padding: 8px 12px; border-radius: 6px; border: 1px dashed var(--border-color);">
+                ℹ️ <em>Esta ação não pode ser desfeita. Qualquer presença, falta, justificativa ou atraso lançado no período será anulado para preservar a integridade dos relatórios e chamadas.</em>
+            </div>
+        </div>
+
+        <div style="padding: 16px 24px; border-top: 1px solid var(--border-color); background-color: var(--bg-body); display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" onclick="fecharModalConfirmacaoAnulacaoAdmin()" style="padding: 9px 18px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background-color: var(--bg-card); color: var(--text-primary); font-weight: 700; font-size: 13px; cursor: pointer;">
+                Cancelar
+            </button>
+            <button type="button" id="btn-confirmar-anulacao-admin-submit" onclick="confirmarEExecutarSalvarFeriadoAdmin()" style="padding: 9px 20px; border-radius: var(--radius-sm); background-color: #dc2626; color: #ffffff; border: none; font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; box-shadow: 0 4px 12px rgba(220,38,38,0.35);">
+                <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                <span>Sim, Anular Registros e Salvar Feriado</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST MESSAGE FLUTUANTE -->
+<div id="admin-toast" style="display: none; position: fixed; bottom: 24px; right: 24px; z-index: 10001; padding: 12px 20px; border-radius: 8px; font-size: 13.5px; font-weight: 700; box-shadow: var(--shadow-lg); align-items: center; gap: 10px; animation: slideUp 0.3s ease-out;">
+</div>
+
+<style>
+    .admin-tab-btn {
+        text-decoration: none;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text-secondary);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+        border: 1px solid transparent;
+    }
+    .admin-tab-btn:hover {
+        background: var(--bg-body);
+        color: var(--text-primary);
+    }
+    .admin-tab-btn.active {
+        background-color: var(--brand-primary);
+        color: #ffffff;
+        box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+    }
+    .admin-badge {
+        font-size: 11px;
+        font-weight: 800;
+        background: rgba(0, 0, 0, 0.08);
+        padding: 2px 7px;
+        border-radius: 10px;
+    }
+    .admin-tab-btn.active .admin-badge {
+        background: rgba(255, 255, 255, 0.25);
+        color: #ffffff;
+    }
+</style>
+
+<script>
+    function showAdminToast(msg, isSuccess = true) {
+        const toast = document.getElementById('admin-toast');
+        if (!toast) return;
+        toast.style.display = 'flex';
+        toast.style.backgroundColor = isSuccess ? '#ecfdf5' : '#fef2f2';
+        toast.style.color = isSuccess ? '#065f46' : '#991b1b';
+        toast.style.border = isSuccess ? '1px solid #a7f3d0' : '1px solid #fecaca';
+        toast.innerHTML = `<i data-lucide="${isSuccess ? 'check-circle' : 'alert-circle'}" style="width: 18px; height: 18px;"></i> ${msg}`;
+        if (window.lucide) lucide.createIcons();
+        setTimeout(() => { toast.style.display = 'none'; }, 4000);
+    }
+
+    // =========================================================================
+    // MODAL DE ÓRGÃOS CONVENIADOS
+    // =========================================================================
+    function abrirModalOrgao() {
+        document.getElementById('modal-orgao-title').innerText = 'Novo Órgão Conveniado';
+        document.getElementById('btn-submit-orgao-text').innerText = 'Salvar Órgão';
+        document.getElementById('orgao-id').value = '';
+        document.getElementById('orgao-nome').value = '';
+        document.getElementById('orgao-sigla').value = '';
+        document.getElementById('orgao-descricao').value = '';
+        document.getElementById('orgao-ativo').checked = true;
+
+        document.getElementById('modal-orgao-form').style.display = 'flex';
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function editarOrgao(id, nome, sigla, descricao, ativo) {
+        document.getElementById('modal-orgao-title').innerText = 'Editar Órgão Conveniado';
+        document.getElementById('btn-submit-orgao-text').innerText = 'Atualizar Órgão';
+        document.getElementById('orgao-id').value = id;
+        document.getElementById('orgao-nome').value = nome;
+        document.getElementById('orgao-sigla').value = sigla;
+        document.getElementById('orgao-descricao').value = descricao;
+        document.getElementById('orgao-ativo').checked = ativo;
+
+        document.getElementById('modal-orgao-form').style.display = 'flex';
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function fecharModalOrgao() {
+        document.getElementById('modal-orgao-form').style.display = 'none';
+    }
+
+    async function salvarOrgaoSubmit() {
+        const id = document.getElementById('orgao-id').value;
+        const nome = document.getElementById('orgao-nome').value.trim();
+        const sigla = document.getElementById('orgao-sigla').value.trim();
+        const descricao = document.getElementById('orgao-descricao').value.trim();
+        const ativo = document.getElementById('orgao-ativo').checked;
+
+        if (!nome) {
+            alert('Por favor, informe o nome do órgão.');
+            return;
+        }
+
+        const btn = document.getElementById('btn-submit-orgao');
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<span>Salvando...</span>`;
+
+        try {
+            const resp = await fetch("{% url 'core:salvar_orgao_api' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify({
+                    orgao_id: id || null,
+                    nome: nome,
+                    sigla: sigla,
+                    descricao: descricao,
+                    ativo: ativo
+                })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                fecharModalOrgao();
+                showAdminToast(data.message, true);
+                setTimeout(() => { window.location.reload(); }, 600);
+            } else {
+                alert('Erro: ' + (data.error || 'Falha ao salvar órgão.'));
+            }
+        } catch (err) {
+            alert('Falha na comunicação com o servidor ao salvar órgão.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    }
+
+    async function alternarStatusOrgao(id) {
+        try {
+            const resp = await fetch(`/administracao/orgaos/${id}/toggle/`, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}"
+                }
+            });
+            const data = await resp.json();
+            if (data.success) {
+                showAdminToast(data.message, true);
+                setTimeout(() => { window.location.reload(); }, 500);
+            } else {
+                alert('Erro: ' + (data.error || 'Falha ao alterar status.'));
+            }
+        } catch (err) {
+            alert('Falha na comunicação ao alternar status do órgão.');
+        }
+    }
+
+    async function excluirOrgao(id, nome) {
+        if (!confirm(`Deseja realmente excluir o órgão "${nome}"?`)) {
+            return;
+        }
+
+        try {
+            const resp = await fetch(`/administracao/orgaos/${id}/excluir/`, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}"
+                }
+            });
+            const data = await resp.json();
+            if (data.success) {
+                showAdminToast(data.message, true);
+                setTimeout(() => { window.location.reload(); }, 600);
+            } else {
+                alert(data.error || 'Falha ao excluir órgão.');
+            }
+        } catch (err) {
+            alert('Falha na comunicação com o servidor ao excluir órgão.');
+        }
+    }
+
+    // =========================================================================
+    // MODAL DE FERIADOS / RECESSOS NA CENTRAL ADMINISTRATIVA
+    // =========================================================================
+    function abrirModalFeriado() {
+        document.getElementById('modal-feriado-admin-title').innerText = 'Marcar Feriado / Recesso';
+        document.getElementById('btn-submit-feriado-admin-text').innerText = 'Salvar Dia Não Letivo';
+        document.getElementById('admin-feriado-id').value = '';
+        document.getElementById('admin-feriado-tipo').value = 'FERIADO';
+        document.getElementById('admin-feriado-descricao').value = '';
+        document.getElementById('admin-feriado-data-inicio').value = "{{ today }}";
+        document.getElementById('admin-feriado-data-fim').value = "{{ today }}";
+        document.getElementById('admin-feriado-turma').value = 'all';
+        document.getElementById('admin-modo-unico').checked = true;
+        toggleModoPeriodoAdmin('unico');
+
+        document.getElementById('modal-feriado-admin').style.display = 'flex';
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function editarFeriadoAdmin(id, tipo, descricao, dataInicio, dataFim, turmaId) {
+        document.getElementById('modal-feriado-admin-title').innerText = 'Editar Feriado / Recesso';
+        document.getElementById('btn-submit-feriado-admin-text').innerText = 'Atualizar Dia Não Letivo';
+        document.getElementById('admin-feriado-id').value = id;
+        document.getElementById('admin-feriado-tipo').value = tipo || 'FERIADO';
+        document.getElementById('admin-feriado-descricao').value = descricao;
+        document.getElementById('admin-feriado-data-inicio').value = dataInicio;
+        document.getElementById('admin-feriado-data-fim').value = dataFim || dataInicio;
+        document.getElementById('admin-feriado-turma').value = turmaId || 'all';
+
+        const isIntervalo = dataInicio && dataFim && dataInicio !== dataFim;
+        if (isIntervalo) {
+            document.getElementById('admin-modo-intervalo').checked = true;
+            toggleModoPeriodoAdmin('intervalo');
+        } else {
+            document.getElementById('admin-modo-unico').checked = true;
+            toggleModoPeriodoAdmin('unico');
+        }
+
+        document.getElementById('modal-feriado-admin').style.display = 'flex';
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function fecharModalFeriadoAdmin() {
+        document.getElementById('modal-feriado-admin').style.display = 'none';
+    }
+
+    function toggleModoPeriodoAdmin(modo) {
+        const wrapperFim = document.getElementById('wrapper-admin-data-fim');
+        const lblInicio = document.getElementById('lbl-admin-data-inicio');
+        const inputInicio = document.getElementById('admin-feriado-data-inicio');
+        const inputFim = document.getElementById('admin-feriado-data-fim');
+
+        if (modo === 'intervalo') {
+            if (wrapperFim) wrapperFim.style.display = 'block';
+            if (lblInicio) lblInicio.innerText = 'Data Inicial *';
+            if (inputFim && (!inputFim.value || inputFim.value < inputInicio.value)) {
+                inputFim.value = inputInicio.value;
+            }
+        } else {
+            if (wrapperFim) wrapperFim.style.display = 'none';
+            if (lblInicio) lblInicio.innerText = 'Data do Feriado *';
+            if (inputFim && inputInicio) {
+                inputFim.value = inputInicio.value;
+            }
+        }
+    }
+
+    function fecharModalConfirmacaoAnulacaoAdmin() {
+        document.getElementById('modal-confirmar-anulacao-admin').style.display = 'none';
+    }
+
+    function exibirModalConfirmacaoAnulacaoAdmin(data) {
+        const modal = document.getElementById('modal-confirmar-anulacao-admin');
+        if (!modal) return;
+
+        const txt = document.getElementById('confirm-anulacao-admin-texto');
+        if (txt) {
+            txt.innerHTML = `Identificamos registros lançados para o período de <strong>${data.periodo || ''}</strong>. Ao classificar este dia como <strong>${data.tipo_nome || 'Feriado / Recesso'}</strong>, as presenças e ausências registradas são inválidas para fins estatísticos e relatórios oficiais.`;
+        }
+
+        const detalhes = document.getElementById('confirm-anulacao-admin-detalhes');
+        if (detalhes) {
+            detalhes.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding: 3px 0; border-bottom: 1px dashed rgba(220,38,38,0.2);">
+                    <span>📋 Chamadas / Registros de Presença:</span>
+                    <strong style="background: #fee2e2; padding: 1px 8px; border-radius: 4px; color: #991b1b;">${data.count_presencas}</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; padding: 3px 0; border-bottom: 1px dashed rgba(220,38,38,0.2);">
+                    <span>📖 Diários de Classe Registrados:</span>
+                    <strong style="background: #fee2e2; padding: 1px 8px; border-radius: 4px; color: #991b1b;">${data.count_diarios}</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; padding: 3px 0; border-bottom: 1px dashed rgba(220,38,38,0.2);">
+                    <span>⚠️ Ocorrências / Justificativas / Atrasos:</span>
+                    <strong style="background: #fee2e2; padding: 1px 8px; border-radius: 4px; color: #991b1b;">${data.count_ocorrencias}</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; padding-top: 6px; margin-top: 4px; font-weight: 800; color: #991b1b; font-size: 13px;">
+                    <span>TOTAL A SER ANULADO E EXCLUÍDO:</span>
+                    <span style="background: #dc2626; color: white; padding: 2px 10px; border-radius: 6px;">${data.total_afetados} registros</span>
+                </div>
+            `;
+        }
+
+        modal.style.display = 'flex';
+        if (window.lucide) lucide.createIcons();
+    }
+
+    async function confirmarEExecutarSalvarFeriadoAdmin() {
+        const btn = document.getElementById('btn-confirmar-anulacao-admin-submit');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<span>Anulando registros e salvando...</span>`;
+        }
+        try {
+            await salvarFeriadoAdminSubmit(true);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<i data-lucide="trash-2" style="width: 16px; height: 16px;"></i><span>Sim, Anular Registros e Salvar Feriado</span>`;
+                if (window.lucide) lucide.createIcons();
+            }
+        }
+    }
+
+    async function salvarFeriadoAdminSubmit(forceConfirm = false) {
+        const feriadoId = document.getElementById('admin-feriado-id').value;
+        const tipo = document.getElementById('admin-feriado-tipo').value;
+        const descricao = document.getElementById('admin-feriado-descricao').value.trim();
+        const dataInicio = document.getElementById('admin-feriado-data-inicio').value;
+        const modoIntervalo = document.getElementById('admin-modo-intervalo').checked;
+        const dataFim = modoIntervalo ? document.getElementById('admin-feriado-data-fim').value : dataInicio;
+        const turmaId = document.getElementById('admin-feriado-turma').value;
+
+        if (!descricao) {
+            alert('Por favor, informe a descrição ou nome do feriado/recesso.');
+            return;
+        }
+
+        if (!dataInicio) {
+            alert('Por favor, informe a data inicial.');
+            return;
+        }
+
+        if (modoIntervalo && dataFim < dataInicio) {
+            alert('A data de término não pode ser anterior à data de início.');
+            return;
+        }
+
+        const btn = document.getElementById('btn-submit-feriado-admin');
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<span>Salvando...</span>`;
+
+        const payload = {
+            feriado_id: feriadoId || null,
+            tipo: tipo,
+            descricao: descricao,
+            data_inicio: dataInicio,
+            data_fim: dataFim,
+            turma_id: turmaId,
+            confirmar_exclusao: forceConfirm === true
+        };
+
+        try {
+            const resp = await fetch("{% url 'presencas:salvar_feriado_recesso' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify(payload)
+            });
+            const result = await resp.json();
+
+            if (result.requires_confirmation) {
+                exibirModalConfirmacaoAnulacaoAdmin(result);
+                return;
+            }
+
+            if (result.success) {
+                fecharModalConfirmacaoAnulacaoAdmin();
+                fecharModalFeriadoAdmin();
+                showAdminToast(result.message, true);
+                setTimeout(() => { window.location.reload(); }, 600);
+            } else {
+                alert('Erro ao salvar: ' + (result.error || 'Erro desconhecido'));
+            }
+        } catch (err) {
+            alert('Falha na comunicação ao salvar o feriado.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    }
+
+    async function excluirFeriadoAdmin(id, descricao) {
+        if (!confirm(`Deseja realmente desmarcar/excluir o feriado "${descricao}"? O dia voltará a ser dia letivo normal.`)) {
+            return;
+        }
+
+        try {
+            const resp = await fetch("{% url 'presencas:excluir_feriado_recesso' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify({ feriado_id: id })
+            });
+            const result = await resp.json();
+            if (result.success) {
+                showAdminToast(result.message, true);
+                setTimeout(() => { window.location.reload(); }, 600);
+            } else {
+                alert('Erro: ' + (result.error || 'Falha ao excluir feriado.'));
+            }
+        } catch (err) {
+            alert('Falha na comunicação ao excluir feriado.');
+        }
+    }
+</script>
+{% endblock %}

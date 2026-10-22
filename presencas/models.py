@@ -73,6 +73,29 @@ class Turma(models.Model):
         return ", ".join(auxs) if auxs else "Nenhum auxiliar vinculado"
 
 
+class Orgao(models.Model):
+    """
+    Representa os órgãos públicos e instituições conveniadas por contrato
+    através dos quais as crianças e seus responsáveis são atendidos no SEAMI.
+    """
+    nome = models.CharField(max_length=150, unique=True, verbose_name='Nome do Órgão / Instituição')
+    sigla = models.CharField(max_length=30, blank=True, default='', verbose_name='Sigla')
+    descricao = models.TextField(blank=True, default='', verbose_name='Descrição / Contrato')
+    ativo = models.BooleanField(default=True, verbose_name='Ativo')
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Órgão Conveniado'
+        verbose_name_plural = 'Órgãos Conveniados'
+        ordering = ['nome']
+
+    def __str__(self):
+        if self.sigla:
+            return f"{self.sigla} - {self.nome}"
+        return self.nome
+
+
 class AlunoQuerySet(models.QuerySet):
     def ativos(self, target_date=None):
         if target_date is None:
@@ -101,6 +124,14 @@ class Aluno(models.Model):
         default=TurnoAluno.INTEGRAL,
         verbose_name='Turno'
     )
+    orgao = models.ForeignKey(
+        Orgao,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='alunos',
+        verbose_name='Órgão do Aluno (Contrato)'
+    )
     data_entrada = models.DateField(null=True, blank=True, verbose_name='Data de Entrada')
     data_desligamento = models.DateField(null=True, blank=True, verbose_name='Data de Desligamento')
     motivo_desligamento = models.TextField(blank=True, verbose_name='Motivo do Desligamento')
@@ -119,9 +150,25 @@ class Aluno(models.Model):
     nome_responsavel = models.CharField(max_length=150, blank=True, verbose_name='Nome do Responsável')
     telefone_responsavel = models.CharField(max_length=20, blank=True, verbose_name='Telefone do Responsável')
     email_responsavel = models.EmailField(blank=True, verbose_name='E-mail do Responsável')
+    orgao_responsavel = models.ForeignKey(
+        Orgao,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='alunos_responsavel_1',
+        verbose_name='Órgão do Responsável Principal'
+    )
     nome_responsavel_2 = models.CharField(max_length=150, blank=True, verbose_name='Nome do 2º Responsável')
     telefone_responsavel_2 = models.CharField(max_length=20, blank=True, verbose_name='Telefone do 2º Responsável')
     email_responsavel_2 = models.EmailField(blank=True, verbose_name='E-mail do 2º Responsável')
+    orgao_responsavel_2 = models.ForeignKey(
+        Orgao,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='alunos_responsavel_2',
+        verbose_name='Órgão do 2º Responsável'
+    )
     ativo = models.BooleanField(default=True, verbose_name='Ativo')
     criado_em = models.DateTimeField(auto_now_add=True)
 
@@ -134,6 +181,8 @@ class Aluno(models.Model):
         indexes = [
             models.Index(fields=['turma', 'ativo']),
             models.Index(fields=['data_entrada']),
+            models.Index(fields=['orgao']),
+            models.Index(fields=['orgao_responsavel']),
         ]
 
     def __str__(self):
@@ -149,6 +198,12 @@ class Aluno(models.Model):
         elif not self.ativo and not self.data_desligamento:
             self.data_desligamento = today
 
+        # A criança reflete automaticamente o órgão do responsável principal (contrato de convênio)
+        if self.orgao_responsavel:
+            self.orgao = self.orgao_responsavel
+        elif not self.orgao_responsavel and self.orgao:
+            self.orgao_responsavel = self.orgao
+
         super().save(*args, **kwargs)
 
     @property
@@ -161,6 +216,29 @@ class Aluno(models.Model):
         if self.data_desligamento and self.data_desligamento <= today:
             return False
         return True
+
+    @property
+    def orgao_display(self):
+        """Retorna o nome ou sigla do órgão conveniado da criança/contrato."""
+        if self.orgao:
+            return self.orgao.sigla or self.orgao.nome
+        if self.orgao_responsavel:
+            return self.orgao_responsavel.sigla or self.orgao_responsavel.nome
+        return "Não informado"
+
+    @property
+    def orgao_responsavel_display(self):
+        """Retorna o nome ou sigla do órgão de lotação do 1º responsável."""
+        if self.orgao_responsavel:
+            return self.orgao_responsavel.sigla or self.orgao_responsavel.nome
+        return "Não informado"
+
+    @property
+    def orgao_responsavel_2_display(self):
+        """Retorna o nome ou sigla do órgão de lotação do 2º responsável."""
+        if self.orgao_responsavel_2:
+            return self.orgao_responsavel_2.sigla or self.orgao_responsavel_2.nome
+        return ""
 
     @property
     def idade_extenso(self):

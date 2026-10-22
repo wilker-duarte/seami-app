@@ -1040,10 +1040,12 @@
                 </select>
             </div>
 
-            <!-- Card Informativo -->
-            <div style="padding: 12px 14px; border-radius: 8px; background-color: #eff6ff; border: 1px solid #bfdbfe; font-size: 12px; color: #1e40af; display: flex; align-items: start; gap: 8px;">
-                <i data-lucide="info" style="width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px;"></i>
-                <span>Nos dias marcados como feriado/recesso, a chamada não precisa ser lançada e os alunos <strong>não terão presença e nem falta</strong> contabilizadas.</span>
+            <!-- Card Informativo com Regra de Anulação de Registros -->
+            <div style="padding: 12px 14px; border-radius: 8px; background-color: #fffbeb; border: 1px solid #fde68a; font-size: 12px; color: #92400e; display: flex; align-items: start; gap: 10px;">
+                <i data-lucide="alert-triangle" style="width: 18px; height: 18px; color: #b45309; flex-shrink: 0; margin-top: 1px;"></i>
+                <div style="line-height: 1.45;">
+                    <strong style="color: #78350f;">Atenção à Regra de Integridade:</strong> Ao definir esta data como feriado, recesso ou dia não útil, qualquer registro prévio de chamada, presença, justificativa de falta ou atraso lançado nesta data será <strong>automaticamente anulado (deletado)</strong> para não constar em relatórios. Se houver registros prévios, uma confirmação explícita será solicitada.
+                </div>
             </div>
         </form>
 
@@ -1066,6 +1068,52 @@
             </div>
         </div>
 
+    </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- MODAL DE CONFIRMAÇÃO: ANULAÇÃO DE REGISTROS PRÉVIOS               -->
+<!-- ================================================================= -->
+<div id="modal-confirmar-anulacao" style="display: none; position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.75); z-index: 10000; align-items: center; justify-content: center; backdrop-filter: blur(5px); padding: 16px;">
+    <div style="background-color: var(--bg-card); width: 100%; max-width: 520px; border-radius: var(--radius-lg); border: 1.5px solid #fca5a5; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25); display: flex; flex-direction: column; overflow: hidden; animation: modalFadeIn 0.2s ease-out;">
+        <div style="padding: 20px 24px; background: linear-gradient(to right, #fff1f2, #fff7ed); border-bottom: 1px solid #fed7aa; display: flex; align-items: flex-start; gap: 14px;">
+            <div style="width: 44px; height: 44px; border-radius: 12px; background-color: #fee2e2; color: #dc2626; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 22px; box-shadow: 0 2px 8px rgba(220,38,38,0.2);">
+                ⚠️
+            </div>
+            <div>
+                <h3 style="margin: 0; font-size: 16.5px; font-weight: 800; color: #991b1b;">Confirmar Anulação de Registros</h3>
+                <p style="margin: 4px 0 0 0; font-size: 12px; color: #9a3412; font-weight: 600;">Registros existentes serão excluídos permanentemente</p>
+            </div>
+        </div>
+
+        <div style="padding: 24px; display: flex; flex-direction: column; gap: 14px;">
+            <p id="confirm-anulacao-texto" style="margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--text-primary);">
+                Existem registros nesta data que serão deletados ao marcar como dia não letivo.
+            </p>
+
+            <div style="background-color: #fff1f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px;">
+                <div style="font-weight: 700; color: #991b1b; display: flex; align-items: center; gap: 6px;">
+                    <i data-lucide="trash-2" style="width: 15px; height: 15px;"></i>
+                    <span>Detalhamento dos registros que serão excluídos:</span>
+                </div>
+                <div id="confirm-anulacao-detalhes" style="color: #7f1d1d; display: flex; flex-direction: column; gap: 4px; padding-left: 10px;">
+                </div>
+            </div>
+
+            <div style="font-size: 11.5px; color: var(--text-secondary); background: var(--bg-body); padding: 8px 12px; border-radius: 6px; border: 1px dashed var(--border-color);">
+                ℹ️ <em>Esta ação não pode ser desfeita. Qualquer presença, falta, justificativa ou atraso lançado no período será anulado para preservar a integridade dos relatórios e chamadas.</em>
+            </div>
+        </div>
+
+        <div style="padding: 16px 24px; border-top: 1px solid var(--border-color); background-color: var(--bg-body); display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" onclick="fecharModalConfirmacaoAnulacao()" style="padding: 9px 18px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background-color: var(--bg-card); color: var(--text-primary); font-weight: 700; font-size: 13px; cursor: pointer;">
+                Cancelar
+            </button>
+            <button type="button" id="btn-confirmar-anulacao-submit" onclick="confirmarEExecutarSalvarFeriado()" style="padding: 9px 20px; border-radius: var(--radius-sm); background-color: #dc2626; color: #ffffff; border: none; font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; box-shadow: 0 4px 12px rgba(220,38,38,0.35);">
+                <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                <span>Sim, Anular Registros e Salvar Feriado</span>
+            </button>
+        </div>
     </div>
 </div>
 
@@ -1155,7 +1203,64 @@
         }
     }
 
-    async function salvarFeriadoRecesso() {
+    function fecharModalConfirmacaoAnulacao() {
+        const modal = document.getElementById('modal-confirmar-anulacao');
+        if (modal) modal.style.display = 'none';
+    }
+
+    function exibirModalConfirmacaoAnulacao(data) {
+        const modal = document.getElementById('modal-confirmar-anulacao');
+        if (!modal) return;
+
+        const txt = document.getElementById('confirm-anulacao-texto');
+        if (txt) {
+            txt.innerHTML = `Identificamos registros lançados para o período de <strong>${data.periodo || ''}</strong>. Ao classificar este dia como <strong>${data.tipo_nome || 'Feriado / Recesso'}</strong>, as presenças e ausências registradas são inválidas para fins estatísticos e relatórios oficiais.`;
+        }
+
+        const detalhes = document.getElementById('confirm-anulacao-detalhes');
+        if (detalhes) {
+            detalhes.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding: 3px 0; border-bottom: 1px dashed rgba(220,38,38,0.2);">
+                    <span>📋 Chamadas / Registros de Presença:</span>
+                    <strong style="background: #fee2e2; padding: 1px 8px; border-radius: 4px; color: #991b1b;">${data.count_presencas}</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; padding: 3px 0; border-bottom: 1px dashed rgba(220,38,38,0.2);">
+                    <span>📖 Diários de Classe Registrados:</span>
+                    <strong style="background: #fee2e2; padding: 1px 8px; border-radius: 4px; color: #991b1b;">${data.count_diarios}</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; padding: 3px 0; border-bottom: 1px dashed rgba(220,38,38,0.2);">
+                    <span>⚠️ Ocorrências / Justificativas / Atrasos:</span>
+                    <strong style="background: #fee2e2; padding: 1px 8px; border-radius: 4px; color: #991b1b;">${data.count_ocorrencias}</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; padding-top: 6px; margin-top: 4px; font-weight: 800; color: #991b1b; font-size: 13px;">
+                    <span>TOTAL A SER ANULADO E EXCLUÍDO:</span>
+                    <span style="background: #dc2626; color: white; padding: 2px 10px; border-radius: 6px;">${data.total_afetados} registros</span>
+                </div>
+            `;
+        }
+
+        modal.style.display = 'flex';
+        if (window.lucide) lucide.createIcons();
+    }
+
+    async function confirmarEExecutarSalvarFeriado() {
+        const btn = document.getElementById('btn-confirmar-anulacao-submit');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<span>Anulando e salvando...</span>`;
+        }
+        try {
+            await salvarFeriadoRecesso(true);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<i data-lucide="trash-2" style="width: 16px; height: 16px;"></i><span>Sim, Anular Registros e Salvar Feriado</span>`;
+                if (window.lucide) lucide.createIcons();
+            }
+        }
+    }
+
+    async function salvarFeriadoRecesso(forceConfirm = false) {
         const feriadoId = document.getElementById('feriado-id').value;
         const tipo = document.getElementById('feriado-tipo').value;
         const descricao = document.getElementById('feriado-descricao').value.trim();
@@ -1191,7 +1296,8 @@
             descricao: descricao,
             data_inicio: dataInicio,
             data_fim: dataFim,
-            turma_id: turmaId
+            turma_id: turmaId,
+            confirmar_exclusao: forceConfirm === true
         };
 
         try {
@@ -1207,7 +1313,13 @@
             const result = await response.json();
             const toast = document.getElementById('toast-message');
 
+            if (result.requires_confirmation) {
+                exibirModalConfirmacaoAnulacao(result);
+                return;
+            }
+
             if (result.success) {
+                fecharModalConfirmacaoAnulacao();
                 fecharModalFeriado();
                 toast.style.display = 'flex';
                 toast.style.backgroundColor = '#ecfdf5';

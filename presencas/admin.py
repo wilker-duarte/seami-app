@@ -3,7 +3,7 @@ from core.admin_export import ExportActionMixin
 from .models import (
     Turma, Aluno, DiarioDeClasse, RegistroPresenca,
     OcorrenciaCaderno, RegistroAmamentacao, HistoricoFrequenciaMensal,
-    AtendimentoEnfermaria
+    AtendimentoEnfermaria, DiaNaoLetivo, Orgao
 )
 
 
@@ -13,6 +13,22 @@ class RegistroPresencaInline(admin.TabularInline):
     fields = ('aluno', 'status', 'observacao')
     readonly_fields = ('aluno',)
     can_delete = False
+
+
+@admin.register(Orgao)
+class OrgaoAdmin(ExportActionMixin, admin.ModelAdmin):
+    list_display = ('nome', 'sigla', 'get_total_alunos', 'get_total_pais', 'ativo', 'criado_em')
+    list_filter = ('ativo',)
+    search_fields = ('nome', 'sigla', 'descricao')
+    list_editable = ('ativo',)
+
+    def get_total_alunos(self, obj):
+        return obj.alunos.count()
+    get_total_alunos.short_description = 'Total de Alunos'
+
+    def get_total_pais(self, obj):
+        return obj.alunos_responsavel_1.count() + obj.alunos_responsavel_2.count()
+    get_total_pais.short_description = 'Total de Responsáveis'
 
 
 @admin.register(Turma)
@@ -29,14 +45,23 @@ class TurmaAdmin(ExportActionMixin, admin.ModelAdmin):
 
 @admin.register(Aluno)
 class AlunoAdmin(ExportActionMixin, admin.ModelAdmin):
-    list_display = ('nome', 'turma', 'turno', 'data_entrada', 'data_desligamento', 'has_acompanhamento', 'ativo')
-    list_filter = ('turma', 'turno', 'has_acompanhamento', 'ativo')
+    list_display = ('nome', 'turma', 'turno', 'orgao', 'orgao_responsavel', 'data_entrada', 'data_desligamento', 'has_acompanhamento', 'ativo')
+    list_filter = ('turma', 'turno', 'orgao', 'orgao_responsavel', 'has_acompanhamento', 'ativo')
     search_fields = (
         'nome', 'nome_responsavel', 'telefone_responsavel', 'email_responsavel',
         'nome_responsavel_2', 'telefone_responsavel_2', 'email_responsavel_2',
+        'orgao__nome', 'orgao__sigla', 'orgao_responsavel__nome', 'orgao_responsavel__sigla',
         'acompanhamento_obs'
     )
     list_editable = ('ativo',)
+
+
+@admin.register(DiaNaoLetivo)
+class DiaNaoLetivoAdmin(ExportActionMixin, admin.ModelAdmin):
+    list_display = ('tipo', 'descricao', 'data_inicio', 'data_fim', 'turma', 'registrado_por', 'criado_em')
+    list_filter = ('tipo', 'turma', 'data_inicio')
+    search_fields = ('descricao', 'turma__nome')
+    date_hierarchy = 'data_inicio'
 
 
 @admin.register(DiarioDeClasse)

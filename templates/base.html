@@ -197,9 +197,9 @@
                     <span>Central de Exportação</span>
                 </a>
 
-                <a href="/admin/" target="_blank" class="menu-item" title="Painel Django Admin (Gestão Técnica e Exportação do Sistema)">
+                <a href="{% url 'central_administrativa' %}" class="menu-item {% if active_tab == 'administracao' %}active{% endif %}" title="Central Administrativa de Gestão do SEAMI">
                     <i data-lucide="shield-check"></i>
-                    <span>Painel do Sistema (Admin)</span>
+                    <span>Central Administrativa</span>
                 </a>
                 {% endif %}
             </nav>

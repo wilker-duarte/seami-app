@@ -247,6 +247,25 @@
                             <span>{% if desligamentos_count == 1 %}1 desligamento agendado{% else %}{{ desligamentos_count }} desligamentos agendados{% endif %} &middot; Clique para ver</span>
                         </div>
                     </div>
+
+                    <!-- Card 4: Órgão com Maior Número de Crianças -->
+                    <div class="metric-card" onclick="openTopOrgaoModal()" style="border-left: 4px solid #059669; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; background: linear-gradient(to bottom right, var(--bg-card), rgba(5,150,105,0.02));">
+                        <div class="metric-header">
+                            <span class="metric-title" style="font-weight: 700; color: #065f46;">Órgão com Maior Nº de Crianças</span>
+                            <div class="metric-icon-box" style="background-color: #d1fae5; color: #059669; font-size: 16px;">🏆</div>
+                        </div>
+                        <div class="metric-value" style="font-size: 32px; font-weight: 800; color: #065f46;">
+                            {% if orgaos_stats.top_orgao_alunos %}
+                                {{ orgaos_stats.top_orgao_alunos.sigla }}
+                                <span style="font-size: 18px; font-weight: 700; color: #047857;">({{ orgaos_stats.top_orgao_alunos.count_alunos }})</span>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
+                        <div class="metric-footer" style="color: #047857; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+                            <span>{{ orgaos_stats.top_orgao_alunos.nome|default:"Nenhum órgão registrado" }} &middot; Clique para ver</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -271,7 +290,98 @@
                 </div>
             </div>
 
-            <!-- 4. MÓDULO I: CONTROLE DE FREQUÊNCIA -->
+            <!-- ================================================================= -->
+            <!-- 4. DISTRIBUIÇÃO POR ÓRGÃO CONVENIADO & VÍNCULO DOS PAIS           -->
+            <!-- ================================================================= -->
+            <div style="margin-bottom: 36px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 18px;">
+                    <div>
+                        <h3 style="font-family: 'Outfit', sans-serif; font-size: 18.5px; font-weight: 800; color: var(--slate-800); display: flex; align-items: center; gap: 8px; margin: 0;">
+                            <i data-lucide="building-2" style="width: 22px; height: 22px; color: #2563eb;"></i>
+                            Distribuição Institucional: Órgãos Conveniados e Vínculo dos Responsáveis
+                        </h3>
+                        <p style="margin: 4px 0 0 0; font-size: 12.5px; color: var(--text-secondary);">
+                            Estatística contratual dos convênios de ingresso das crianças e órgãos de lotação dos servidores responsáveis.
+                        </p>
+                    </div>
+                </div>
+
+
+                <!-- Tabela Completa e Detalhada de Órgãos e Contratos -->
+                <div class="chart-card" style="padding: 0; overflow: hidden; border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+                    <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); background: var(--bg-card); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i data-lucide="table" style="width: 18px; height: 18px; color: var(--brand-primary);"></i>
+                            <h4 style="margin: 0; font-size: 14.5px; font-weight: 700; color: var(--text-primary);">
+                                Detalhamento por Órgão Conveniado e Vínculos Funcionais
+                            </h4>
+                        </div>
+                        <span style="font-size: 12px; color: var(--text-secondary);">
+                            Total: <strong>{{ orgaos_ranking|length }}</strong> categoria(s) de vinculação
+                        </span>
+                    </div>
+
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;">
+                            <thead>
+                                <tr style="background-color: var(--bg-body); border-bottom: 1px solid var(--border-color); color: var(--text-secondary); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px;">
+                                    <th style="padding: 12px 18px; font-weight: 700;">Órgão / Entidade</th>
+                                    <th style="padding: 12px 14px; font-weight: 700; text-align: center;">Sigla</th>
+                                    <th style="padding: 12px 16px; font-weight: 700; text-align: center;">Alunos (Contrato)</th>
+                                    <th style="padding: 12px 16px; font-weight: 700;">Proporção (%)</th>
+                                    <th style="padding: 12px 16px; font-weight: 700; text-align: center;">Pais Vinculados</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for org in orgaos_ranking %}
+                                <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.15s;" onmouseenter="this.style.backgroundColor='var(--bg-input)'" onmouseleave="this.style.backgroundColor='transparent'">
+                                    <td style="padding: 12px 18px; font-weight: 700; color: var(--text-primary);">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <div style="width: 10px; height: 10px; border-radius: 50%; background-color: {{ org.color }}; flex-shrink: 0;"></div>
+                                            <div>
+                                                <div>{{ org.nome }}</div>
+                                                {% if org.descricao %}
+                                                <div style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">{{ org.descricao }}</div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td style="padding: 12px 14px; text-align: center;">
+                                        <span style="background-color: var(--bg-body); color: var(--text-primary); font-weight: 800; font-size: 11px; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border-color);">
+                                            {{ org.sigla }}
+                                        </span>
+                                    </td>
+                                    <td style="padding: 12px 16px; text-align: center; font-weight: 800; font-size: 14px; color: #1e40af;">
+                                        {{ org.count_alunos }}
+                                    </td>
+                                    <td style="padding: 12px 16px; min-width: 150px;">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <div style="flex: 1; height: 8px; background-color: var(--bg-input); border-radius: 4px; overflow: hidden;">
+                                                <div style="width: {{ org.pct_alunos }}%; height: 100%; background-color: {{ org.color }}; border-radius: 4px;"></div>
+                                            </div>
+                                            <span style="font-size: 12px; font-weight: 700; min-width: 42px; text-align: right; color: var(--text-primary);">
+                                                {{ org.pct_alunos }}%
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td style="padding: 12px 16px; text-align: center; font-weight: 800; font-size: 14px; color: #6d28d9;">
+                                        {{ org.count_pais }}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" style="padding: 24px; text-align: center; color: var(--text-secondary);">
+                                        Nenhum órgão conveniado cadastrado no sistema.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. MÓDULO I: CONTROLE DE FREQUÊNCIA -->
             <div style="margin-bottom: 32px;">
                 <h3 style="font-family: 'Outfit', sans-serif; font-size: 18px; font-weight: 700; color: var(--slate-800); display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
                     <i data-lucide="clipboard-check" style="width: 20px; height: 20px; color: var(--brand-primary);"></i>
@@ -670,6 +780,83 @@
                     {% empty %}
                     <div style="text-align: center; padding: 30px; color: var(--text-secondary); font-size: 13.5px;">
                         Nenhuma nova matrícula registrada neste período.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- MODAL: ALUNOS DO ÓRGÃO COM MAIOR NÚMERO DE CRIANÇAS              -->
+        <!-- ================================================================= -->
+        <div id="modal-top-orgao-alunos" class="modal-overlay" style="display: none; z-index: 1100;">
+            <div class="modal-card" style="max-width: 640px; width: 95%; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);" onclick="event.stopPropagation()">
+                <div class="modal-header" style="border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 18px 22px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; background: #d1fae5; color: #059669;">
+                            🏆
+                        </div>
+                        <div>
+                            <h3 style="margin: 0; font-size: 17px; font-weight: 800; color: var(--text-primary); font-family: 'Outfit', sans-serif;">
+                                {{ orgaos_stats.top_orgao_alunos.sigla }} &middot; {{ orgaos_stats.top_orgao_alunos.nome }}
+                            </h3>
+                            <span style="font-size: 12.5px; color: var(--text-secondary);">
+                                Órgão com maior número de crianças &middot; <strong style="color: #059669;">{{ orgaos_stats.top_orgao_alunos.count_alunos }}</strong> aluno(s) vinculados
+                            </span>
+                        </div>
+                    </div>
+                    <button onclick="closeTopOrgaoModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-secondary);">&times;</button>
+                </div>
+
+                <!-- Barra de Busca Rápida -->
+                <div style="padding: 14px 22px 6px 22px;">
+                    <div style="position: relative;">
+                        <input 
+                            type="text" 
+                            id="search-top-orgao-alunos-consulta" 
+                            placeholder="🔍 Pesquisar por nome do aluno ou sala..." 
+                            oninput="filterTopOrgaoAlunos(this.value)"
+                            style="width: 100%; padding: 9px 14px; border-radius: 8px; border: 1.5px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 13.5px; outline: none;"
+                        />
+                    </div>
+                </div>
+
+                <!-- Lista de Crianças -->
+                <div id="top-orgao-alunos-container-consulta" style="max-height: 440px; overflow-y: auto; padding: 12px 22px 20px 22px; display: flex; flex-direction: column; gap: 10px;">
+                    {% for a in top_orgao_alunos_list %}
+                    <div class="top-orgao-aluno-item" data-name="{{ a.nome|lower }}" data-turma="{{ a.turma.nome|default:''|lower }}" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; transition: all 0.15s;">
+                        <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+                            {% if a.foto %}
+                                <img src="{{ a.foto.url }}" alt="{{ a.nome }}" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 2px solid #10b981;">
+                            {% else %}
+                                <div style="width: 38px; height: 38px; border-radius: 50%; background: #ecfdf5; color: #059669; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; border: 1px solid #a7f3d0; flex-shrink: 0;">
+                                    {{ a.nome|slice:":1"|upper }}
+                                </div>
+                            {% endif %}
+                            <div style="min-width: 0;">
+                                <div style="font-weight: 700; font-size: 13.5px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                    {{ a.nome }}
+                                </div>
+                                <div style="font-size: 11.5px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; margin-top: 2px; flex-wrap: wrap;">
+                                    <span>Sala <strong>{{ a.turma.nome|default:"Geral" }}</strong></span>
+                                    {% if a.turno %}
+                                        <span>&middot; {{ a.get_turno_display }}</span>
+                                    {% endif %}
+                                    {% if a.nome_responsavel %}
+                                        <span>&middot; Resp: {{ a.nome_responsavel|truncatechars:22 }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div style="text-align: right; flex-shrink: 0; margin-left: 10px;">
+                            <span style="background-color: #ecfdf5; color: #047857; font-size: 11px; padding: 4px 9px; border-radius: 6px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+                                🏛️ {{ a.orgao.sigla|default:orgaos_stats.top_orgao_alunos.sigla }}
+                            </span>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div style="text-align: center; padding: 36px 20px; color: var(--text-secondary); font-size: 13.5px;">
+                        Nenhum aluno vinculado a este órgão no momento.
                     </div>
                     {% endfor %}
                 </div>
@@ -1376,6 +1563,12 @@
                             <div>
                                 <div style="font-weight: 700; font-size: 13.5px; color: var(--text-primary);">${s.nome || s.name}</div>
                                 <div style="font-size: 12px; color: var(--text-secondary);">Sala ${s.turma_nome || s.classroom || '-'} &middot; Turno: ${s.turno_display || s.turno || s.shift || 'Integral'}</div>
+                                ${s.orgao_sigla || s.orgao_nome ? `
+                                    <div style="margin-top: 3px; font-size: 11px; color: #2563eb; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+                                        <span>🏛️ Convênio:</span> <strong>${s.orgao_sigla || s.orgao_nome}</strong>
+                                        ${s.orgao_responsavel_sigla ? `<span style="color: var(--text-secondary);">&bull; Pais: <strong>${s.orgao_responsavel_sigla}</strong></span>` : ''}
+                                    </div>
+                                ` : ''}
                             </div>
                         </div>
                         <span style="background: #ecfdf5; color: #047857; font-size: 11px; padding: 3px 9px; border-radius: 12px; font-weight: 700;">
@@ -1425,8 +1618,44 @@
             document.body.style.overflow = 'auto';
         }
 
+        function openTopOrgaoModal() {
+            const modal = document.getElementById('modal-top-orgao-alunos');
+            if (modal) {
+                modal.classList.add('active');
+                modal.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+                const searchInput = document.getElementById('search-top-orgao-alunos-consulta');
+                if (searchInput) {
+                    searchInput.value = '';
+                    filterTopOrgaoAlunos('');
+                    setTimeout(() => searchInput.focus(), 100);
+                }
+            }
+        }
+        function closeTopOrgaoModal() {
+            const modal = document.getElementById('modal-top-orgao-alunos');
+            if (modal) {
+                modal.classList.remove('active');
+                modal.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        }
+        function filterTopOrgaoAlunos(query) {
+            const term = (query || '').toLowerCase().trim();
+            const items = document.querySelectorAll('.top-orgao-aluno-item');
+            items.forEach(item => {
+                const name = item.getAttribute('data-name') || '';
+                const turma = item.getAttribute('data-turma') || '';
+                if (!term || name.includes(term) || turma.includes(term)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
         window.addEventListener('click', function(e) {
-            ['modal-class-students', 'modal-deactivations', 'modal-enrollments'].forEach(id => {
+            ['modal-class-students', 'modal-deactivations', 'modal-enrollments', 'modal-top-orgao-alunos'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el && e.target === el) {
                     el.classList.remove('active');
@@ -1680,7 +1909,7 @@
                 });
             }
 
-            // 10. Renderizador Interativo do Calendário de Frequência Diária
+            // Renderizador Interativo do Calendário de Frequência Diária
             const CAL_DATA = JSON.parse('{{ cal_by_day_json|escapejs }}' || '{}');
             const CAL_MONTH_NAMES = [
                 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',

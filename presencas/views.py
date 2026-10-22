@@ -13,7 +13,7 @@ from .models import (
     Turma, Aluno, RegistroPresenca, StatusPresenca, StatusTurnoPresenca,
     TurnoAluno, LancamentoChamada, DiarioDeClasse, TurnoFiltro,
     TipoOcorrencia, OcorrenciaCaderno, RegistroAmamentacao,
-    DiaNaoLetivo, TipoDiaNaoLetivo
+    DiaNaoLetivo, TipoDiaNaoLetivo, Orgao
 )
 
 MONTH_NAMES_PT = [
@@ -663,7 +663,10 @@ def salvar_chamada_lote_view(request):
 def salvar_feriado_recesso_view(request):
     """
     Cadastra ou edita um Dia Não Letivo / Feriado / Recesso (incluindo intervalos prolongados).
-    Nesses dias, a chamada é dispensada e não gera presença nem falta para os alunos.
+    Nesses dias, a chamada é dispensada e qualquer registro prévio de presença,
+    falta, justificativa ou atraso existente na data é anulado (deletado).
+    Possui camada de confirmação para informar e exigir confirmação explícita do gestor
+    caso já existam registros lançados no período.
     """
     try:
         data = json.loads(request.body)
@@ -673,6 +676,7 @@ def salvar_feriado_recesso_view(request):
         tipo = data.get('tipo', TipoDiaNaoLetivo.FERIADO)
         descricao = data.get('descricao', '').strip()
         turma_id = data.get('turma_id')
+        confirmar_exclusao = data.get('confirmar_exclusao', False)
 
         if not data_inicio_str or not descricao:
             return JsonResponse({'success': False, 'error': 'Data inicial e descrição/motivo são obrigatórios.'}, status=400)
@@ -689,6 +693,45 @@ def salvar_feriado_recesso_view(request):
                 turma_obj = Turma.objects.filter(id=int(turma_id)).first()
             else:
                 turma_obj = Turma.objects.filter(nome__iexact=str(turma_id).strip()).first()
+
+        # Localiza registros prévios que seriam afetados e anulados no período
+        regs_qs = RegistroPresenca.objects.filter(data__gte=data_inicio, data__lte=data_fim)
+        diarios_qs = DiarioDeClasse.objects.filter(data__gte=data_inicio, data__lte=data_fim)
+        ocorrs_qs = OcorrenciaCaderno.objects.filter(
+            Q(data__gte=data_inicio, data__lte=data_fim) |
+            Q(data_fim__isnull=False, data__lte=data_fim, data_fim__gte=data_inicio)
+        )
+        if turma_obj:
+            regs_qs = regs_qs.filter(turma=turma_obj)
+            diarios_qs = diarios_qs.filter(turma=turma_obj)
+            ocorrs_qs = ocorrs_qs.filter(Q(turma=turma_obj) | Q(aluno__turma=turma_obj))
+
+        count_presencas = regs_qs.count()
+        count_diarios = diarios_qs.count()
+        count_ocorrencias = ocorrs_qs.count()
+        total_afetados = count_presencas + count_diarios + count_ocorrencias
+
+        # CAMADA DE CONFIRMAÇÃO:
+        # Se existem registros no período e o gestor ainda não confirmou explicitamente a anulação
+        if total_afetados > 0 and not confirmar_exclusao:
+            tipo_label = dict(TipoDiaNaoLetivo.choices).get(tipo, 'Feriado / Recesso')
+            periodo_txt = f"{data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}" if data_inicio != data_fim else data_inicio.strftime('%d/%m/%Y')
+            return JsonResponse({
+                'success': False,
+                'requires_confirmation': True,
+                'total_afetados': total_afetados,
+                'count_presencas': count_presencas,
+                'count_ocorrencias': count_ocorrencias,
+                'count_diarios': count_diarios,
+                'tipo_nome': tipo_label,
+                'periodo': periodo_txt,
+                'message': (
+                    f'Existem {total_afetados} registro(s) realizados neste período '
+                    f'({count_presencas} presença(s)/chamada(s), {count_ocorrencias} ocorrência(s)/justificativa(s)/atraso(s) '
+                    f'e {count_diarios} diário(s) de classe). Ao confirmar este dia como {tipo_label}, '
+                    f'todos esses registros serão ANULADOS E DELETADOS permanentemente para não constarem nos relatórios.'
+                )
+            })
 
         from django.db import transaction
         with transaction.atomic():
@@ -712,20 +755,20 @@ def salvar_feriado_recesso_view(request):
                     registrado_por=request.user
                 )
 
-            # Limpa chamadas prévias no intervalo do feriado/recesso para não contabilizar presença ou falta indevida
-            regs_qs = RegistroPresenca.objects.filter(data__gte=data_inicio, data__lte=data_fim)
-            diarios_qs = DiarioDeClasse.objects.filter(data__gte=data_inicio, data__lte=data_fim)
-            if turma_obj:
-                regs_qs = regs_qs.filter(turma=turma_obj)
-                diarios_qs = diarios_qs.filter(turma=turma_obj)
-
+            # Anula completamente todos os registros de presença, diários e ocorrências/atrasos do intervalo
             regs_qs.delete()
             diarios_qs.delete()
+            ocorrs_qs.delete()
+
+        msg = f'{feriado.get_tipo_display()} "{feriado.descricao}" registrado com sucesso para o período {feriado.periodo_formatado}!'
+        if total_afetados > 0:
+            msg += f' ({total_afetados} registro(s) prévios de presenças/justificativas/atrasos foram anulados).'
 
         return JsonResponse({
             'success': True,
-            'message': f'{feriado.get_tipo_display()} "{feriado.descricao}" registrado com sucesso para o período {feriado.periodo_formatado}!',
-            'feriado_id': feriado.id
+            'message': msg,
+            'feriado_id': feriado.id,
+            'registros_anulados': total_afetados
         })
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
@@ -1041,6 +1084,36 @@ def lista_alunos_view(request):
             email_responsavel_2 = request.POST.get('email_responsavel_2', '').strip()
             ativo = request.POST.get('ativo') == 'on'
 
+            # Órgãos Conveniados e de Lotação
+            orgao_val = request.POST.get('orgao', '').strip()
+            orgao_resp_val = request.POST.get('orgao_responsavel', '').strip()
+            orgao_resp2_val = request.POST.get('orgao_responsavel_2', '').strip()
+
+            def resolve_orgao(val):
+                if not val or not str(val).strip():
+                    return None
+                val_s = str(val).strip()
+                if val_s.isdigit():
+                    obj = Orgao.objects.filter(id=int(val_s)).first()
+                    if obj:
+                        return obj
+                obj = Orgao.objects.filter(nome__iexact=val_s).first()
+                if not obj:
+                    obj = Orgao.objects.filter(sigla__iexact=val_s).first()
+                if not obj:
+                    obj = Orgao.objects.create(nome=val_s)
+                return obj
+
+            orgao_obj = resolve_orgao(orgao_val)
+            orgao_resp_obj = resolve_orgao(orgao_resp_val)
+            orgao_resp2_obj = resolve_orgao(orgao_resp2_val)
+
+            # Sincroniza órgão do aluno com o do 1º responsável se um deles não estiver preenchido
+            if not orgao_obj and orgao_resp_obj:
+                orgao_obj = orgao_resp_obj
+            elif orgao_obj and not orgao_resp_obj:
+                orgao_resp_obj = orgao_obj
+
             data_nascimento_str = request.POST.get('data_nascimento', '').strip()
             data_nascimento = datetime.strptime(data_nascimento_str, '%Y-%m-%d').date() if data_nascimento_str else None
             data_entrada = datetime.strptime(data_entrada_str, '%Y-%m-%d').date() if data_entrada_str else today
@@ -1060,6 +1133,7 @@ def lista_alunos_view(request):
                     nome=nome,
                     turma=turma,
                     turno=turno,
+                    orgao=orgao_obj,
                     data_nascimento=data_nascimento,
                     data_entrada=data_entrada,
                     data_desligamento=data_desligamento,
@@ -1072,9 +1146,11 @@ def lista_alunos_view(request):
                     nome_responsavel=nome_responsavel,
                     telefone_responsavel=telefone_responsavel,
                     email_responsavel=email_responsavel,
+                    orgao_responsavel=orgao_resp_obj,
                     nome_responsavel_2=nome_responsavel_2,
                     telefone_responsavel_2=telefone_responsavel_2,
                     email_responsavel_2=email_responsavel_2,
+                    orgao_responsavel_2=orgao_resp2_obj,
                     ativo=ativo
                 )
             elif action == 'update' and aluno_id:
@@ -1082,6 +1158,7 @@ def lista_alunos_view(request):
                 aluno.nome = nome
                 aluno.turma = turma
                 aluno.turno = turno
+                aluno.orgao = orgao_obj
                 aluno.data_nascimento = data_nascimento
                 aluno.data_entrada = data_entrada
                 aluno.data_desligamento = data_desligamento
@@ -1094,9 +1171,11 @@ def lista_alunos_view(request):
                 aluno.nome_responsavel = nome_responsavel
                 aluno.telefone_responsavel = telefone_responsavel
                 aluno.email_responsavel = email_responsavel
+                aluno.orgao_responsavel = orgao_resp_obj
                 aluno.nome_responsavel_2 = nome_responsavel_2
                 aluno.telefone_responsavel_2 = telefone_responsavel_2
                 aluno.email_responsavel_2 = email_responsavel_2
+                aluno.orgao_responsavel_2 = orgao_resp2_obj
                 aluno.ativo = ativo
                 aluno.save()
 
@@ -1117,12 +1196,30 @@ def lista_alunos_view(request):
             aluno.save()
             return redirect(request.get_full_path())
 
-    alunos_qs = Aluno.objects.all().select_related('turma')
+    alunos_qs = Aluno.objects.all().select_related('turma', 'orgao', 'orgao_responsavel', 'orgao_responsavel_2')
 
     is_prof = request.user.is_authenticated and getattr(request.user, 'is_professor', False)
     if is_prof:
         turmas_prof = request.user.turmas_como_professor.filter(ativo=True)
         alunos_qs = alunos_qs.filter(turma__in=turmas_prof)
+
+    orgao_filter = request.GET.get('orgao', '').strip()
+    if orgao_filter:
+        if orgao_filter.isdigit():
+            alunos_qs = alunos_qs.filter(
+                Q(orgao_id=int(orgao_filter)) |
+                Q(orgao_responsavel_id=int(orgao_filter)) |
+                Q(orgao_responsavel_2_id=int(orgao_filter))
+            )
+        else:
+            alunos_qs = alunos_qs.filter(
+                Q(orgao__nome__icontains=orgao_filter) |
+                Q(orgao__sigla__icontains=orgao_filter) |
+                Q(orgao_responsavel__nome__icontains=orgao_filter) |
+                Q(orgao_responsavel__sigla__icontains=orgao_filter) |
+                Q(orgao_responsavel_2__nome__icontains=orgao_filter) |
+                Q(orgao_responsavel_2__sigla__icontains=orgao_filter)
+            )
 
     if search:
         alunos_qs = alunos_qs.filter(
@@ -1132,7 +1229,13 @@ def lista_alunos_view(request):
             Q(email_responsavel__icontains=search) |
             Q(nome_responsavel_2__icontains=search) |
             Q(telefone_responsavel_2__icontains=search) |
-            Q(email_responsavel_2__icontains=search)
+            Q(email_responsavel_2__icontains=search) |
+            Q(orgao__nome__icontains=search) |
+            Q(orgao__sigla__icontains=search) |
+            Q(orgao_responsavel__nome__icontains=search) |
+            Q(orgao_responsavel__sigla__icontains=search) |
+            Q(orgao_responsavel_2__nome__icontains=search) |
+            Q(orgao_responsavel_2__sigla__icontains=search)
         )
 
     if classroom_filter:
@@ -1190,6 +1293,12 @@ def lista_alunos_view(request):
             'turma_style': turma_style,
             'turno': aluno.get_turno_display(),
             'turno_raw': aluno.turno,
+            'orgao': aluno.orgao,
+            'orgao_display': aluno.orgao_display,
+            'orgao_responsavel': aluno.orgao_responsavel,
+            'orgao_responsavel_display': aluno.orgao_responsavel_display,
+            'orgao_responsavel_2': aluno.orgao_responsavel_2,
+            'orgao_responsavel_2_display': aluno.orgao_responsavel_2_display,
             'data_nascimento': aluno.data_nascimento,
             'data_entrada': aluno.data_entrada,
             'data_desligamento': aluno.data_desligamento,
@@ -1222,6 +1331,18 @@ def lista_alunos_view(request):
             'turma_nome': a['turma'].nome if a['turma'] else 'Sem Sala',
             'turno': a['turno'],
             'turno_raw': a['turno_raw'],
+            'orgao_id': a['orgao'].id if a['orgao'] else (a['orgao_responsavel'].id if a['orgao_responsavel'] else ''),
+            'orgao_nome': a['orgao'].nome if a['orgao'] else '',
+            'orgao_sigla': a['orgao'].sigla if a['orgao'] else '',
+            'orgao_display': a['orgao_display'],
+            'orgao_responsavel_id': a['orgao_responsavel'].id if a['orgao_responsavel'] else '',
+            'orgao_responsavel_nome': a['orgao_responsavel'].nome if a['orgao_responsavel'] else '',
+            'orgao_responsavel_sigla': a['orgao_responsavel'].sigla if a['orgao_responsavel'] else '',
+            'orgao_responsavel_display': a['orgao_responsavel_display'],
+            'orgao_responsavel_2_id': a['orgao_responsavel_2'].id if a['orgao_responsavel_2'] else '',
+            'orgao_responsavel_2_nome': a['orgao_responsavel_2'].nome if a['orgao_responsavel_2'] else '',
+            'orgao_responsavel_2_sigla': a['orgao_responsavel_2'].sigla if a['orgao_responsavel_2'] else '',
+            'orgao_responsavel_2_display': a['orgao_responsavel_2_display'],
             'data_nascimento': a['data_nascimento'].strftime('%Y-%m-%d') if a['data_nascimento'] else '',
             'data_nascimento_br': a['data_nascimento'].strftime('%d/%m/%Y') if a['data_nascimento'] else '',
             'idade_formatada': a['idade_formatada'],
@@ -1247,6 +1368,7 @@ def lista_alunos_view(request):
         }
 
     aniversariantes_count = sum(1 for a in alunos_list if a['is_aniversariante_hoje'])
+    orgaos_qs = Orgao.objects.filter(ativo=True).order_by('nome')
 
     context = {
         'today': today.isoformat(),
@@ -1255,6 +1377,8 @@ def lista_alunos_view(request):
         'total_count': len(alunos_list),
         'aniversariantes_count': aniversariantes_count,
         'turmas': turmas_qs,
+        'orgaos': orgaos_qs,
+        'orgao_filter': orgao_filter,
         'search': search,
         'classroom_filter': classroom_filter,
         'shift_filter': shift_filter,
