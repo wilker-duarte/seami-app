@@ -6,29 +6,36 @@ from .models import Turma, Aluno, RegistroPresenca, StatusPresenca, DiarioDeClas
 
 def get_taxa_assiduidade(data_inicio: date, data_fim: date, turma_id: int = None):
     """
-    Calcula o percentual e totais de presenças/faltas no intervalo de datas.
+    Calcula o percentual e totais de presenças/faltas no intervalo de datas (apenas dias úteis).
     """
-    filtros = Q(data__gte=data_inicio, data__lte=data_fim)
+    hoje = timezone.localdate()
+    filtros = Q(data__gte=data_inicio, data__lte=data_fim, data__week_day__in=[2, 3, 4, 5, 6])
+    filtros &= (Q(data__lte=hoje) | Q(diario_classe__isnull=False) | Q(status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL]))
     if turma_id:
-        filtros &= Q(turma_id=turma_id)
+        if str(turma_id).isdigit():
+            filtros &= Q(turma_id=int(turma_id))
+        else:
+            t_clean = str(turma_id).replace('Sala', '').replace('sala', '').strip()
+            filtros &= (Q(turma__nome__iexact=str(turma_id).strip()) | Q(turma__nome__iexact=t_clean))
 
     stats = RegistroPresenca.objects.filter(filtros).aggregate(
-        total_registros=Count('id'),
-        total_presentes=Count('id', filter=Q(status=StatusPresenca.PRESENTE)),
+        total_presentes=Count('id', filter=Q(status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL])),
         total_faltas=Count('id', filter=Q(status=StatusPresenca.AUSENTE)),
         total_justificadas=Count('id', filter=Q(status=StatusPresenca.JUSTIFICADO)),
     )
 
-    total = stats['total_registros'] or 0
     presentes = stats['total_presentes'] or 0
+    faltas = stats['total_faltas'] or 0
+    justificadas = stats['total_justificadas'] or 0
+    total = presentes + faltas + justificadas
     taxa = round((presentes / total * 100), 1) if total > 0 else 100.0
 
     return {
         'taxa_percentual': taxa,
         'total_registros': total,
         'total_presentes': presentes,
-        'total_faltas': stats['total_faltas'] or 0,
-        'total_justificadas': stats['total_justificadas'] or 0,
+        'total_faltas': faltas,
+        'total_justificadas': justificadas,
     }
 
 
@@ -291,8 +298,19 @@ def calcular_consolidado_mensal_sistema(ano_inicio: int = 2026, mes_inicio: int 
     MONTH_NAMES_EXTENSO = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 
     aluno_base = Aluno.objects.all()
+    turma_q_aluno = None
+    turma_q_reg = None
     if turma_id:
-        aluno_base = aluno_base.filter(turma_id=turma_id)
+        t_str = str(turma_id).strip()
+        if t_str.isdigit():
+            turma_q_aluno = Q(turma_id=int(t_str))
+            turma_q_reg = Q(turma_id=int(t_str))
+        elif t_str:
+            t_clean = t_str.replace('Sala', '').replace('sala', '').strip()
+            turma_q_aluno = Q(turma__nome__iexact=t_str) | Q(turma__nome__iexact=t_clean)
+            turma_q_reg = Q(turma__nome__iexact=t_str) | Q(turma__nome__iexact=t_clean)
+    if turma_q_aluno is not None:
+        aluno_base = aluno_base.filter(turma_q_aluno)
     if status_aluno == 'ativos':
         aluno_base = aluno_base.filter(ativo=True)
     elif status_aluno == 'inativos':
@@ -300,6 +318,7 @@ def calcular_consolidado_mensal_sistema(ano_inicio: int = 2026, mes_inicio: int 
 
     meses_calculados = []
     total_presentes_acumulado = 0
+    total_registros_acumulado = 0
     total_dias_letivos_acumulado = 0
     max_matriculados_geral = 0
 
@@ -313,33 +332,40 @@ def calcular_consolidado_mensal_sistema(ano_inicio: int = 2026, mes_inicio: int 
             data_fim_mes = date(ano, mes, ultimo_dia)
             mes_key = f"{ano}-{mes:02d}"
 
-            # Registros de Presença em dias úteis (Segunda a Sexta)
+            # Registros de Presença em dias úteis (Segunda a Sexta), ignorando ausências futuras sem diário lançado
             regs_mes = RegistroPresenca.objects.filter(
                 data__gte=data_inicio_mes,
                 data__lte=data_fim_mes,
                 data__week_day__in=[2, 3, 4, 5, 6]
+            ).filter(
+                Q(data__lte=hoje) | Q(diario_classe__isnull=False) | Q(status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL])
             )
-            if turma_id:
-                regs_mes = regs_mes.filter(turma_id=turma_id)
+            if turma_q_reg is not None:
+                regs_mes = regs_mes.filter(turma_q_reg)
             if status_aluno == 'ativos':
                 regs_mes = regs_mes.filter(aluno__ativo=True)
             elif status_aluno == 'inativos':
                 regs_mes = regs_mes.filter(aluno__ativo=False)
 
-            dias_com_chamada = len(set(regs_mes.values_list('data', flat=True)))
+            # Dias efetivos com chamada (prioriza dias com diário lançado ou presença registrada)
+            datas_chamada_efetiva = set(
+                regs_mes.filter(
+                    Q(diario_classe__isnull=False) | Q(status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL])
+                ).values_list('data', flat=True)
+            )
+            datas_chamada = datas_chamada_efetiva or set(regs_mes.values_list('data', flat=True))
+            dias_com_chamada = len(datas_chamada)
             
             # Se for mês sem chamadas lançadas, ignora para não poluir com 0%
             if dias_com_chamada == 0:
                 continue
 
+            # Filtra os registros do mês apenas nos dias que efetivamente tiveram chamada
+            regs_mes_validos = regs_mes.filter(data__in=datas_chamada)
+
             # 1. MÁXIMA de alunos matriculados ativos no mês
             max_matriculados_mes = 0
-            datas_chamada = set(regs_mes.values_list('data', flat=True)) if dias_com_chamada > 0 else set()
-            
-            dias_para_checar = sorted(list(datas_chamada)) if datas_chamada else [
-                date(ano, mes, d) for d in range(1, ultimo_dia + 1)
-                if date(ano, mes, d).weekday() < 5 and date(ano, mes, d) <= hoje
-            ]
+            dias_para_checar = sorted(list(datas_chamada))
 
             for d_check in dias_para_checar:
                 count_dia = aluno_base.filter(
@@ -347,8 +373,13 @@ def calcular_consolidado_mensal_sistema(ano_inicio: int = 2026, mes_inicio: int 
                 ).filter(
                     Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=d_check)
                 ).count()
-                if count_dia > max_matriculados_mes:
-                    max_matriculados_mes = count_dia
+                count_chamada_dia = regs_mes_validos.filter(
+                    data=d_check,
+                    status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL, StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO]
+                ).count()
+                pico_dia = max(count_dia, count_chamada_dia)
+                if pico_dia > max_matriculados_mes:
+                    max_matriculados_mes = pico_dia
 
             if max_matriculados_mes == 0:
                 max_matriculados_mes = aluno_base.filter(
@@ -360,17 +391,22 @@ def calcular_consolidado_mensal_sistema(ano_inicio: int = 2026, mes_inicio: int 
             if max_matriculados_mes > max_matriculados_geral:
                 max_matriculados_geral = max_matriculados_mes
 
-            # 2. Média de alunos presentes / dia
+            # 2. Média de alunos presentes / dia e Taxa de Assiduidade alinhada com o Painel Geral
             if dias_com_chamada > 0:
-                pres_count = regs_mes.filter(status=StatusPresenca.PRESENTE).count()
+                pres_count = regs_mes_validos.filter(status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL]).count()
+                falt_count = regs_mes_validos.filter(status__in=[StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO]).count()
+                tot_count = pres_count + falt_count
                 p_media = round(pres_count / dias_com_chamada)
                 total_presentes_acumulado += pres_count
+                total_registros_acumulado += tot_count
                 total_dias_letivos_acumulado += dias_com_chamada
             else:
+                pres_count = 0
+                tot_count = 0
                 p_media = 0
 
             a_media = max(0, max_matriculados_mes - p_media)
-            pct = round((p_media / max_matriculados_mes) * 100) if max_matriculados_mes > 0 else 0
+            pct = round((pres_count / tot_count) * 100) if tot_count > 0 else (round((p_media / max_matriculados_mes) * 100) if max_matriculados_mes > 0 else 0)
             m_ext = MONTH_NAMES_EXTENSO[mes] if (0 <= mes < len(MONTH_NAMES_EXTENSO)) else str(mes)
 
             meses_calculados.append({
@@ -395,7 +431,10 @@ def calcular_consolidado_mensal_sistema(ano_inicio: int = 2026, mes_inicio: int 
         media_presentes_geral = 0
     
     media_ausentes_geral = max(0, max_matriculados_geral - media_presentes_geral)
-    taxa_frequencia_geral = round((media_presentes_geral / max_matriculados_geral) * 100) if max_matriculados_geral > 0 else 0
+    if total_registros_acumulado > 0:
+        taxa_frequencia_geral = round((total_presentes_acumulado / total_registros_acumulado) * 100)
+    else:
+        taxa_frequencia_geral = round((media_presentes_geral / max_matriculados_geral) * 100) if max_matriculados_geral > 0 else 0
 
     consolidado_resumo = {
         'matriculados_max': max_matriculados_geral,
@@ -423,7 +462,8 @@ def sincronizar_automacoes_enfermaria(atendimento, user=None):
     from datetime import timedelta
     from .models import (
         AtendimentoEnfermaria, OcorrenciaCaderno, TipoOcorrencia,
-        RegistroPresenca, StatusPresenca, StatusTurnoPresenca
+        RegistroPresenca, StatusPresenca, StatusTurnoPresenca,
+        obter_responsavel_enfermaria
     )
 
     aluno = atendimento.aluno
@@ -436,7 +476,10 @@ def sincronizar_automacoes_enfermaria(atendimento, user=None):
     saida_imediata = atendimento.saida_imediata
     retornara_dia_seguinte = atendimento.retornara_dia_seguinte
     data_retorno_prevista = atendimento.data_retorno_prevista
-    registrado_por = user or atendimento.registrado_por
+    registrado_por, registrado_por_nome = obter_responsavel_enfermaria(
+        user or atendimento.registrado_por,
+        getattr(atendimento, 'registrado_por_nome', '')
+    )
 
     # 1. Automação de Saída Antecipada do dia (NÃO gera falta para a data de saída)
     if saida_imediata:
@@ -458,7 +501,8 @@ def sincronizar_automacoes_enfermaria(atendimento, user=None):
                 'retorna': False,
                 'cid': cid or '',
                 'observacao': observacoes_medicas or '',
-                'registrado_por': registrado_por
+                'registrado_por': registrado_por,
+                'registrado_por_nome': registrado_por_nome
             }
         )
         if not created:
@@ -466,6 +510,8 @@ def sincronizar_automacoes_enfermaria(atendimento, user=None):
             oc_saida.motivo = motivo_saida
             oc_saida.cid = cid or ''
             oc_saida.observacao = observacoes_medicas or ''
+            oc_saida.registrado_por = registrado_por
+            oc_saida.registrado_por_nome = registrado_por_nome
             oc_saida.save()
 
     # 2. Automação de Falta Justificada como registro único de período até a data de retorno
@@ -490,7 +536,8 @@ def sincronizar_automacoes_enfermaria(atendimento, user=None):
                     'justificado': True,
                     'cid': cid or '',
                     'observacao': observacoes_medicas or f"Afastamento de Enfermagem com retorno previsto em {data_retorno_prevista.strftime('%d/%m/%Y')}",
-                    'registrado_por': registrado_por
+                    'registrado_por': registrado_por,
+                    'registrado_por_nome': registrado_por_nome
                 }
             )
             # A sincronização com RegistroPresenca para todos os dias úteis do período
@@ -571,11 +618,13 @@ def registrar_atendimento_enfermaria(
     3. Se não retorna amanhã e tem data de retorno -> Cria OcorrenciaCaderno (tipo='falta', justificado=True)
        e RegistroPresenca (status=JUSTIFICADO) para cada dia útil até a véspera da data de retorno.
     """
-    from .models import AtendimentoEnfermaria
+    from .models import AtendimentoEnfermaria, obter_responsavel_enfermaria
 
     from datetime import datetime
     if not horario:
         horario = datetime.now().time()
+
+    enf_user, enf_nome = obter_responsavel_enfermaria(registrado_por)
 
     atendimento = AtendimentoEnfermaria.objects.create(
         aluno=aluno,
@@ -589,9 +638,10 @@ def registrar_atendimento_enfermaria(
         observacoes_medicas=observacoes_medicas,
         cid=cid,
         documento_anexo=documento_anexo,
-        registrado_por=registrado_por,
+        registrado_por=enf_user,
+        registrado_por_nome=enf_nome,
         ativo=True
     )
 
-    sincronizar_automacoes_enfermaria(atendimento, user=registrado_por)
+    sincronizar_automacoes_enfermaria(atendimento, user=enf_user)
     return atendimento

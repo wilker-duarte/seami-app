@@ -65,27 +65,27 @@
             </a>
 
             <a href="{% url 'caderno_seami' 'amamentacao' %}"
-                class="seami-tab-btn {% if active_tab_nav == 'amamentacao' %}active-amamentacao{% endif %}"
+                class="seami-tab-btn {% if is_espaco_materno %}active-amamentacao{% endif %}"
                 style="text-decoration: none; padding: 9px 16px; border-radius: 10px; font-size: 13.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
                 <i data-lucide="heart" style="width: 16px; height: 16px;"></i>
-                <span>Amamentação</span>
+                <span>Espaço Materno</span>
             </a>
         </div>
 
-        {% if active_tab_nav == 'amamentacao' %}
+        {% if is_espaco_materno %}
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             <button type="button" onclick="openCreateDailyAmamentacaoModal()" class="primary-btn"
-                style="padding: 10px 18px; border-radius: 10px; background-color: #ec4899; color: white; border: none; font-weight: 700; font-size: 13.5px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow-sm);">
+                style="padding: 10px 18px; border-radius: 10px; background-color: {% if active_tab_nav == 'extracao' %}#9333ea{% else %}#ec4899{% endif %}; color: white; border: none; font-weight: 700; font-size: 13.5px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow-sm);">
                 <i data-lucide="plus" style="width: 18px; height: 18px;"></i>
                 <span>Novo Registro Diário</span>
             </button>
             <button type="button" onclick="openCreateAmamentacaoModal()" class="secondary-btn"
-                style="padding: 10px 18px; border-radius: 10px; background-color: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; font-weight: 700; font-size: 13.5px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow-sm);">
+                style="padding: 10px 18px; border-radius: 10px; background-color: {% if active_tab_nav == 'extracao' %}#faf5ff{% else %}#fdf2f8{% endif %}; color: {% if active_tab_nav == 'extracao' %}#9333ea{% else %}#db2777{% endif %}; border: 1px solid {% if active_tab_nav == 'extracao' %}#e9d5ff{% else %}#fbcfe8{% endif %}; font-weight: 700; font-size: 13.5px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow-sm);">
                 <i data-lucide="calendar" style="width: 18px; height: 18px;"></i>
                 <span>Adicionar Histórico Mensal</span>
             </button>
             <button type="button" onclick="exportAmamentacaoPDF()" class="secondary-btn"
-                style="padding: 10px 18px; border-radius: 10px; background-color: #fdf2f8; color: #db2777; border: 1.5px solid #fbcfe8; font-weight: 700; font-size: 13.5px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow-sm);">
+                style="padding: 10px 18px; border-radius: 10px; background-color: {% if active_tab_nav == 'extracao' %}#faf5ff{% else %}#fdf2f8{% endif %}; color: {% if active_tab_nav == 'extracao' %}#9333ea{% else %}#db2777{% endif %}; border: 1.5px solid {% if active_tab_nav == 'extracao' %}#e9d5ff{% else %}#fbcfe8{% endif %}; font-weight: 700; font-size: 13.5px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow-sm);">
                 <i data-lucide="file-text" style="width: 18px; height: 18px;"></i>
                 <span>📄 Exportar PDF (Mensal)</span>
             </button>
@@ -99,6 +99,79 @@
         {% endif %}
     </div>
 
+    {% if is_espaco_materno %}
+    <!-- ================================================================= -->
+    <!-- SUB-MÓDULOS DO ESPAÇO MATERNO: AMAMENTAÇÃO & SALA DE EXTRAÇÃO     -->
+    <!-- ================================================================= -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px;">
+        <!-- Parte 1: Sala de Amamentação -->
+        <a href="{% url 'caderno_seami' 'amamentacao' %}"
+            style="text-decoration: none; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 20px; border-radius: 14px; transition: all 0.2s ease; {% if active_tab_nav == 'amamentacao' %}background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%); border: 2px solid #ec4899; box-shadow: 0 4px 12px rgba(236, 72, 153, 0.12);{% else %}background-color: var(--bg-card); border: 1px solid var(--border-color); opacity: 0.85;{% endif %}">
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <div style="width: 46px; height: 46px; border-radius: 12px; background-color: {% if active_tab_nav == 'amamentacao' %}#ec4899{% else %}#fdf2f8{% endif %}; color: {% if active_tab_nav == 'amamentacao' %}#ffffff{% else %}#db2777{% endif %}; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;">
+                    🤱
+                </div>
+                <div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 15px; font-weight: 800; color: {% if active_tab_nav == 'amamentacao' %}#9d174d{% else %}var(--text-primary){% endif %};">
+                            Sala de Amamentação
+                        </span>
+                        {% if active_tab_nav == 'amamentacao' %}
+                        <span style="font-size: 10.5px; font-weight: 800; text-transform: uppercase; background-color: #ec4899; color: white; padding: 2px 8px; border-radius: 999px;">
+                            Visualizando
+                        </span>
+                        {% endif %}
+                    </div>
+                    <span style="font-size: 12px; color: var(--text-secondary); display: block; margin-top: 2px;">
+                        Registro de sessões de amamentação presencial e apoio às mães lactantes
+                    </span>
+                </div>
+            </div>
+            <div style="text-align: right; flex-shrink: 0;">
+                <div style="font-size: 20px; font-weight: 800; color: #db2777; line-height: 1.1;">
+                    {{ espaco_materno_resumo.amamentacao_total|default:0 }}
+                </div>
+                <div style="font-size: 11px; font-weight: 600; color: #be185d;">
+                    {{ espaco_materno_resumo.amamentacao_dias|default:0 }} {{ espaco_materno_resumo.amamentacao_dias|default:0|pluralize:"dia,dias" }}
+                </div>
+            </div>
+        </a>
+
+        <!-- Parte 2: Sala de Extração -->
+        <a href="{% url 'caderno_seami' 'extracao' %}"
+            style="text-decoration: none; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 20px; border-radius: 14px; transition: all 0.2s ease; {% if active_tab_nav == 'extracao' %}background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%); border: 2px solid #9333ea; box-shadow: 0 4px 12px rgba(147, 51, 234, 0.12);{% else %}background-color: var(--bg-card); border: 1px solid var(--border-color); opacity: 0.85;{% endif %}">
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <div style="width: 46px; height: 46px; border-radius: 12px; background-color: {% if active_tab_nav == 'extracao' %}#9333ea{% else %}#faf5ff{% endif %}; color: {% if active_tab_nav == 'extracao' %}#ffffff{% else %}#9333ea{% endif %}; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;">
+                    🍼
+                </div>
+                <div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 15px; font-weight: 800; color: {% if active_tab_nav == 'extracao' %}#6b21a8{% else %}var(--text-primary){% endif %};">
+                            Sala de Extração
+                        </span>
+                        {% if active_tab_nav == 'extracao' %}
+                        <span style="font-size: 10.5px; font-weight: 800; text-transform: uppercase; background-color: #9333ea; color: white; padding: 2px 8px; border-radius: 999px;">
+                            Visualizando
+                        </span>
+                        {% endif %}
+                    </div>
+                    <span style="font-size: 12px; color: var(--text-secondary); display: block; margin-top: 2px;">
+                        Registro de utilização da sala pela mãe para extrair e armazenar o leite materno
+                    </span>
+                </div>
+            </div>
+            <div style="text-align: right; flex-shrink: 0;">
+                <div style="font-size: 20px; font-weight: 800; color: #9333ea; line-height: 1.1;">
+                    {{ espaco_materno_resumo.extracao_total|default:0 }}
+                </div>
+                <div style="font-size: 11px; font-weight: 600; color: #7e22ce;">
+                    {{ espaco_materno_resumo.extracao_dias|default:0 }} {{ espaco_materno_resumo.extracao_dias|default:0|pluralize:"dia,dias" }}
+                </div>
+            </div>
+        </a>
+    </div>
+    {% endif %}
+
     <!-- ================================================================= -->
     <!-- FILTROS (SALA / TURMA E BUSCA INSTANTÂNEA A CADA CARACTERE)       -->
     <!-- ================================================================= -->
@@ -107,11 +180,11 @@
             style="display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; justify-content: space-between;">
 
             <div style="display: flex; flex-wrap: wrap; gap: 14px; flex: 1; min-width: 280px;">
-                <!-- Pesquisa Instantânea por Aluno -->
+                <!-- Pesquisa Instantânea por Aluno / Observação -->
                 <div class="filter-group" style="flex: 2; min-width: 220px;">
                     <label
                         style="font-size: 12px; font-weight: 700; color: var(--slate-600); margin-bottom: 6px; display: block;">
-                        Buscar Criança / Motivo
+                        {% if is_espaco_materno %}Buscar por Observação / Anexo{% else %}Buscar Criança / Motivo{% endif %}
                     </label>
                     <div style="position: relative; display: flex; align-items: center;">
                         <i data-lucide="search"
@@ -124,7 +197,7 @@
                 </div>
 
                 <!-- Filtro por Sala/Turma (Default: Todas as salas) -->
-                {% if active_tab_nav != 'amamentacao' %}
+                {% if not is_espaco_materno %}
                 <div class="filter-group" style="flex: 1; min-width: 160px;">
                     <label
                         style="font-size: 12px; font-weight: 700; color: var(--slate-600); margin-bottom: 6px; display: block;">
@@ -164,19 +237,21 @@
                     style="width: 18px; height: 18px; color: {{ tab_info.color }};"></i>
                 {% if active_tab_nav == 'amamentacao' %}
                 <span>Registros Diários de Amamentação</span>
+                {% elif active_tab_nav == 'extracao' %}
+                <span>Registros Diários de Utilização da Sala de Extração</span>
                 {% else %}
                 <span>Registros de {{ tab_info.title }}</span>
                 {% endif %}
                 <span id="counter-badge"
-                    style="font-size: 12px; font-weight: 700; background-color: {% if active_tab_nav == 'amamentacao' %}#fdf2f8{% else %}var(--color-primary-light){% endif %}; color: {% if active_tab_nav == 'amamentacao' %}#db2777{% else %}var(--color-primary){% endif %}; padding: 2px 8px; border-radius: 999px; border: 1px solid {% if active_tab_nav == 'amamentacao' %}#fbcfe8{% else %}transparent{% endif %};">
-                    {{ total_count }} {% if active_tab_nav == 'amamentacao' %}{{ total_count|pluralize:"registro diário,registros diários" }}{% else %}{{ total_count|pluralize:"registro,registros" }}{% endif %}
+                    style="font-size: 12px; font-weight: 700; background-color: {% if active_tab_nav == 'amamentacao' %}#fdf2f8{% elif active_tab_nav == 'extracao' %}#faf5ff{% else %}var(--color-primary-light){% endif %}; color: {% if active_tab_nav == 'amamentacao' %}#db2777{% elif active_tab_nav == 'extracao' %}#9333ea{% else %}var(--color-primary){% endif %}; padding: 2px 8px; border-radius: 999px; border: 1px solid {% if active_tab_nav == 'amamentacao' %}#fbcfe8{% elif active_tab_nav == 'extracao' %}#e9d5ff{% else %}transparent{% endif %};">
+                    {{ total_count }} {% if is_espaco_materno %}{{ total_count|pluralize:"registro diário,registros diários" }}{% else %}{{ total_count|pluralize:"registro,registros" }}{% endif %}
                 </span>
             </div>
-            {% if active_tab_nav == 'amamentacao' %}
+            {% if is_espaco_materno %}
             <button type="button" onclick="openCreateDailyAmamentacaoModal()" class="primary-btn"
-                style="padding: 8px 14px; border-radius: 8px; background-color: #ec4899; color: white; border: none; font-weight: 700; font-size: 12.5px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: var(--shadow-sm);">
+                style="padding: 8px 14px; border-radius: 8px; background-color: {% if active_tab_nav == 'extracao' %}#9333ea{% else %}#ec4899{% endif %}; color: white; border: none; font-weight: 700; font-size: 12.5px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: var(--shadow-sm);">
                 <i data-lucide="plus" style="width: 15px; height: 15px;"></i>
-                <span>Nova Sessão Diária</span>
+                <span>{% if active_tab_nav == 'extracao' %}Nova Utilização Diária{% else %}Nova Sessão Diária{% endif %}</span>
             </button>
             {% endif %}
         </div>
@@ -239,9 +314,11 @@
                         {% endif %}
                         <th style="padding: 14px 18px; font-weight: 700; text-align: right;">Ações</th>
 
-                        {% elif active_tab_nav == 'amamentacao' %}
+                        {% elif is_espaco_materno %}
                         <th style="padding: 14px 18px; font-weight: 700;">Data</th>
-                        <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Quantidade / Sessões</th>
+                        <th style="padding: 14px 18px; font-weight: 700; text-align: center;">
+                            {% if active_tab_nav == 'extracao' %}Quantidade de Utilizações da Sala{% else %}Quantidade / Sessões{% endif %}
+                        </th>
                         <th style="padding: 14px 18px; font-weight: 700;">Observação</th>
                         <th style="padding: 14px 18px; font-weight: 700; text-align: center;">Doc</th>
                         {% if user.is_master_admin or user.is_superuser %}
@@ -409,9 +486,9 @@
                             {{ item.horario_retorno|default:"-" }}
                         </td>
 
-                        {% elif active_tab_nav == 'amamentacao' %}
-                        <!-- Quantidade / Sessões -->
-                        <td style="padding: 14px 18px; text-align: center; font-weight: 800; color: #db2777;">
+                        {% elif is_espaco_materno %}
+                        <!-- Quantidade / Sessões ou Utilizações da Sala -->
+                        <td style="padding: 14px 18px; text-align: center; font-weight: 800; color: {% if active_tab_nav == 'extracao' %}#9333ea{% else %}#db2777{% endif %};">
                             {{ item.quantidade|default:"1" }}
                         </td>
                         <!-- Observação -->
@@ -479,16 +556,16 @@
                     {% empty %}
                     <tr id="empty-row">
                         <td colspan="{% if user.is_master_admin or user.is_superuser %}11{% else %}10{% endif %}" style="text-align: center; padding: 40px; color: var(--text-secondary);">
-                            <div style="font-size: 36px; margin-bottom: 8px;">🍼</div>
+                            <div style="font-size: 36px; margin-bottom: 8px;">{% if active_tab_nav == 'extracao' %}🍼{% else %}🤱{% endif %}</div>
                             <div
                                 style="font-weight: 700; font-size: 15px; color: var(--text-primary); margin-bottom: 4px;">
-                                {% if active_tab_nav == 'amamentacao' %}
+                                {% if is_espaco_materno %}
                                 Nenhum registro diário encontrado
                                 {% else %}
                                 Nenhum registro encontrado
                                 {% endif %}
                             </div>
-                            <div style="font-size: 13px;">Clique em "{% if active_tab_nav == 'amamentacao' %}Novo Registro Diário{% else %}Novo Registro{% endif %}" para adicionar uma ocorrência.</div>
+                            <div style="font-size: 13px;">Clique em "{% if is_espaco_materno %}Novo Registro Diário{% else %}Novo Registro{% endif %}" para adicionar uma ocorrência.</div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -498,9 +575,9 @@
     </div>
 </section>
 
-{% if active_tab_nav == 'amamentacao' %}
+{% if is_espaco_materno %}
 <!-- ========================================================================= -->
-<!-- GRÁFICO: REGISTROS DE AMAMENTAÇÃO MÊS A MÊS (EVOLUÇÃO MENSAL NA COR ROSA) -->
+<!-- GRÁFICO: REGISTROS DO ESPAÇO MATERNO MÊS A MÊS (EVOLUÇÃO MENSAL)          -->
 <!-- ========================================================================= -->
 <section style="margin-top: 28px;">
     <div
@@ -510,18 +587,18 @@
             <div style="display: flex; flex-direction: column; gap: 2px;">
                 <div
                     style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 20px;">🤱</span>
-                    <span>Registros de Amamentação Mês a Mês</span>
+                    <span style="font-size: 20px;">{% if active_tab_nav == 'extracao' %}🍼{% else %}🤱{% endif %}</span>
+                    <span>{% if active_tab_nav == 'extracao' %}Utilizações da Sala de Extração Mês a Mês{% else %}Registros de Amamentação Mês a Mês{% endif %}</span>
                 </div>
                 <span style="font-size: 12px; color: var(--text-secondary);">Acompanhamento mês a mês dos quantitativos
                     consolidados e somatórios acumulados</span>
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
                 <span
-                    style="background-color: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; padding: 4px 12px; border-radius: 999px; font-size: 11.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+                    style="background-color: {% if active_tab_nav == 'extracao' %}#faf5ff{% else %}#fdf2f8{% endif %}; color: {% if active_tab_nav == 'extracao' %}#9333ea{% else %}#db2777{% endif %}; border: 1px solid {% if active_tab_nav == 'extracao' %}#e9d5ff{% else %}#fbcfe8{% endif %}; padding: 4px 12px; border-radius: 999px; font-size: 11.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
                     <span
-                        style="width: 8px; height: 8px; border-radius: 50%; background-color: #ec4899; display: inline-block;"></span>
-                    Evolução Mensal (Rosa)
+                        style="width: 8px; height: 8px; border-radius: 50%; background-color: {% if active_tab_nav == 'extracao' %}#9333ea{% else %}#ec4899{% endif %}; display: inline-block;"></span>
+                    {% if active_tab_nav == 'extracao' %}Evolução Mensal (Sala de Extração){% else %}Evolução Mensal (Rosa){% endif %}
                 </span>
             </div>
         </div>
@@ -532,7 +609,7 @@
 </section>
 
 <!-- ========================================================================= -->
-<!-- TABELA 2: QUANTITATIVO MENSAL DE AMAMENTAÇÃO (CONSOLIDADO)                -->
+<!-- TABELA 2: QUANTITATIVO MENSAL (CONSOLIDADO)                               -->
 <!-- ========================================================================= -->
 <section style="margin-top: 28px;">
     <div
@@ -543,9 +620,9 @@
                 <div
                     style="font-size: 14.5px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
                     <span style="font-size: 16px;">📌</span>
-                    <span>Quantitativo Mensal de Amamentação (Consolidado)</span>
+                    <span>{% if active_tab_nav == 'extracao' %}Quantitativo Mensal da Sala de Extração (Consolidado){% else %}Quantitativo Mensal de Amamentação (Consolidado){% endif %}</span>
                     <span
-                        style="font-size: 12px; font-weight: 700; background-color: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; padding: 2px 8px; border-radius: 999px;">
+                        style="font-size: 12px; font-weight: 700; background-color: {% if active_tab_nav == 'extracao' %}#faf5ff{% else %}#fdf2f8{% endif %}; color: {% if active_tab_nav == 'extracao' %}#9333ea{% else %}#db2777{% endif %}; border: 1px solid {% if active_tab_nav == 'extracao' %}#e9d5ff{% else %}#fbcfe8{% endif %}; padding: 2px 8px; border-radius: 999px;">
                         {{ historico_amamentacao|length }} {{ historico_amamentacao|length|pluralize:"mês contabilizado,meses contabilizados" }}
                     </span>
                 </div>
@@ -556,12 +633,12 @@
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
                 <button type="button" onclick="exportAmamentacaoPDF()" class="secondary-btn"
-                    style="padding: 8px 14px; border-radius: 8px; background-color: #fdf2f8; color: #db2777; border: 1.5px solid #fbcfe8; font-weight: 700; font-size: 12.5px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                    style="padding: 8px 14px; border-radius: 8px; background-color: {% if active_tab_nav == 'extracao' %}#faf5ff{% else %}#fdf2f8{% endif %}; color: {% if active_tab_nav == 'extracao' %}#9333ea{% else %}#db2777{% endif %}; border: 1.5px solid {% if active_tab_nav == 'extracao' %}#e9d5ff{% else %}#fbcfe8{% endif %}; font-weight: 700; font-size: 12.5px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
                     <i data-lucide="file-text" style="width: 15px; height: 15px;"></i>
                     <span>Exportar PDF Mensal</span>
                 </button>
                 <button type="button" onclick="openCreateAmamentacaoModal()" class="secondary-btn"
-                    style="padding: 8px 14px; border-radius: 8px; background-color: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; font-weight: 700; font-size: 12.5px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                    style="padding: 8px 14px; border-radius: 8px; background-color: {% if active_tab_nav == 'extracao' %}#faf5ff{% else %}#fdf2f8{% endif %}; color: {% if active_tab_nav == 'extracao' %}#9333ea{% else %}#db2777{% endif %}; border: 1px solid {% if active_tab_nav == 'extracao' %}#e9d5ff{% else %}#fbcfe8{% endif %}; font-weight: 700; font-size: 12.5px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
                     <i data-lucide="plus" style="width: 15px; height: 15px;"></i>
                     <span>Adicionar Histórico</span>
                 </button>
@@ -584,20 +661,20 @@
                     <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.15s ease;"
                         onmouseenter="this.style.backgroundColor='var(--bg-input)'"
                         onmouseleave="this.style.backgroundColor='transparent'">
-                        <td style="padding: 14px 18px; font-weight: 700; color: #db2777;">
+                        <td style="padding: 14px 18px; font-weight: 700; color: {% if active_tab_nav == 'extracao' %}#9333ea{% else %}#db2777{% endif %};">
                             🗓️ {{ hist.month_label }}
                         </td>
                         <td
-                            style="padding: 14px 18px; text-align: center; color: #db2777; font-weight: 800; font-size: 15px;">
+                            style="padding: 14px 18px; text-align: center; color: {% if active_tab_nav == 'extracao' %}#9333ea{% else %}#db2777{% endif %}; font-weight: 800; font-size: 15px;">
                             {{ hist.total_quantity }} <span
-                                style="font-size: 12px; font-weight: 600; color: #be185d;">{{ hist.total_quantity|pluralize:"utilização,utilizações" }}</span>
+                                style="font-size: 12px; font-weight: 600; color: {% if active_tab_nav == 'extracao' %}#7e22ce{% else %}#be185d{% endif %};">{{ hist.total_quantity|pluralize:"utilização,utilizações" }}</span>
                         </td>
                         <td style="padding: 14px 18px; color: var(--text-secondary);">
                             {% if hist.is_daily_sum %}
                             {{ hist.observacao }}
                             {% else %}
                             <span
-                                style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background-color: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; margin-right: 6px;">
+                                style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background-color: {% if active_tab_nav == 'extracao' %}#faf5ff{% else %}#fdf2f8{% endif %}; color: {% if active_tab_nav == 'extracao' %}#9333ea{% else %}#db2777{% endif %}; border: 1px solid {% if active_tab_nav == 'extracao' %}#e9d5ff{% else %}#fbcfe8{% endif %}; margin-right: 6px;">
                                 📌 Histórico Mensal
                             </span>
                             {{ hist.observacao|default:"-" }}
@@ -629,7 +706,7 @@
                     {% empty %}
                     <tr>
                         <td colspan="4" style="text-align: center; padding: 36px; color: var(--text-secondary);">
-                            <div style="font-size: 28px; margin-bottom: 8px;">🍼</div>
+                            <div style="font-size: 28px; margin-bottom: 8px;">{% if active_tab_nav == 'extracao' %}🍼{% else %}🤱{% endif %}</div>
                             <div
                                 style="font-weight: 700; font-size: 14px; color: var(--text-primary); margin-bottom: 4px;">
                                 Nenhum quantitativo mensal consolidado</div>
@@ -776,7 +853,9 @@
                             <option value="saida" {% if active_tab_nav == 'saidas' %}selected{% endif %}>Saída Antecipada
                             </option>
                             <option value="amamentacao" {% if active_tab_nav == 'amamentacao' %}selected{% endif %}>
-                                Amamentação</option>
+                                Espaço Materno · Sala de Amamentação</option>
+                            <option value="extracao" {% if active_tab_nav == 'extracao' %}selected{% endif %}>
+                                Espaço Materno · Sala de Extração</option>
                         </select>
                     </div>
 
@@ -978,17 +1057,20 @@
                     </div>
                 </div>
 
-                <!-- 4. CAMPOS DE AMAMENTAÇÃO -->
+                <!-- 4. CAMPOS DO ESPAÇO MATERNO (AMAMENTAÇÃO / SALA DE EXTRAÇÃO) -->
                 <div id="block-amamentacao"
                     style="display: none; padding: 14px; background-color: #fdf2f8; border: 1px solid #fbcfe8; border-radius: 10px;">
                     <div>
-                        <label
+                        <label id="label-quantidade-materno"
                             style="display: block; font-size: 12.5px; font-weight: 700; color: #db2777; margin-bottom: 6px;">
                             Quantidade de Atendimentos / Sessões <span style="color: #ef4444;">*</span>
                         </label>
                         <input type="number" name="quantidade" id="field-quantidade" min="1" value="1"
                             placeholder="Ex: 1"
                             style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid #fbcfe8; background: white; font-size: 13.5px; font-weight: 700; color: #db2777; outline: none; box-sizing: border-box;">
+                        <span id="helper-quantidade-materno" style="display: block; font-size: 11.5px; color: var(--text-secondary); margin-top: 6px;">
+                            Informe o número de sessões/utilizações realizadas na sala nesta data.
+                        </span>
                     </div>
                 </div>
 
@@ -1123,12 +1205,11 @@
         </div>
         <div
             style="background-color: var(--bg-secondary); padding: 18px 22px; font-size: 12.5px; font-weight: 700; color: var(--text-secondary);">
-            <span>🍼 Insira o quantitativo total de amamentações referente a meses passados para relatórios e
-                estatísticas.</span>
+            <span>{% if active_tab_nav == 'extracao' %}🍼 Insira o quantitativo total de utilizações da Sala de Extração referente a meses passados para relatórios e estatísticas.{% else %}🤱 Insira o quantitativo total de amamentações referente a meses passados para relatórios e estatísticas.{% endif %}</span>
         </div>
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
-            <input type="hidden" name="action" id="form-amamentacao-action" value="create_historico_amamentacao">
+            <input type="hidden" name="action" id="form-amamentacao-action" value="{% if active_tab_nav == 'extracao' %}create_historico_extracao{% else %}create_historico_amamentacao{% endif %}">
             <input type="hidden" name="ocorrencia_id" id="form-amamentacao-id" value="">
             <div style="padding: 18px 22px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -1291,7 +1372,8 @@
         'atraso': { title: 'Atraso', subtitle: 'Apenas Nome do Aluno e Tipo de Registro são obrigatórios no formulário.', icon: 'clock', color: '#f59e0b', lightColor: '#fef3c7' },
         'saidas': { title: 'Saída Antecipada', subtitle: 'Apenas Nome do Aluno e Tipo de Registro são obrigatórios no formulário.', icon: 'log-out', color: '#ea580c', lightColor: '#ffedd5' },
         'saida': { title: 'Saída Antecipada', subtitle: 'Apenas Nome do Aluno e Tipo de Registro são obrigatórios no formulário.', icon: 'log-out', color: '#ea580c', lightColor: '#ffedd5' },
-        'amamentacao': { title: 'Amamentação', subtitle: 'Preencha a Data e a Quantidade para registrar.', icon: 'heart', color: '#ec4899', lightColor: '#fdf2f8' }
+        'amamentacao': { title: 'Amamentação (Espaço Materno)', subtitle: 'Preencha a Data e a Quantidade para registrar.', icon: 'heart', color: '#ec4899', lightColor: '#fdf2f8' },
+        'extracao': { title: 'Sala de Extração (Espaço Materno)', subtitle: 'Preencha a Data e a Quantidade de utilizações da sala.', icon: 'droplet', color: '#9333ea', lightColor: '#faf5ff' }
     };
 
     // Filtro instantâneo na tabela do Caderno SEAMI
@@ -1358,8 +1440,10 @@
         const isEditing = document.getElementById('form-caderno-action').value === 'update';
 
         document.getElementById('caderno-modal-title').innerText = isEditing ? `Editar Registro de ${conf.title}` : `Novo Registro de ${conf.title}`;
-        document.getElementById('caderno-modal-subtitle').innerHTML = type === 'amamentacao'
-            ? 'Preencha a <strong>Data</strong> e a <strong>Quantidade</strong> para registrar.'
+        document.getElementById('caderno-modal-subtitle').innerHTML = (type === 'amamentacao' || type === 'extracao')
+            ? (type === 'extracao'
+                ? 'Preencha a <strong>Data</strong> e a <strong>Quantidade de Utilizações da Sala</strong> para registrar.'
+                : 'Preencha a <strong>Data</strong> e a <strong>Quantidade</strong> para registrar.')
             : 'Apenas <strong>Nome do Aluno</strong> e <strong>Tipo de Registro</strong> são obrigatórios no formulário.';
 
         // Cores e Ícone
@@ -1375,17 +1459,53 @@
             submitBtn.style.backgroundColor = conf.color;
         }
 
-        // Esconde ou exibe seletor de aluno e horário (ocultos em amamentação)
-        const isAmam = (type === 'amamentacao');
-        document.getElementById('box-student-select').style.display = isAmam ? 'none' : 'block';
-        document.getElementById('box-time-recorded').style.display = isAmam ? 'none' : 'grid';
-        document.getElementById('box-motivo').style.display = isAmam ? 'none' : 'block';
+        // Esconde ou exibe seletor de aluno e horário (ocultos no Espaço Materno: amamentação e sala de extração)
+        const isMaterno = (type === 'amamentacao' || type === 'extracao');
+        document.getElementById('box-student-select').style.display = isMaterno ? 'none' : 'block';
+        document.getElementById('box-time-recorded').style.display = isMaterno ? 'none' : 'grid';
+        document.getElementById('box-motivo').style.display = isMaterno ? 'none' : 'block';
 
         // Blocos específicos condicionais
         document.getElementById('block-falta').style.display = (type === 'falta') ? 'flex' : 'none';
         document.getElementById('block-atestado').style.display = (type === 'atestado') ? 'block' : 'none';
         document.getElementById('block-atraso-saida').style.display = (type === 'atraso' || type === 'saida') ? 'flex' : 'none';
-        document.getElementById('block-amamentacao').style.display = (type === 'amamentacao') ? 'block' : 'none';
+        const blockMaterno = document.getElementById('block-amamentacao');
+        blockMaterno.style.display = isMaterno ? 'block' : 'none';
+
+        if (isMaterno) {
+            const lblQty = document.getElementById('label-quantidade-materno');
+            const helpQty = document.getElementById('helper-quantidade-materno');
+            const inputQty = document.getElementById('field-quantidade');
+            if (type === 'extracao') {
+                blockMaterno.style.backgroundColor = '#faf5ff';
+                blockMaterno.style.borderColor = '#e9d5ff';
+                if (lblQty) {
+                    lblQty.style.color = '#9333ea';
+                    lblQty.innerHTML = 'Quantidade de Utilizações da Sala de Extração <span style="color: #ef4444;">*</span>';
+                }
+                if (inputQty) {
+                    inputQty.style.borderColor = '#e9d5ff';
+                    inputQty.style.color = '#9333ea';
+                }
+                if (helpQty) {
+                    helpQty.innerText = 'Informe quantas vezes a Sala de Extração foi utilizada para extrair e armazenar leite materno nesta data.';
+                }
+            } else {
+                blockMaterno.style.backgroundColor = '#fdf2f8';
+                blockMaterno.style.borderColor = '#fbcfe8';
+                if (lblQty) {
+                    lblQty.style.color = '#db2777';
+                    lblQty.innerHTML = 'Quantidade de Atendimentos / Sessões <span style="color: #ef4444;">*</span>';
+                }
+                if (inputQty) {
+                    inputQty.style.borderColor = '#fbcfe8';
+                    inputQty.style.color = '#db2777';
+                }
+                if (helpQty) {
+                    helpQty.innerText = 'Informe o número de sessões de amamentação realizadas nesta data.';
+                }
+            }
+        }
 
         if (type === 'saida') {
             document.getElementById('box-saida-return').style.display = 'block';
@@ -1597,11 +1717,11 @@
     }
 
     function openCreateDailyAmamentacaoModal() {
-        openCreateModal('amamentacao');
+        openCreateModal('{% if active_tab_nav == "extracao" %}extracao{% else %}amamentacao{% endif %}');
     }
 
     function openCreateAmamentacaoModal() {
-        document.getElementById('form-amamentacao-action').value = 'create_historico_amamentacao';
+        document.getElementById('form-amamentacao-action').value = '{% if active_tab_nav == "extracao" %}create_historico_extracao{% else %}create_historico_amamentacao{% endif %}';
         document.getElementById('form-amamentacao-id').value = '';
         document.getElementById('mes-ano').value = '';
         document.getElementById('quantidade').value = '';
@@ -1617,7 +1737,7 @@
     }
 
     function openEditAmamentacaoModal(id, mesAno, quantidade, observacao) {
-        document.getElementById('form-amamentacao-action').value = 'update_historico_amamentacao';
+        document.getElementById('form-amamentacao-action').value = '{% if active_tab_nav == "extracao" %}update_historico_extracao{% else %}update_historico_amamentacao{% endif %}';
         document.getElementById('form-amamentacao-id').value = id;
         document.getElementById('mes-ano').value = mesAno;
         document.getElementById('quantidade').value = quantidade;
@@ -1920,11 +2040,16 @@
             alert('Biblioteca jsPDF não carregada.');
             return;
         }
+        const isExtracao = ('{{ active_tab_nav }}' === 'extracao');
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-        // Header rosa do SEAMI
-        doc.setFillColor(219, 39, 119);
+        // Header do SEAMI (Rosa para Amamentação / Roxo para Sala de Extração)
+        if (isExtracao) {
+            doc.setFillColor(147, 51, 234);
+        } else {
+            doc.setFillColor(219, 39, 119);
+        }
         doc.rect(0, 0, 210, 32, 'F');
         doc.setTextColor(255, 255, 255);
         doc.setFont('helvetica', 'bold');
@@ -1932,31 +2057,47 @@
         doc.text('EducaGestão Portal Creche', 12, 12);
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(9);
-        doc.text('Relatório Consolidado de Amamentação (Quantitativo Mensal)', 12, 18);
+        doc.text(
+            isExtracao
+                ? 'Espaço Materno - Relatório Consolidado da Sala de Extração (Quantitativo Mensal)'
+                : 'Espaço Materno - Relatório Consolidado de Amamentação (Quantitativo Mensal)',
+            12,
+            18
+        );
         doc.text(`Emissão: ${new Date().toLocaleDateString('pt-BR')}`, 12, 24);
 
         const sortedMonths = {% if meses_consolidado_json %}{{ meses_consolidado_json|safe }}{% else %}[]{% endif %};
     if (!sortedMonths || sortedMonths.length === 0) {
-        alert('Não há dados de amamentação para exportar.');
+        alert(isExtracao ? 'Não há dados da Sala de Extração para exportar.' : 'Não há dados de amamentação para exportar.');
         return;
     }
 
     const grandTotal = sortedMonths.reduce((acc, curr) => acc + (curr.total_quantity || 0), 0);
 
     let y = 40;
-    doc.setFillColor(252, 231, 243);
-    doc.rect(10, y, 190, 14, 'F');
-    doc.setDrawColor(244, 114, 182);
-    doc.rect(10, y, 190, 14, 'S');
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(157, 23, 77);
-    doc.text(`TOTAL GERAL DE AMAMENTAÇÕES NO PERÍODO: ${grandTotal}`, 14, y + 9);
+    if (isExtracao) {
+        doc.setFillColor(250, 245, 255);
+        doc.rect(10, y, 190, 14, 'F');
+        doc.setDrawColor(216, 180, 254);
+        doc.rect(10, y, 190, 14, 'S');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(107, 33, 168);
+        doc.text(`TOTAL GERAL DE UTILIZAÇÕES DA SALA DE EXTRAÇÃO NO PERÍODO: ${grandTotal}`, 14, y + 9);
+    } else {
+        doc.setFillColor(252, 231, 243);
+        doc.rect(10, y, 190, 14, 'F');
+        doc.setDrawColor(244, 114, 182);
+        doc.rect(10, y, 190, 14, 'S');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(157, 23, 77);
+        doc.text(`TOTAL GERAL DE AMAMENTAÇÕES NO PERÍODO: ${grandTotal}`, 14, y + 9);
+    }
 
     y += 20;
 
-    // Gerar Gráfico de Pontos para o PDF (Evolução Mensal em Rosa)
+    // Gerar Gráfico de Pontos para o PDF
     const offscreenCanvas = document.createElement('canvas');
     offscreenCanvas.width = 900;
     offscreenCanvas.height = 320;
@@ -1966,6 +2107,10 @@
 
     const labels = sortedMonths.map(r => r.month_label);
     const dataPoints = sortedMonths.map(r => r.total_quantity);
+    const mainHex = isExtracao ? '#9333ea' : '#db2777';
+    const darkHex = isExtracao ? '#6b21a8' : '#9d174d';
+    const fillRgba = isExtracao ? 'rgba(147, 51, 234, 0.15)' : 'rgba(219, 39, 119, 0.15)';
+    const gridHex = isExtracao ? '#e9d5ff' : '#fbcfe8';
 
     const valueLabelsPlugin = {
         id: 'valueLabels',
@@ -1978,7 +2123,7 @@
                 meta.data.forEach((element, index) => {
                     const val = dataset.data[index];
                     if (val !== undefined && val !== null && val !== 0) {
-                        ctx.fillStyle = '#9d174d';
+                        ctx.fillStyle = darkHex;
                         ctx.font = 'bold 11px Helvetica, Arial, sans-serif';
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'bottom';
@@ -1996,11 +2141,11 @@
         data: {
             labels: labels,
             datasets: [{
-                label: 'Total de Amamentações',
+                label: isExtracao ? 'Utilizações da Sala de Extração' : 'Total de Amamentações',
                 data: dataPoints,
-                borderColor: '#db2777',
-                backgroundColor: 'rgba(219, 39, 119, 0.15)',
-                pointBackgroundColor: '#db2777',
+                borderColor: mainHex,
+                backgroundColor: fillRgba,
+                pointBackgroundColor: mainHex,
                 pointBorderColor: '#ffffff',
                 pointRadius: 6,
                 pointHoverRadius: 9,
@@ -2014,11 +2159,18 @@
             animation: false,
             plugins: {
                 legend: { display: true, position: 'top', labels: { font: { family: 'Helvetica', weight: 'bold' } } },
-                title: { display: true, text: 'Evolução Mensal do Quantitativo de Amamentações', font: { family: 'Helvetica', weight: 'bold', size: 14 }, color: '#9d174d' }
+                title: {
+                    display: true,
+                    text: isExtracao
+                        ? 'Evolução Mensal de Utilizações da Sala de Extração'
+                        : 'Evolução Mensal do Quantitativo de Amamentações',
+                    font: { family: 'Helvetica', weight: 'bold', size: 14 },
+                    color: darkHex
+                }
             },
             scales: {
                 x: { grid: { display: false }, ticks: { font: { weight: 'bold' } } },
-                y: { grid: { color: '#fbcfe8' }, beginAtZero: true, ticks: { font: { weight: 'bold' } } }
+                y: { grid: { color: gridHex }, beginAtZero: true, ticks: { font: { weight: 'bold' } } }
             }
         },
         plugins: [valueLabelsPlugin]
@@ -2030,7 +2182,7 @@
         doc.addImage(chartImg, 'PNG', 12, y, 186, 62);
         y += 68;
     } catch (e) {
-        console.error('Erro ao inserir gráfico de amamentação no PDF:', e);
+        console.error('Erro ao inserir gráfico no PDF:', e);
         chartInst.destroy();
     } finally {
         if (document.body.contains(offscreenCanvas)) {
@@ -2044,13 +2196,17 @@
         y = 20;
     }
 
+    const colHeaderLabel = isExtracao
+        ? 'Quantidade Total de Utilizações da Sala no Mês'
+        : 'Quantidade Total de Amamentações no Mês';
+
     doc.setFillColor(241, 245, 249);
     doc.rect(10, y - 5, 190, 8, 'F');
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 41, 59);
     doc.setFontSize(9);
     doc.text('Mês / Ano', 20, y);
-    doc.text('Quantidade Total de Amamentações no Mês', 110, y);
+    doc.text(colHeaderLabel, 110, y);
     y += 8;
 
     sortedMonths.forEach(row => {
@@ -2063,7 +2219,7 @@
             doc.setTextColor(30, 41, 59);
             doc.setFontSize(9);
             doc.text('Mês / Ano', 20, y);
-            doc.text('Quantidade Total de Amamentações no Mês', 110, y);
+            doc.text(colHeaderLabel, 110, y);
             y += 8;
         }
 
@@ -2072,7 +2228,11 @@
         doc.text(row.month_label, 20, y);
 
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor(219, 39, 119);
+        if (isExtracao) {
+            doc.setTextColor(147, 51, 234);
+        } else {
+            doc.setTextColor(219, 39, 119);
+        }
         const suffix = row.is_daily_sum ? "" : '';
         doc.text(`${row.total_quantity}${suffix}`, 130, y);
 
@@ -2081,26 +2241,30 @@
         y += 8;
     });
 
-    doc.save(`Relatorio_Amamentacao_Mensal_${new Date().toISOString().split('T')[0]}.pdf`);
+    const pdfPrefix = isExtracao ? 'Relatorio_Sala_Extracao_Mensal' : 'Relatorio_Amamentacao_Mensal';
+    doc.save(`${pdfPrefix}_${new Date().toISOString().split('T')[0]}.pdf`);
     }
 
-    {% if active_tab_nav == 'amamentacao' and chart_labels %}
+    {% if is_espaco_materno and chart_labels %}
     document.addEventListener("DOMContentLoaded", function () {
         const ctx = document.getElementById('amamentacaoChart');
         if (ctx) {
             const labels = {{ chart_labels|safe }};
             const data = {{ chart_data|safe }};
+            const isExtracaoChart = ('{{ active_tab_nav }}' === 'extracao');
+            const lineColor = isExtracaoChart ? '#9333ea' : '#ec4899';
+            const fillColor = isExtracaoChart ? 'rgba(147, 51, 234, 0.12)' : 'rgba(236, 72, 153, 0.12)';
 
     new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
             datasets: [{
-                label: 'Total de Amamentações no Mês',
+                label: isExtracaoChart ? 'Total de Utilizações da Sala de Extração no Mês' : 'Total de Amamentações no Mês',
                 data: data,
-                borderColor: '#ec4899',
-                backgroundColor: 'rgba(236, 72, 153, 0.12)',
-                pointBackgroundColor: '#ec4899',
+                borderColor: lineColor,
+                backgroundColor: fillColor,
+                pointBackgroundColor: lineColor,
                 pointBorderColor: '#ffffff',
                 pointBorderWidth: 2,
                 pointRadius: 5,

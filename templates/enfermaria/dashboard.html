@@ -217,7 +217,7 @@
                             {% endif %}
                         </td>
                         <td style="padding: 12px 16px; font-size: 12px; color: var(--text-secondary);">
-                            {% if at.registrado_por %}{{ at.registrado_por.get_full_name|default:at.registrado_por.username }}{% else %}Sistema{% endif %}
+                            {{ at.registrado_por_display|default:'Enfermeira' }}
                         </td>
                         <td style="padding: 12px 16px; text-align: right;">
                             <div style="display: flex; justify-content: flex-end; gap: 6px;">

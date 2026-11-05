@@ -141,6 +141,7 @@ def usuarios_list_view(request):
         (UserRole.COORDENADOR, 'Coordenador(a)'),
         (UserRole.DIRETOR, 'Diretor(a)'),
         (UserRole.AUXILIAR, 'Auxiliar'),
+        (UserRole.ENFERMEIRA, 'Enfermeira'),
     ]
 
     return render(request, 'accounts/usuarios_list.html', {

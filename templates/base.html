@@ -25,7 +25,7 @@
     </script>
 
     <!-- Folha de Estilos Exata do SEAMI -->
-    <link rel="stylesheet" href="{% static 'css/index.css' %}?v=2.0">
+    <link rel="stylesheet" href="{% static 'css/index.css' %}?v=2.1">
 
     <style>
         /* Ajustes finos para compatibilidade com Django Forms & Dropdowns */
@@ -136,8 +136,20 @@
                     </a>
                     <a href="{% url 'caderno_seami' 'amamentacao' %}" class="menu-item {% if active_tab == 'seami_control' and active_module == 'amamentacao' %}active{% endif %}" style="font-size: 13px; display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 8px;">
                         <i data-lucide="heart" style="color: var(--color-amamentacao);"></i>
-                        <span>Amamentação</span>
+                        <span>Espaço Materno</span>
                     </a>
+                    {% if active_tab == 'seami_control' and active_module == 'amamentacao' %}
+                    <div style="display: flex; flex-direction: column; gap: 2px; padding-left: 14px; margin-left: 12px; border-left: 1px dashed var(--border-color); margin-top: 2px; margin-bottom: 4px;">
+                        <a href="{% url 'caderno_seami' 'amamentacao' %}" class="menu-item {% if active_tab_nav == 'amamentacao' %}active{% endif %}" style="font-size: 12px; display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 6px;">
+                            <span>🤱</span>
+                            <span>Sala de Amamentação</span>
+                        </a>
+                        <a href="{% url 'caderno_seami' 'extracao' %}" class="menu-item {% if active_tab_nav == 'extracao' %}active{% endif %}" style="font-size: 12px; display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 6px;">
+                            <span>🍼</span>
+                            <span>Sala de Extração</span>
+                        </a>
+                    </div>
+                    {% endif %}
                 </div>
 
                 <a href="{% url 'relatorios' %}" class="menu-item {% if active_tab == 'reports' and request.GET.tab != 'frequencia' %}active{% endif %}">

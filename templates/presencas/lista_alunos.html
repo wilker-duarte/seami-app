@@ -356,7 +356,7 @@
                     <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
                         Sala / Turma *
                     </label>
-                    <select name="turma" id="field-turma" required style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 14px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                    <select name="turma" id="field-turma" required onchange="checkRealocacaoAluno()" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 14px; color: var(--text-primary); outline: none; box-sizing: border-box;">
                         {% for t in turmas %}
                             <option value="{{ t.id }}">
                                 {% if t.nome|lower == 'amizade' %}Amizade 6 a 12 meses{% elif t.nome|lower == 'união' or t.nome|lower == 'uniao' %}União 12 a 18 meses{% elif t.nome|lower == 'felicidade' %}Felicidade 18 a 24 meses{% elif t.nome|lower == 'carinho' %}Carinho 24 a 30 meses{% elif t.nome|lower == 'alegria' %}Alegria 30 a 36 meses{% else %}{{ t.nome }}{% if t.faixa_etaria %} ({{ t.faixa_etaria }}){% endif %}{% endif %}
@@ -369,11 +369,35 @@
                     <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
                         Turno *
                     </label>
-                    <select name="turno" id="field-turno" required style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 14px; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                    <select name="turno" id="field-turno" required onchange="checkRealocacaoAluno()" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 14px; color: var(--text-primary); outline: none; box-sizing: border-box;">
                         <option value="integral">Integral</option>
                         <option value="matutino">Matutino</option>
                         <option value="vespertino">Vespertino</option>
                     </select>
+                </div>
+            </div>
+
+            <!-- Bloco dinâmico exibido ao realocar Sala ou Turno de um aluno existente -->
+            <div id="box-realocacao-aluno" style="display: none; background: #eff6ff; border: 1.5px solid #93c5fd; border-radius: 10px; padding: 12px 14px; flex-direction: column; gap: 10px;">
+                <div style="font-size: 12.5px; font-weight: 800; color: #1e40af; display: flex; align-items: center; gap: 6px;">
+                    <span>🔄</span>
+                    <span>Realocação de Sala / Turno Detectada</span>
+                </div>
+                <div style="display: grid; grid-template-columns: 160px 1fr; gap: 12px;">
+                    <div>
+                        <label style="display: block; font-size: 11.5px; font-weight: 700; color: #1e3a8a; margin-bottom: 4px;">
+                            Data da Realocação
+                        </label>
+                        <input type="date" name="data_realocacao" id="field-data-realocacao" value="{{ today }}"
+                               style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #bfdbfe; background: #ffffff; font-size: 13px; color: var(--text-primary); box-sizing: border-box;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11.5px; font-weight: 700; color: #1e3a8a; margin-bottom: 4px;">
+                            Observação / Motivo (Opcional)
+                        </label>
+                        <input type="text" name="observacao_realocacao" id="field-obs-realocacao" placeholder="Ex: Mudança de faixa etária / Solicitação da família"
+                               style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #bfdbfe; background: #ffffff; font-size: 13px; color: var(--text-primary); box-sizing: border-box;">
+                    </div>
                 </div>
             </div>
 
@@ -811,6 +835,28 @@
         }
     }
 
+    function checkRealocacaoAluno() {
+        const action = document.getElementById('form-action').value;
+        const alunoId = document.getElementById('form-aluno-id').value;
+        const box = document.getElementById('box-realocacao-aluno');
+        if (!box) return;
+        if (action !== 'update' || !alunoId || !STUDENTS_MAP[String(alunoId)]) {
+            box.style.display = 'none';
+            return;
+        }
+        const st = STUDENTS_MAP[String(alunoId)];
+        const newTurma = String(document.getElementById('field-turma').value || '');
+        const newTurno = String(document.getElementById('field-turno').value || '').toUpperCase();
+        const oldTurma = String(st.turma_id || '');
+        const oldTurno = String(st.turno_raw || '').toUpperCase();
+
+        if (newTurma !== oldTurma || newTurno !== oldTurno) {
+            box.style.display = 'flex';
+        } else {
+            box.style.display = 'none';
+        }
+    }
+
     function openStudentModal() {
         document.getElementById('modal-student-title').innerText = 'Novo Aluno';
         document.getElementById('form-action').value = 'create';
@@ -820,6 +866,12 @@
         document.getElementById('field-turno').value = 'integral';
         document.getElementById('field-data-entrada').value = '{{ today }}';
         document.getElementById('field-data-desligamento').value = '';
+        const boxRealoc = document.getElementById('box-realocacao-aluno');
+        if (boxRealoc) boxRealoc.style.display = 'none';
+        const dtRealoc = document.getElementById('field-data-realocacao');
+        if (dtRealoc) dtRealoc.value = '{{ today }}';
+        const obsRealoc = document.getElementById('field-obs-realocacao');
+        if (obsRealoc) obsRealoc.value = '';
         document.getElementById('field-has-acompanhamento').checked = false;
         document.getElementById('field-acomp-obs').value = '';
         document.querySelectorAll('.dia-semana-check').forEach(cb => {
@@ -876,7 +928,13 @@
         if (st.turma_id) {
             document.getElementById('field-turma').value = st.turma_id;
         }
-        document.getElementById('field-turno').value = st.turno_raw || 'integral';
+        document.getElementById('field-turno').value = (st.turno_raw || 'integral').toLowerCase();
+        const boxRealoc = document.getElementById('box-realocacao-aluno');
+        if (boxRealoc) boxRealoc.style.display = 'none';
+        const dtRealoc = document.getElementById('field-data-realocacao');
+        if (dtRealoc) dtRealoc.value = '{{ today }}';
+        const obsRealoc = document.getElementById('field-obs-realocacao');
+        if (obsRealoc) obsRealoc.value = '';
         document.getElementById('field-data-nascimento').value = st.data_nascimento || '';
         document.getElementById('field-data-entrada').value = st.data_entrada || '';
         document.getElementById('field-data-desligamento').value = st.data_desligamento || '';
@@ -1082,6 +1140,72 @@
             ? `<a href="mailto:${st.email_responsavel_2}" style="color: var(--color-primary, #4f46e5); font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; word-break: break-all;">${st.email_responsavel_2} <i data-lucide="mail" style="width: 13px; height: 13px;"></i></a>`
             : `<span style="color: var(--text-light);">Não informado</span>`;
 
+        // Períodos por Turma (Sala) e por Turno (default: atual)
+        const defaultIni = (st.data_entrada_br && st.data_entrada_br !== 'Não informada') ? st.data_entrada_br : 'Desde o ingresso';
+        const defaultFim = st.data_desligamento_br || 'Atual';
+
+        const periodosTurma = (Array.isArray(st.periodos_turma) && st.periodos_turma.length > 0)
+            ? st.periodos_turma
+            : [{
+                turma_nome: st.turma_nome,
+                data_inicio_br: defaultIni,
+                data_fim_br: defaultFim,
+                periodo_str: `${defaultIni} — ${defaultFim}`,
+                atual: true,
+                observacao: 'Sala atual'
+            }];
+
+        const periodosTurno = (Array.isArray(st.periodos_turno) && st.periodos_turno.length > 0)
+            ? st.periodos_turno
+            : [{
+                turno_display: st.turno,
+                data_inicio_br: defaultIni,
+                data_fim_br: defaultFim,
+                periodo_str: `${defaultIni} — ${defaultFim}`,
+                atual: true,
+                observacao: 'Turno atual'
+            }];
+
+        const periodosTurmaHtml = periodosTurma.map(p => `
+            <div style="display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; border-radius: 8px; background: ${p.atual ? '#f0fdf4' : 'var(--bg-card)'}; border: 1px solid ${p.atual ? '#bbf7d0' : 'var(--border-color)'};">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap;">
+                    <span style="font-size: 12.5px; font-weight: 800; color: ${p.atual ? '#15803d' : 'var(--text-primary)'};">
+                        Sala ${p.turma_nome || st.turma_nome}
+                    </span>
+                    ${p.atual
+                        ? `<span style="font-size: 10.5px; font-weight: 800; background: #dcfce7; color: #166534; padding: 1px 7px; border-radius: 999px; border: 1px solid #86efac;">Atual</span>`
+                        : `<span style="font-size: 10.5px; font-weight: 700; background: #f1f5f9; color: #64748b; padding: 1px 7px; border-radius: 999px; border: 1px solid #cbd5e1;">Anterior</span>`
+                    }
+                </div>
+                <div style="font-size: 11.5px; color: var(--text-secondary); font-weight: 600;">
+                    📅 Período: <strong style="color: var(--text-primary);">${p.periodo_str || `${p.data_inicio_br} — ${p.data_fim_br}`}</strong>
+                </div>
+                ${p.observacao && !['Alocação inicial', 'Alocação anterior', 'Sala atual'].includes(p.observacao) ? `
+                    <div style="font-size: 11px; color: var(--text-light); font-style: italic;">💬 ${p.observacao}</div>
+                ` : ''}
+            </div>
+        `).join('');
+
+        const periodosTurnoHtml = periodosTurno.map(p => `
+            <div style="display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; border-radius: 8px; background: ${p.atual ? '#eff6ff' : 'var(--bg-card)'}; border: 1px solid ${p.atual ? '#bfdbfe' : 'var(--border-color)'};">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap;">
+                    <span style="font-size: 12.5px; font-weight: 800; color: ${p.atual ? '#1d4ed8' : 'var(--text-primary)'};">
+                        ${p.turno_display || st.turno}
+                    </span>
+                    ${p.atual
+                        ? `<span style="font-size: 10.5px; font-weight: 800; background: #dbeafe; color: #1e40af; padding: 1px 7px; border-radius: 999px; border: 1px solid #93c5fd;">Atual</span>`
+                        : `<span style="font-size: 10.5px; font-weight: 700; background: #f1f5f9; color: #64748b; padding: 1px 7px; border-radius: 999px; border: 1px solid #cbd5e1;">Anterior</span>`
+                    }
+                </div>
+                <div style="font-size: 11.5px; color: var(--text-secondary); font-weight: 600;">
+                    📅 Período: <strong style="color: var(--text-primary);">${p.periodo_str || `${p.data_inicio_br} — ${p.data_fim_br}`}</strong>
+                </div>
+                ${p.observacao && !['Alocação inicial', 'Alocação anterior', 'Turno atual'].includes(p.observacao) ? `
+                    <div style="font-size: 11px; color: var(--text-light); font-style: italic;">💬 ${p.observacao}</div>
+                ` : ''}
+            </div>
+        `).join('');
+
         body.innerHTML = `
             <!-- Card Principal -->
             <div style="background: var(--bg-body); border: 1.5px solid var(--border-color); border-radius: 12px; padding: 16px;">
@@ -1094,8 +1218,8 @@
                         </h4>
                         <div style="display: flex; gap: 6px; margin-top: 6px; align-items: center; flex-wrap: wrap;">
                             <span style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 12px;">🏛️ Órgão: ${st.orgao_display || 'Não informado'}</span>
-                            <span style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 12px;">Sala ${st.turma_nome}</span>
-                            <span style="background: #eff6ff; color: #1d4ed8; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 12px;">Turno ${st.turno}</span>
+                            <span style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 12px;">🏫 Sala atual: ${st.turma_nome}</span>
+                            <span style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 12px;">🕒 Turno atual: ${st.turno}</span>
                         </div>
                     </div>
                     ${statusPill}
@@ -1113,6 +1237,41 @@
                     <div>
                         <span style="color: var(--text-secondary); display: block; font-size: 11.5px;">Data de Desligamento:</span>
                         <strong style="color: ${st.data_desligamento_br ? '#b91c1c' : 'var(--text-primary)'};">${st.data_desligamento_br || '—'}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bloco de Observabilidade: Histórico e Períodos por Turma (Sala) e por Turno -->
+            <div style="border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+                <div style="font-weight: 700; font-size: 13px; color: var(--text-primary); display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span>🔄</span>
+                        <span>Histórico e Períodos de Alocação (Turma e Turno)</span>
+                    </div>
+                    <span style="font-size: 11px; font-weight: 600; color: var(--text-light);">Observabilidade de Realocação</span>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+                    <!-- Períodos por Turma / Sala -->
+                    <div style="background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+                        <div style="font-size: 11.5px; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.4px; display: flex; align-items: center; gap: 5px;">
+                            <span>🏫</span>
+                            <span>Período por Turma (Sala)</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            ${periodosTurmaHtml}
+                        </div>
+                    </div>
+
+                    <!-- Períodos por Turno -->
+                    <div style="background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+                        <div style="font-size: 11.5px; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.4px; display: flex; align-items: center; gap: 5px;">
+                            <span>🕒</span>
+                            <span>Período por Turno</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            ${periodosTurnoHtml}
+                        </div>
                     </div>
                 </div>
             </div>

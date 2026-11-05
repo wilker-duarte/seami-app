@@ -154,7 +154,7 @@ def enfermaria_dashboard_view(request):
             'observacoes_medicas': at.observacoes_medicas or '',
             'documento_url': at.documento_anexo.url if at.documento_anexo else '',
             'documento_name': at.documento_anexo.name.split('/')[-1] if at.documento_anexo else '',
-            'registrado_por': at.registrado_por.get_full_name() or at.registrado_por.username if at.registrado_por else 'Sistema',
+            'registrado_por': at.registrado_por_display or 'Enfermeira',
             'criado_em': timezone.localtime(at.criado_em).strftime('%d/%m/%Y às %H:%M') if at.criado_em else '',
         }
 

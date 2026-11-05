@@ -22,3 +22,4 @@ class MovimentacaoEstoqueAdmin(admin.ModelAdmin):
     list_filter = ('tipo', 'data', 'turma')
     search_fields = ('item__nome', 'motivo', 'responsavel__username')
     ordering = ('-data', '-criado_em')
+

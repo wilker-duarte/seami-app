@@ -11,7 +11,8 @@ from .admin_views import (
     central_administrativa_view,
     salvar_orgao_api,
     toggle_orgao_status_api,
-    excluir_orgao_api
+    excluir_orgao_api,
+    atualizar_status_item_acordo_api,
 )
 
 app_name = 'core'
@@ -26,6 +27,7 @@ urlpatterns = [
     path('administracao/orgaos/salvar/', salvar_orgao_api, name='salvar_orgao_api'),
     path('administracao/orgaos/<int:orgao_id>/toggle/', toggle_orgao_status_api, name='toggle_orgao_status_api'),
     path('administracao/orgaos/<int:orgao_id>/excluir/', excluir_orgao_api, name='excluir_orgao_api'),
+    path('administracao/orgaos/acordo-item/<int:item_id>/status/', atualizar_status_item_acordo_api, name='atualizar_status_item_acordo_api'),
 
     # Módulo III: Enfermagem
     path('enfermaria/', enfermaria_dashboard_view, name='enfermaria'),

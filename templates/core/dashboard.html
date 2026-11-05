@@ -358,9 +358,9 @@
             </a>
 
             <a class="metric-card metric-amamentacao" href="{% url 'caderno_seami' 'amamentacao' %}" style="cursor: pointer;">
-                <div class="metric-header"><span class="metric-title">Amamentação</span><div class="metric-icon-box"><i data-lucide="heart" style="width: 18px; height: 18px;"></i></div></div>
-                <div class="metric-value">{{ metrics.amamentacao_count }}</div>
-                <div class="metric-footer text-amamentacao"><span>{{ metrics.amamentacao_dias }} {{ metrics.amamentacao_dias|pluralize:"dia registrado,dias registrados" }} no período</span></div>
+                <div class="metric-header"><span class="metric-title">Espaço Materno</span><div class="metric-icon-box"><i data-lucide="heart" style="width: 18px; height: 18px;"></i></div></div>
+                <div class="metric-value">{{ metrics.espaco_materno_count }}</div>
+                <div class="metric-footer text-amamentacao"><span>🤱 {{ metrics.amamentacao_count }} amamentação · 🍼 {{ metrics.extracao_count }} extração</span></div>
             </a>
         </div>
     </div>
@@ -572,21 +572,26 @@
                 </div>
             </div>
 
-            <!-- 6. Registros de Amamentação por Dia (Line Diário) -->
+            <!-- 6. Registros do Espaço Materno por Dia (Line Diário: Amamentação & Sala de Extração) -->
             <div class="chart-card" style="grid-column: 1 / -1;">
                 <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                     <div style="display: flex; flex-direction: column; gap: 2px;">
                         <div class="chart-title" style="margin: 0; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
                             <span style="font-size: 18px;">🤱</span>
-                            <span>Registros de Amamentação por Dia</span>
+                            <span>Registros do Espaço Materno por Dia (Amamentação & Sala de Extração)</span>
                         </div>
                         <span style="font-size: 12px; color: var(--text-secondary);">
                             Período: {{ date_start_formatted }} a {{ date_end_formatted }}
                         </span>
                     </div>
-                    <span style="background-color: #ecfdf5; color: #047857; font-size: 12px; padding: 5px 14px; border-radius: 20px; font-weight: 700; border: 1px solid #a7f3d0; display: inline-flex; align-items: center; gap: 6px;">
-                        <span>🤱</span> Total: <strong>{{ amam_total }}</strong> registros no período
-                    </span>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <span style="background-color: #fdf2f8; color: #db2777; font-size: 12px; padding: 5px 14px; border-radius: 20px; font-weight: 700; border: 1px solid #fbcfe8; display: inline-flex; align-items: center; gap: 6px;">
+                            <span>🤱</span> Amamentação: <strong>{{ amam_total }}</strong>
+                        </span>
+                        <span style="background-color: #faf5ff; color: #9333ea; font-size: 12px; padding: 5px 14px; border-radius: 20px; font-weight: 700; border: 1px solid #e9d5ff; display: inline-flex; align-items: center; gap: 6px;">
+                            <span>🍼</span> Sala de Extração: <strong>{{ extr_total|default:0 }}</strong>
+                        </span>
+                    </div>
                 </div>
                 <div class="chart-container" style="height: 290px; position: relative; margin-top: 10px;">
                     <canvas id="chart-amamentacao-diaria"></canvas>
@@ -1583,22 +1588,34 @@
             });
         }
 
-        // 12. Registros de Amamentação por Dia (Line Diário)
+        // 12. Registros do Espaço Materno por Dia (Line Diário: Amamentação & Sala de Extração)
         if (raw.amam_diaria && document.getElementById('chart-amamentacao-diaria')) {
             new Chart(document.getElementById('chart-amamentacao-diaria'), {
                 type: 'line',
                 data: {
                     labels: raw.amam_diaria.labels,
-                    datasets: [{
-                        label: 'Registros de Amamentação',
-                        data: raw.amam_diaria.data,
-                        borderColor: '#047857',
-                        backgroundColor: 'rgba(4, 120, 87, 0.08)',
-                        tension: 0.35,
-                        borderWidth: 3,
-                        pointRadius: 4,
-                        fill: true
-                    }]
+                    datasets: [
+                        {
+                            label: 'Sala de Amamentação',
+                            data: raw.amam_diaria.data,
+                            borderColor: '#ec4899',
+                            backgroundColor: 'rgba(236, 72, 153, 0.08)',
+                            tension: 0.35,
+                            borderWidth: 3,
+                            pointRadius: 4,
+                            fill: true
+                        },
+                        {
+                            label: 'Sala de Extração',
+                            data: raw.amam_diaria.extracao_data || [],
+                            borderColor: '#9333ea',
+                            backgroundColor: 'rgba(147, 51, 234, 0.08)',
+                            tension: 0.35,
+                            borderWidth: 3,
+                            pointRadius: 4,
+                            fill: true
+                        }
+                    ]
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,

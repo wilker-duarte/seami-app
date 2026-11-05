@@ -2,9 +2,68 @@ from datetime import date, timedelta
 from django.db import models, transaction
 from django.conf import settings
 from django.utils import timezone
-from django.db.models.signals import pre_save, post_save, post_delete
+from django.db.models.signals import pre_save, post_save, pre_delete, post_delete
 from django.dispatch import receiver
 from django.db.models import Count, Q
+
+
+def extrair_nome_usuario(user):
+    """Retorna o nome completo ou username de um objeto User."""
+    if not user:
+        return ''
+    return (user.get_full_name() or user.username or '').strip()
+
+
+def obter_responsavel_enfermaria(user_fallback=None, nome_fallback=''):
+    """
+    Retorna a tupla (user_obj_ou_None, nome_em_texto) da pessoa responsável pela Enfermaria
+    pela role 'ENFERMEIRA'.
+    - Se existir usuário com role='ENFERMEIRA', retorna (user, nome_completo).
+    - Se o usuário não existir mais (ex: SET_NULL após exclusão), retorna (None, nome_em_texto)
+      mantendo apenas o nome como texto sem relação ao usuário.
+    """
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+
+    if user_fallback and getattr(user_fallback, 'pk', None) and getattr(user_fallback, 'role', None) == 'ENFERMEIRA':
+        return user_fallback, extrair_nome_usuario(user_fallback)
+
+    enf_user = User.objects.filter(role='ENFERMEIRA').order_by('-is_active', 'id').first()
+    if enf_user:
+        return enf_user, extrair_nome_usuario(enf_user)
+
+    if nome_fallback and str(nome_fallback).strip():
+        return None, str(nome_fallback).strip()
+
+    try:
+        ultimo_at = AtendimentoEnfermaria.objects.exclude(registrado_por_nome='').order_by('-id').first()
+        if ultimo_at and ultimo_at.registrado_por_nome:
+            return None, ultimo_at.registrado_por_nome
+    except Exception:
+        pass
+
+    try:
+        from accounts.models import ConviteUsuario
+        convite_enf = ConviteUsuario.objects.filter(role='ENFERMEIRA').order_by('-id').first()
+        if convite_enf and convite_enf.nome:
+            return None, convite_enf.nome.strip()
+    except Exception:
+        pass
+
+    if user_fallback:
+        return None, extrair_nome_usuario(user_fallback)
+
+    return None, 'Enfermeira'
+
+
+def is_ocorrencia_enfermaria(oc):
+    """Verifica se uma OcorrenciaCaderno teve origem na Enfermaria."""
+    if not oc:
+        return False
+    if oc.registrado_por_id and getattr(oc.registrado_por, 'role', None) == 'ENFERMEIRA':
+        return True
+    texto = f"{oc.motivo or ''} {oc.observacao or ''}".lower()
+    return any(termo in texto for termo in ['enfermagem', 'enfermaria', 'afastamento médico'])
 
 
 class StatusPresenca(models.TextChoices):
@@ -94,6 +153,57 @@ class Orgao(models.Model):
         if self.sigla:
             return f"{self.sigla} - {self.nome}"
         return self.nome
+
+
+class StatusRecebimentoAcordo(models.TextChoices):
+    AGUARDANDO = 'aguardando', 'Aguardando recebimento'
+    RECEBIDO = 'recebido', 'Recebido'
+
+
+class ItemAcordoOrgao(models.Model):
+    """
+    Itens vinculados a um Órgão Conveniado que serão recebidos em cumprimento
+    de acordo, com controle individual de status de recebimento
+    ('Aguardando recebimento' ou 'Recebido').
+    """
+    orgao = models.ForeignKey(
+        Orgao,
+        on_delete=models.CASCADE,
+        related_name='itens_acordo',
+        verbose_name='Órgão Conveniado'
+    )
+    descricao = models.CharField(
+        max_length=255,
+        verbose_name='Item / Descrição do Acordo'
+    )
+    quantidade = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        verbose_name='Quantidade / Especificação'
+    )
+    status = models.CharField(
+        max_length=25,
+        choices=StatusRecebimentoAcordo.choices,
+        default=StatusRecebimentoAcordo.AGUARDANDO,
+        verbose_name='Status de Recebimento'
+    )
+    data_recebimento = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Data de Recebimento'
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Item de Acordo do Órgão'
+        verbose_name_plural = 'Itens de Acordo dos Órgãos'
+        ordering = ['id']
+
+    def __str__(self):
+        qtd_str = f" ({self.quantidade})" if self.quantidade else ""
+        return f"{self.orgao} — {self.descricao}{qtd_str} [{self.get_status_display()}]"
 
 
 class AlunoQuerySet(models.QuerySet):
@@ -190,6 +300,11 @@ class Aluno(models.Model):
 
     def save(self, *args, **kwargs):
         today = timezone.localdate()
+        is_new = self.pk is None
+        old_obj = None
+        if not is_new:
+            old_obj = Aluno.objects.select_related('turma').filter(pk=self.pk).first()
+
         if self.data_desligamento:
             if self.data_desligamento <= today:
                 self.ativo = False
@@ -205,6 +320,70 @@ class Aluno(models.Model):
             self.orgao_responsavel = self.orgao
 
         super().save(*args, **kwargs)
+
+        # Registro automático de observabilidade de realocação de Turma (Sala) e Turno
+        try:
+            curr_turma_nome = self.turma.nome if self.turma_id else ''
+            data_realocacao = getattr(self, '_data_realocacao', None) or today
+            obs_realocacao = getattr(self, '_obs_realocacao', '') or ''
+
+            if is_new:
+                HistoricoAlocacaoAluno.objects.create(
+                    aluno=self,
+                    turma=self.turma if self.turma_id else None,
+                    turma_nome=curr_turma_nome,
+                    turno=self.turno,
+                    data_inicio=self.data_entrada or today,
+                    data_fim=self.data_desligamento,
+                    observacao='Alocação inicial',
+                )
+            elif old_obj is not None:
+                mudou_turma = old_obj.turma_id != self.turma_id
+                mudou_turno = old_obj.turno != self.turno
+                if mudou_turma or mudou_turno:
+                    if not self.historico_alocacoes.exists():
+                        old_inicio = old_obj.data_entrada or (old_obj.criado_em.date() if old_obj.criado_em else today)
+                        old_turma_nome = old_obj.turma.nome if old_obj.turma_id else ''
+                        HistoricoAlocacaoAluno.objects.create(
+                            aluno=self,
+                            turma=old_obj.turma if old_obj.turma_id else None,
+                            turma_nome=old_turma_nome,
+                            turno=old_obj.turno,
+                            data_inicio=old_inicio,
+                            data_fim=data_realocacao,
+                            observacao='Alocação anterior',
+                        )
+                    else:
+                        self.historico_alocacoes.filter(data_fim__isnull=True).update(data_fim=data_realocacao)
+
+                    if not obs_realocacao:
+                        old_turma_nome = old_obj.turma.nome if old_obj.turma_id else ''
+                        if mudou_turma and mudou_turno:
+                            obs_realocacao = f"Realocação: Sala {old_turma_nome} ({old_obj.get_turno_display()}) → Sala {curr_turma_nome} ({self.get_turno_display()})"
+                        elif mudou_turma:
+                            obs_realocacao = f"Mudança de sala: Sala {old_turma_nome} → Sala {curr_turma_nome}"
+                        else:
+                            obs_realocacao = f"Mudança de turno: {old_obj.get_turno_display()} → {self.get_turno_display()}"
+
+                    HistoricoAlocacaoAluno.objects.create(
+                        aluno=self,
+                        turma=self.turma if self.turma_id else None,
+                        turma_nome=curr_turma_nome,
+                        turno=self.turno,
+                        data_inicio=data_realocacao,
+                        data_fim=self.data_desligamento,
+                        observacao=obs_realocacao,
+                    )
+                else:
+                    # Sincroniza data_entrada na alocação inicial caso só exista 1 registro
+                    if self.data_entrada and self.historico_alocacoes.count() == 1:
+                        unico = self.historico_alocacoes.first()
+                        if unico and unico.observacao in ('Alocação inicial', 'Alocação atual', ''):
+                            unico.data_inicio = self.data_entrada
+                            unico.data_fim = self.data_desligamento
+                            unico.save(update_fields=['data_inicio', 'data_fim'])
+        except Exception:
+            pass
 
     @property
     def is_ativo_hoje(self):
@@ -292,6 +471,184 @@ class Aluno(models.Model):
         today = timezone.localdate()
         return self.data_nascimento.day == today.day and self.data_nascimento.month == today.month
 
+    def obter_periodos_turma_e_turno(self):
+        """
+        Retorna os períodos de permanência da criança em cada Turma (Sala) e em cada Turno.
+        Por default, caso não haja histórico de realocação registrado, retorna a Turma atual
+        e o Turno atual (a partir da data de entrada ou criação até 'Atual').
+        """
+        default_inicio = self.data_entrada or (self.criado_em.date() if self.criado_em else None)
+        default_inicio_br = default_inicio.strftime('%d/%m/%Y') if default_inicio else 'Desde o ingresso'
+        default_fim_br = self.data_desligamento.strftime('%d/%m/%Y') if self.data_desligamento else 'Atual'
+        curr_turma_nome = self.turma.nome if self.turma_id else ''
+        curr_turno_display = self.get_turno_display()
+
+        registros = []
+        try:
+            registros = list(self.historico_alocacoes.all())
+        except Exception:
+            registros = []
+
+        if not registros:
+            return {
+                'periodos_turma': [{
+                    'turma_nome': curr_turma_nome,
+                    'data_inicio_br': default_inicio_br,
+                    'data_fim_br': default_fim_br,
+                    'periodo_str': f"{default_inicio_br} — {default_fim_br}",
+                    'atual': True,
+                    'observacao': 'Sala atual',
+                }],
+                'periodos_turno': [{
+                    'turno': self.turno,
+                    'turno_display': curr_turno_display,
+                    'data_inicio_br': default_inicio_br,
+                    'data_fim_br': default_fim_br,
+                    'periodo_str': f"{default_inicio_br} — {default_fim_br}",
+                    'atual': True,
+                    'observacao': 'Turno atual',
+                }],
+            }
+
+        # Ordena cronologicamente (do mais antigo para o mais recente)
+        registros_sorted = sorted(
+            registros,
+            key=lambda r: (r.data_inicio.isoformat() if r.data_inicio else '0000-00-00', r.id or 0)
+        )
+
+        # 1. Consolida períodos consecutivos na mesma Turma (Sala)
+        periodos_turma = []
+        for idx, reg in enumerate(registros_sorted):
+            t_nome = reg.turma.nome if reg.turma_id and reg.turma else (reg.turma_nome or curr_turma_nome)
+            ini_br = reg.data_inicio.strftime('%d/%m/%Y') if reg.data_inicio else default_inicio_br
+            fim_br = reg.data_fim.strftime('%d/%m/%Y') if reg.data_fim else default_fim_br
+            is_last = (idx == len(registros_sorted) - 1)
+            is_atual = is_last or (reg.data_fim is None)
+
+            if periodos_turma and periodos_turma[-1]['turma_nome'] == t_nome:
+                # Continua na mesma sala (mudou apenas turno): estende o término
+                periodos_turma[-1]['data_fim_br'] = fim_br
+                periodos_turma[-1]['periodo_str'] = f"{periodos_turma[-1]['data_inicio_br']} — {fim_br}"
+                periodos_turma[-1]['atual'] = is_atual
+            else:
+                periodos_turma.append({
+                    'turma_nome': t_nome,
+                    'data_inicio_br': ini_br,
+                    'data_fim_br': fim_br,
+                    'periodo_str': f"{ini_br} — {fim_br}",
+                    'atual': is_atual,
+                    'observacao': reg.observacao or '',
+                })
+
+        # Garante que apenas o último período de turma esteja marcado como atual (ou sincronizado com a sala atual)
+        for i, p in enumerate(periodos_turma):
+            p['atual'] = (i == len(periodos_turma) - 1)
+            if p['atual'] and not self.data_desligamento:
+                p['data_fim_br'] = 'Atual'
+                p['periodo_str'] = f"{p['data_inicio_br']} — Atual"
+
+        # 2. Consolida períodos consecutivos no mesmo Turno
+        periodos_turno = []
+        for idx, reg in enumerate(registros_sorted):
+            t_code = reg.turno or self.turno
+            t_disp = reg.get_turno_display() if reg.turno else curr_turno_display
+            ini_br = reg.data_inicio.strftime('%d/%m/%Y') if reg.data_inicio else default_inicio_br
+            fim_br = reg.data_fim.strftime('%d/%m/%Y') if reg.data_fim else default_fim_br
+            is_last = (idx == len(registros_sorted) - 1)
+            is_atual = is_last or (reg.data_fim is None)
+
+            if periodos_turno and periodos_turno[-1]['turno'] == t_code:
+                # Continua no mesmo turno (mudou apenas sala): estende o término
+                periodos_turno[-1]['data_fim_br'] = fim_br
+                periodos_turno[-1]['periodo_str'] = f"{periodos_turno[-1]['data_inicio_br']} — {fim_br}"
+                periodos_turno[-1]['atual'] = is_atual
+            else:
+                periodos_turno.append({
+                    'turno': t_code,
+                    'turno_display': t_disp,
+                    'data_inicio_br': ini_br,
+                    'data_fim_br': fim_br,
+                    'periodo_str': f"{ini_br} — {fim_br}",
+                    'atual': is_atual,
+                    'observacao': reg.observacao or '',
+                })
+
+        for i, p in enumerate(periodos_turno):
+            p['atual'] = (i == len(periodos_turno) - 1)
+            if p['atual'] and not self.data_desligamento:
+                p['data_fim_br'] = 'Atual'
+                p['periodo_str'] = f"{p['data_inicio_br']} — Atual"
+
+        return {
+            'periodos_turma': periodos_turma,
+            'periodos_turno': periodos_turno,
+        }
+
+
+class HistoricoAlocacaoAluno(models.Model):
+    """
+    Registra o histórico de alocação e realocação de Turma (Sala) e Turno de cada criança,
+    permitindo observabilidade completa do período em cada turma e em cada turno.
+    """
+    aluno = models.ForeignKey(
+        Aluno,
+        on_delete=models.CASCADE,
+        related_name='historico_alocacoes',
+        verbose_name='Criança / Aluno'
+    )
+    turma = models.ForeignKey(
+        Turma,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='historico_alocacoes',
+        verbose_name='Turma / Sala'
+    )
+    turma_nome = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        verbose_name='Nome da Sala (Snapshot)'
+    )
+    turno = models.CharField(
+        max_length=20,
+        choices=TurnoAluno.choices,
+        default=TurnoAluno.INTEGRAL,
+        verbose_name='Turno'
+    )
+    data_inicio = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Data de Início'
+    )
+    data_fim = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Data de Término',
+        help_text='Vazio indica que é a alocação atual da criança.'
+    )
+    observacao = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name='Observação / Motivo da Realocação'
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Histórico de Alocação (Turma/Turno)'
+        verbose_name_plural = 'Históricos de Alocação (Turma/Turno)'
+        ordering = ['data_inicio', 'id']
+        indexes = [
+            models.Index(fields=['aluno', 'data_inicio']),
+        ]
+
+    def __str__(self):
+        fim = self.data_fim.strftime('%d/%m/%Y') if self.data_fim else 'Atual'
+        ini = self.data_inicio.strftime('%d/%m/%Y') if self.data_inicio else 'Ingresso'
+        sala = self.turma.nome if self.turma_id and self.turma else self.turma_nome
+        return f"{self.aluno.nome} — Sala {sala} ({self.get_turno_display()}): {ini} a {fim}"
+
 
 class DiarioDeClasse(models.Model):
     """
@@ -324,6 +681,12 @@ class DiarioDeClasse(models.Model):
         related_name='diarios_registrados',
         verbose_name='Registrado por'
     )
+    registrado_por_nome = models.CharField(
+        max_length=150,
+        blank=True,
+        default='',
+        verbose_name='Registrado por (Nome)'
+    )
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 
@@ -343,6 +706,17 @@ class DiarioDeClasse(models.Model):
 
     def __str__(self):
         return f"Diário {self.turma.nome} - {self.data.strftime('%d/%m/%Y')} ({self.get_turno_display()})"
+
+    @property
+    def registrado_por_display(self):
+        if self.registrado_por_id and self.registrado_por:
+            return extrair_nome_usuario(self.registrado_por) or self.registrado_por_nome
+        return self.registrado_por_nome or ''
+
+    def save(self, *args, **kwargs):
+        if self.registrado_por_id and self.registrado_por:
+            self.registrado_por_nome = extrair_nome_usuario(self.registrado_por)
+        super().save(*args, **kwargs)
 
     @property
     def total_alunos(self):
@@ -422,6 +796,12 @@ class RegistroPresenca(models.Model):
         blank=True,
         verbose_name='Registrado por'
     )
+    registrado_por_nome = models.CharField(
+        max_length=150,
+        blank=True,
+        default='',
+        verbose_name='Registrado por (Nome)'
+    )
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 
@@ -442,6 +822,17 @@ class RegistroPresenca(models.Model):
 
     def __str__(self):
         return f"{self.aluno.nome} - {self.data.strftime('%d/%m/%Y')} ({self.get_status_display()})"
+
+    @property
+    def registrado_por_display(self):
+        if self.registrado_por_id and self.registrado_por:
+            return extrair_nome_usuario(self.registrado_por) or self.registrado_por_nome
+        return self.registrado_por_nome or ''
+
+    def save(self, *args, **kwargs):
+        if self.registrado_por_id and self.registrado_por:
+            self.registrado_por_nome = extrair_nome_usuario(self.registrado_por)
+        super().save(*args, **kwargs)
 
     def calcular_status_e_observacao(self, custom_obs=None):
         """
@@ -608,6 +999,15 @@ def auto_popular_presencas_diario(sender, instance, created, **kwargs):
                 sm = st_turno_base
                 sv = st_turno_base
 
+            if oc and is_ocorrencia_enfermaria(oc):
+                reg_user, reg_nome = obter_responsavel_enfermaria(oc.registrado_por, oc.registrado_por_nome)
+            elif oc and (oc.registrado_por_id or oc.registrado_por_nome):
+                reg_user = oc.registrado_por
+                reg_nome = oc.registrado_por_display
+            else:
+                reg_user = instance.registrado_por
+                reg_nome = instance.registrado_por_display
+
             reg = RegistroPresenca(
                 diario_classe=instance,
                 turma=instance.turma,
@@ -617,7 +1017,8 @@ def auto_popular_presencas_diario(sender, instance, created, **kwargs):
                 status_matutino=sm,
                 status_vespertino=sv,
                 status_chamada=st_base,
-                registrado_por=instance.registrado_por
+                registrado_por=reg_user,
+                registrado_por_nome=reg_nome
             )
             reg.calcular_status_e_observacao(custom_obs=obs_extra)
             novos_registros.append(reg)
@@ -633,6 +1034,7 @@ class TipoOcorrencia(models.TextChoices):
     ATRASO = 'atraso', 'Atraso'
     SAIDA = 'saida', 'Saída Antecipada'
     AMAMENTACAO = 'amamentacao', 'Amamentação'
+    EXTRACAO = 'extracao', 'Sala de Extração'
 
 
 class OcorrenciaCaderno(models.Model):
@@ -690,6 +1092,12 @@ class OcorrenciaCaderno(models.Model):
         related_name='ocorrencias_caderno_registradas',
         verbose_name='Registrado por'
     )
+    registrado_por_nome = models.CharField(
+        max_length=150,
+        blank=True,
+        default='',
+        verbose_name='Registrado por (Nome)'
+    )
     modificado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -709,6 +1117,22 @@ class OcorrenciaCaderno(models.Model):
     def __str__(self):
         nome = self.aluno.nome if self.aluno else "Ocorrência Geral"
         return f"[{self.get_tipo_display()}] {nome} - {self.data.strftime('%d/%m/%Y')}"
+
+    @property
+    def registrado_por_display(self):
+        if self.registrado_por_id and self.registrado_por:
+            return extrair_nome_usuario(self.registrado_por) or self.registrado_por_nome
+        return self.registrado_por_nome or ''
+
+    def save(self, *args, **kwargs):
+        if is_ocorrencia_enfermaria(self):
+            self.registrado_por, self.registrado_por_nome = obter_responsavel_enfermaria(
+                self.registrado_por,
+                self.registrado_por_nome
+            )
+        elif self.registrado_por_id and self.registrado_por:
+            self.registrado_por_nome = extrair_nome_usuario(self.registrado_por)
+        super().save(*args, **kwargs)
 
     @property
     def periodo_formatado(self):
@@ -746,6 +1170,12 @@ class RegistroAmamentacao(models.Model):
         related_name='amamentacoes_registradas',
         verbose_name='Registrado por'
     )
+    registrado_por_nome = models.CharField(
+        max_length=150,
+        blank=True,
+        default='',
+        verbose_name='Registrado por (Nome)'
+    )
     modificado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -766,14 +1196,95 @@ class RegistroAmamentacao(models.Model):
             models.Index(fields=['data']),
         ]
 
+    @property
+    def registrado_por_display(self):
+        if self.registrado_por_id and self.registrado_por:
+            return extrair_nome_usuario(self.registrado_por) or self.registrado_por_nome
+        return self.registrado_por_nome or ''
+
     def save(self, *args, **kwargs):
         if self.data:
             self.ano = self.data.year
             self.mes = self.data.month
+        if self.registrado_por_id and self.registrado_por:
+            self.registrado_por_nome = extrair_nome_usuario(self.registrado_por)
         super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Amamentação {self.data.strftime('%d/%m/%Y')} - {self.quantidade} utilizações"
+
+
+class RegistroExtracao(models.Model):
+    """
+    Registro diário de utilização da Sala de Extração e Armazenamento de Leite Materno
+    (Espaço Materno - Série Histórica e Montantes Mensais/Anuais).
+    """
+    data = models.DateField(unique=True, verbose_name='Data de Utilização')
+    quantidade = models.PositiveIntegerField(default=1, verbose_name='Quantidade de Utilizações da Sala no Dia')
+    ano = models.IntegerField(verbose_name='Ano', db_index=True)
+    mes = models.IntegerField(verbose_name='Mês', db_index=True)
+    observacao = models.TextField(blank=True, verbose_name='Observações')
+
+    anexo = models.FileField(
+        upload_to='attachments/extracao/',
+        max_length=500,
+        blank=True,
+        null=True,
+        verbose_name='Arquivo Anexo'
+    )
+    attachment_name = models.CharField(max_length=500, blank=True, verbose_name='Nome do Arquivo Anexo')
+    attachment_type = models.CharField(max_length=255, blank=True, verbose_name='Tipo MIME do Anexo')
+
+    registrado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='extracoes_registradas',
+        verbose_name='Registrado por'
+    )
+    registrado_por_nome = models.CharField(
+        max_length=150,
+        blank=True,
+        default='',
+        verbose_name='Registrado por (Nome)'
+    )
+    modificado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='extracoes_modificadas',
+        verbose_name='Última modificação por'
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Registro da Sala de Extração'
+        verbose_name_plural = 'Registros da Sala de Extração (Espaço Materno)'
+        ordering = ['-data']
+        indexes = [
+            models.Index(fields=['ano', 'mes']),
+            models.Index(fields=['data']),
+        ]
+
+    @property
+    def registrado_por_display(self):
+        if self.registrado_por_id and self.registrado_por:
+            return extrair_nome_usuario(self.registrado_por) or self.registrado_por_nome
+        return self.registrado_por_nome or ''
+
+    def save(self, *args, **kwargs):
+        if self.data:
+            self.ano = self.data.year
+            self.mes = self.data.month
+        if self.registrado_por_id and self.registrado_por:
+            self.registrado_por_nome = extrair_nome_usuario(self.registrado_por)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Sala de Extração {self.data.strftime('%d/%m/%Y')} - {self.quantidade} utilizações"
 
 
 class TipoDiaNaoLetivo(models.TextChoices):
@@ -816,6 +1327,12 @@ class DiaNaoLetivo(models.Model):
         related_name='dias_nao_letivos_registrados',
         verbose_name='Registrado por'
     )
+    registrado_por_nome = models.CharField(
+        max_length=150,
+        blank=True,
+        default='',
+        verbose_name='Registrado por (Nome)'
+    )
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 
@@ -832,6 +1349,17 @@ class DiaNaoLetivo(models.Model):
         if self.data_inicio == self.data_fim:
             return f"{self.get_tipo_display()}: {self.descricao} ({self.data_inicio.strftime('%d/%m/%Y')})"
         return f"{self.get_tipo_display()}: {self.descricao} ({self.data_inicio.strftime('%d/%m/%Y')} a {self.data_fim.strftime('%d/%m/%Y')})"
+
+    @property
+    def registrado_por_display(self):
+        if self.registrado_por_id and self.registrado_por:
+            return extrair_nome_usuario(self.registrado_por) or self.registrado_por_nome
+        return self.registrado_por_nome or ''
+
+    def save(self, *args, **kwargs):
+        if self.registrado_por_id and self.registrado_por:
+            self.registrado_por_nome = extrair_nome_usuario(self.registrado_por)
+        super().save(*args, **kwargs)
 
     @property
     def is_intervalo(self):
@@ -924,6 +1452,12 @@ class AtendimentoEnfermaria(models.Model):
         related_name='atendimentos_registrados',
         verbose_name='Registrado por'
     )
+    registrado_por_nome = models.CharField(
+        max_length=150,
+        blank=True,
+        default='',
+        verbose_name='Registrado por (Nome)'
+    )
 
     # Soft Delete exclusivo da Enfermaria
     ativo = models.BooleanField(default=True, verbose_name='Registro Ativo')
@@ -953,6 +1487,28 @@ class AtendimentoEnfermaria(models.Model):
 
     def __str__(self):
         return f"Atendimento: {self.aluno.nome} - {self.data_atendimento.strftime('%d/%m/%Y')} ({self.motivo})"
+
+    @property
+    def registrado_por_display(self):
+        if self.registrado_por_id and self.registrado_por:
+            return extrair_nome_usuario(self.registrado_por) or self.registrado_por_nome
+        return self.registrado_por_nome or ''
+
+    def save(self, *args, **kwargs):
+        update_fields = kwargs.get('update_fields')
+        if update_fields is None or 'registrado_por' in update_fields or 'registrado_por_nome' in update_fields:
+            self.registrado_por, self.registrado_por_nome = obter_responsavel_enfermaria(
+                self.registrado_por,
+                self.registrado_por_nome
+            )
+            if update_fields is not None:
+                uf = list(update_fields)
+                if 'registrado_por' not in uf:
+                    uf.append('registrado_por')
+                if 'registrado_por_nome' not in uf:
+                    uf.append('registrado_por_nome')
+                kwargs['update_fields'] = uf
+        super().save(*args, **kwargs)
 
     def soft_delete(self, user=None):
         self.ativo = False
@@ -1024,11 +1580,27 @@ def recalcular_presenca_para_data(aluno, target_date):
         reg.status = StatusPresenca.JUSTIFICADO
         st_turno = StatusTurnoPresenca.JUSTIFICADO
         obs_extra = oc_just.motivo or oc_just.observacao or ''
+        if is_ocorrencia_enfermaria(oc_just):
+            reg.registrado_por, reg.registrado_por_nome = obter_responsavel_enfermaria(
+                oc_just.registrado_por,
+                oc_just.registrado_por_nome
+            )
+        elif not reg.registrado_por_id and not reg.registrado_por_nome:
+            reg.registrado_por = oc_just.registrado_por
+            reg.registrado_por_nome = oc_just.registrado_por_display
     elif tem_falta_comum:
         oc_falta = ocorrs.filter(tipo=TipoOcorrencia.FALTA, justificado=False).first()
         reg.status = StatusPresenca.AUSENTE
         st_turno = StatusTurnoPresenca.AUSENTE
         obs_extra = oc_falta.motivo or oc_falta.observacao or ''
+        if is_ocorrencia_enfermaria(oc_falta):
+            reg.registrado_por, reg.registrado_por_nome = obter_responsavel_enfermaria(
+                oc_falta.registrado_por,
+                oc_falta.registrado_por_nome
+            )
+        elif not reg.registrado_por_id and not reg.registrado_por_nome:
+            reg.registrado_por = oc_falta.registrado_por
+            reg.registrado_por_nome = oc_falta.registrado_por_display
     else:
         # Nenhuma ocorrência ativa no Caderno SEAMI
         if not reg.diario_classe_id and target_date > timezone.localdate():
@@ -1156,4 +1728,27 @@ def reverter_ao_excluir_atendimento_enfermaria(sender, instance, **kwargs):
         reverter_automacoes_enfermaria(instance)
     except Exception:
         pass
+
+
+@receiver(pre_delete, sender=settings.AUTH_USER_MODEL)
+def preservar_nome_ao_excluir_usuario(sender, instance, **kwargs):
+    """
+    Antes de excluir um usuário (o que acionará on_delete=models.SET_NULL em registrado_por),
+    grava o nome do usuário como texto puro em registrado_por_nome sem relação ao usuário.
+    """
+    nome_texto = extrair_nome_usuario(instance)
+    if not nome_texto:
+        return
+
+    for model_cls in (
+        DiarioDeClasse,
+        RegistroPresenca,
+        OcorrenciaCaderno,
+        RegistroAmamentacao,
+        RegistroExtracao,
+        DiaNaoLetivo,
+        AtendimentoEnfermaria,
+    ):
+        model_cls.objects.filter(registrado_por=instance).update(registrado_por_nome=nome_texto)
+
 

@@ -2,8 +2,8 @@ from django.contrib import admin
 from core.admin_export import ExportActionMixin
 from .models import (
     Turma, Aluno, DiarioDeClasse, RegistroPresenca,
-    OcorrenciaCaderno, RegistroAmamentacao, HistoricoFrequenciaMensal,
-    AtendimentoEnfermaria, DiaNaoLetivo, Orgao
+    OcorrenciaCaderno, RegistroAmamentacao, RegistroExtracao, HistoricoFrequenciaMensal,
+    AtendimentoEnfermaria, DiaNaoLetivo, Orgao, ItemAcordoOrgao, HistoricoAlocacaoAluno
 )
 
 
@@ -15,12 +15,19 @@ class RegistroPresencaInline(admin.TabularInline):
     can_delete = False
 
 
+class ItemAcordoOrgaoInline(admin.TabularInline):
+    model = ItemAcordoOrgao
+    extra = 1
+    fields = ('descricao', 'quantidade', 'status', 'data_recebimento')
+
+
 @admin.register(Orgao)
 class OrgaoAdmin(ExportActionMixin, admin.ModelAdmin):
     list_display = ('nome', 'sigla', 'get_total_alunos', 'get_total_pais', 'ativo', 'criado_em')
     list_filter = ('ativo',)
     search_fields = ('nome', 'sigla', 'descricao')
     list_editable = ('ativo',)
+    inlines = [ItemAcordoOrgaoInline]
 
     def get_total_alunos(self, obj):
         return obj.alunos.count()
@@ -43,6 +50,12 @@ class TurmaAdmin(ExportActionMixin, admin.ModelAdmin):
     get_total_alunos.short_description = 'Total de Alunos'
 
 
+class HistoricoAlocacaoAlunoInline(admin.TabularInline):
+    model = HistoricoAlocacaoAluno
+    extra = 0
+    fields = ('turma', 'turma_nome', 'turno', 'data_inicio', 'data_fim', 'observacao')
+
+
 @admin.register(Aluno)
 class AlunoAdmin(ExportActionMixin, admin.ModelAdmin):
     list_display = ('nome', 'turma', 'turno', 'orgao', 'orgao_responsavel', 'data_entrada', 'data_desligamento', 'has_acompanhamento', 'ativo')
@@ -54,32 +67,45 @@ class AlunoAdmin(ExportActionMixin, admin.ModelAdmin):
         'acompanhamento_obs'
     )
     list_editable = ('ativo',)
+    inlines = [HistoricoAlocacaoAlunoInline]
 
 
 @admin.register(DiaNaoLetivo)
 class DiaNaoLetivoAdmin(ExportActionMixin, admin.ModelAdmin):
-    list_display = ('tipo', 'descricao', 'data_inicio', 'data_fim', 'turma', 'registrado_por', 'criado_em')
+    list_display = ('tipo', 'descricao', 'data_inicio', 'data_fim', 'turma', 'exibir_registrado_por', 'criado_em')
     list_filter = ('tipo', 'turma', 'data_inicio')
-    search_fields = ('descricao', 'turma__nome')
+    search_fields = ('descricao', 'turma__nome', 'registrado_por_nome')
     date_hierarchy = 'data_inicio'
+
+    def exibir_registrado_por(self, obj):
+        return obj.registrado_por_display or '-'
+    exibir_registrado_por.short_description = 'Registrado por'
 
 
 @admin.register(DiarioDeClasse)
 class DiarioDeClasseAdmin(ExportActionMixin, admin.ModelAdmin):
-    list_display = ('turma', 'data', 'turno', 'total_presentes', 'total_faltas', 'registrado_por', 'criado_em')
+    list_display = ('turma', 'data', 'turno', 'total_presentes', 'total_faltas', 'exibir_registrado_por', 'criado_em')
     list_filter = ('turma', 'turno', 'data')
-    search_fields = ('turma__nome', 'observacao')
+    search_fields = ('turma__nome', 'observacao', 'registrado_por_nome')
     date_hierarchy = 'data'
     inlines = [RegistroPresencaInline]
+
+    def exibir_registrado_por(self, obj):
+        return obj.registrado_por_display or '-'
+    exibir_registrado_por.short_description = 'Registrado por'
 
 
 @admin.register(RegistroPresenca)
 class RegistroPresencaAdmin(ExportActionMixin, admin.ModelAdmin):
-    list_display = ('aluno', 'turma', 'data', 'status', 'registrado_por', 'criado_em')
+    list_display = ('aluno', 'turma', 'data', 'status', 'exibir_registrado_por', 'criado_em')
     list_filter = ('status', 'data', 'turma')
-    search_fields = ('aluno__nome', 'turma__nome', 'observacao')
+    search_fields = ('aluno__nome', 'turma__nome', 'observacao', 'registrado_por_nome')
     date_hierarchy = 'data'
     list_per_page = 50
+
+    def exibir_registrado_por(self, obj):
+        return obj.registrado_por_display or '-'
+    exibir_registrado_por.short_description = 'Registrado por'
 
 
 from django.utils.html import format_html
@@ -124,12 +150,16 @@ class TemAnexoAmamentacaoFilter(admin.SimpleListFilter):
 
 @admin.register(OcorrenciaCaderno)
 class OcorrenciaCadernoAdmin(ExportActionMixin, admin.ModelAdmin):
-    list_display = ('id', 'tipo', 'aluno', 'turma', 'data', 'data_fim', 'justificado', 'ver_documento', 'registrado_por', 'criado_em', 'modificado_por', 'atualizado_em')
+    list_display = ('id', 'tipo', 'aluno', 'turma', 'data', 'data_fim', 'justificado', 'ver_documento', 'exibir_registrado_por', 'criado_em', 'modificado_por', 'atualizado_em')
     list_filter = (TemAnexoFilter, 'tipo', 'turma', 'justificado', 'data')
-    search_fields = ('aluno__nome', 'turma__nome', 'motivo', 'cid', 'observacao', 'attachment_name')
+    search_fields = ('aluno__nome', 'turma__nome', 'motivo', 'cid', 'observacao', 'attachment_name', 'registrado_por_nome')
     date_hierarchy = 'data'
     readonly_fields = ('preview_documento',)
     list_per_page = 50
+
+    def exibir_registrado_por(self, obj):
+        return obj.registrado_por_display or '-'
+    exibir_registrado_por.short_description = 'Registrado por'
 
     def ver_documento(self, obj):
         if obj.documento:
@@ -147,16 +177,40 @@ class OcorrenciaCadernoAdmin(ExportActionMixin, admin.ModelAdmin):
 
 @admin.register(RegistroAmamentacao)
 class RegistroAmamentacaoAdmin(ExportActionMixin, admin.ModelAdmin):
-    list_display = ('id', 'data', 'quantidade', 'ano', 'mes', 'ver_anexo', 'registrado_por', 'criado_em', 'modificado_por', 'atualizado_em')
+    list_display = ('id', 'data', 'quantidade', 'ano', 'mes', 'ver_anexo', 'exibir_registrado_por', 'criado_em', 'modificado_por', 'atualizado_em')
     list_filter = (TemAnexoAmamentacaoFilter, 'ano', 'mes', 'data')
-    search_fields = ('observacao', 'attachment_name')
+    search_fields = ('observacao', 'attachment_name', 'registrado_por_nome')
     date_hierarchy = 'data'
     list_per_page = 50
+
+    def exibir_registrado_por(self, obj):
+        return obj.registrado_por_display or '-'
+    exibir_registrado_por.short_description = 'Registrado por'
 
     def ver_anexo(self, obj):
         if obj.anexo:
             nome = obj.attachment_name or "Ver Anexo"
             return format_html('<a href="{}" target="_blank" style="font-weight: 700; color: #db2777; text-decoration: underline;">📄 {}</a>', obj.anexo.url, nome[:30])
+        return "-"
+    ver_anexo.short_description = 'Anexo'
+
+
+@admin.register(RegistroExtracao)
+class RegistroExtracaoAdmin(ExportActionMixin, admin.ModelAdmin):
+    list_display = ('id', 'data', 'quantidade', 'ano', 'mes', 'ver_anexo', 'exibir_registrado_por', 'criado_em', 'modificado_por', 'atualizado_em')
+    list_filter = (TemAnexoAmamentacaoFilter, 'ano', 'mes', 'data')
+    search_fields = ('observacao', 'attachment_name', 'registrado_por_nome')
+    date_hierarchy = 'data'
+    list_per_page = 50
+
+    def exibir_registrado_por(self, obj):
+        return obj.registrado_por_display or '-'
+    exibir_registrado_por.short_description = 'Registrado por'
+
+    def ver_anexo(self, obj):
+        if obj.anexo:
+            nome = obj.attachment_name or "Ver Anexo"
+            return format_html('<a href="{}" target="_blank" style="font-weight: 700; color: #9333ea; text-decoration: underline;">📄 {}</a>', obj.anexo.url, nome[:30])
         return "-"
     ver_anexo.short_description = 'Anexo'
 
@@ -171,9 +225,13 @@ class HistoricoFrequenciaMensalAdmin(ExportActionMixin, admin.ModelAdmin):
 
 @admin.register(AtendimentoEnfermaria)
 class AtendimentoEnfermariaAdmin(ExportActionMixin, admin.ModelAdmin):
-    list_display = ('aluno', 'data_atendimento', 'horario', 'motivo', 'saida_imediata', 'retornara_dia_seguinte', 'data_retorno_prevista', 'cid', 'ativo', 'registrado_por')
+    list_display = ('aluno', 'data_atendimento', 'horario', 'motivo', 'saida_imediata', 'retornara_dia_seguinte', 'data_retorno_prevista', 'cid', 'ativo', 'exibir_registrado_por')
     list_filter = ('saida_imediata', 'retornara_dia_seguinte', 'ativo', 'data_atendimento', 'motivo')
-    search_fields = ('aluno__nome', 'motivo', 'motivo_detalhado', 'cid', 'observacoes_medicas')
+    search_fields = ('aluno__nome', 'motivo', 'motivo_detalhado', 'cid', 'observacoes_medicas', 'registrado_por_nome')
     date_hierarchy = 'data_atendimento'
+
+    def exibir_registrado_por(self, obj):
+        return obj.registrado_por_display or '-'
+    exibir_registrado_por.short_description = 'Registrado por'
 
 

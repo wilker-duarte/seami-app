@@ -10,7 +10,8 @@ from django.db.models import Count, Q
 from accounts.permissions import diretor_required
 from accounts.models import User, UserRole
 from presencas.models import (
-    Orgao, Aluno, Turma, DiaNaoLetivo, TipoDiaNaoLetivo, RegistroPresenca, DiarioDeClasse, OcorrenciaCaderno
+    Orgao, ItemAcordoOrgao, StatusRecebimentoAcordo,
+    Aluno, Turma, DiaNaoLetivo, TipoDiaNaoLetivo, RegistroPresenca, DiarioDeClasse, OcorrenciaCaderno
 )
 
 
@@ -57,7 +58,7 @@ def central_administrativa_view(request):
     orgaos_busca = request.GET.get('q_orgao', '').strip()
     orgaos_status = request.GET.get('status_orgao', 'all').strip()
 
-    orgaos_qs = Orgao.objects.all().order_by('nome')
+    orgaos_qs = Orgao.objects.all().prefetch_related('itens_acordo').order_by('nome')
     if orgaos_busca:
         orgaos_qs = orgaos_qs.filter(Q(nome__icontains=orgaos_busca) | Q(sigla__icontains=orgaos_busca) | Q(descricao__icontains=orgaos_busca))
     if orgaos_status == 'ativos':
@@ -73,6 +74,22 @@ def central_administrativa_view(request):
         ).count()
         pct_orgao = round((alunos_orgao_count / total_alunos_ativos * 100), 1) if total_alunos_ativos > 0 else 0
 
+        itens_acordo_objs = list(org.itens_acordo.all().order_by('id'))
+        itens_acordo_list = [
+            {
+                'id': item.id,
+                'descricao': item.descricao,
+                'quantidade': item.quantidade or '',
+                'status': item.status,
+                'status_display': item.get_status_display(),
+                'data_recebimento': item.data_recebimento.strftime('%d/%m/%Y') if item.data_recebimento else '',
+            }
+            for item in itens_acordo_objs
+        ]
+        total_itens_acordo = len(itens_acordo_list)
+        total_acordo_recebidos = sum(1 for x in itens_acordo_list if x['status'] == StatusRecebimentoAcordo.RECEBIDO)
+        total_acordo_aguardando = total_itens_acordo - total_acordo_recebidos
+
         orgaos_cards.append({
             'obj': org,
             'id': org.id,
@@ -85,6 +102,11 @@ def central_administrativa_view(request):
             'count_alunos': alunos_orgao_count,
             'count_pais': pais_orgao_count,
             'pct_alunos': pct_orgao,
+            'itens_acordo': itens_acordo_list,
+            'itens_acordo_json': json.dumps(itens_acordo_list),
+            'total_itens_acordo': total_itens_acordo,
+            'total_acordo_recebidos': total_acordo_recebidos,
+            'total_acordo_aguardando': total_acordo_aguardando,
         })
 
     # =========================================================================
@@ -117,7 +139,7 @@ def central_administrativa_view(request):
             'is_intervalo': is_intervalo,
             'turma': fer.turma,
             'turma_nome': fer.turma.nome if fer.turma else 'Todas as Salas (Geral)',
-            'registrado_por': fer.registrado_por.get_full_name() or fer.registrado_por.username if fer.registrado_por else 'Sistema',
+            'registrado_por': fer.registrado_por_display or 'Sistema',
             'criado_em': fer.criado_em,
         })
 
@@ -221,6 +243,54 @@ def salvar_orgao_api(request):
             )
             msg = f'Órgão "{orgao.sigla or orgao.nome}" cadastrado com sucesso!'
 
+        # Processa a lista dinâmica de itens em cumprimento de acordo (se enviada)
+        itens_acordo_payload = data.get('itens_acordo')
+        if isinstance(itens_acordo_payload, list):
+            today_date = timezone.localdate()
+            keep_ids = []
+            for item_data in itens_acordo_payload:
+                if not isinstance(item_data, dict):
+                    continue
+                desc_item = (item_data.get('descricao') or '').strip()
+                if not desc_item:
+                    continue
+                qtd_item = (item_data.get('quantidade') or '').strip()
+                status_item = (item_data.get('status') or StatusRecebimentoAcordo.AGUARDANDO).strip()
+                if status_item not in [StatusRecebimentoAcordo.AGUARDANDO, StatusRecebimentoAcordo.RECEBIDO]:
+                    status_item = StatusRecebimentoAcordo.AGUARDANDO
+
+                item_id = item_data.get('id')
+                if item_id and str(item_id).isdigit():
+                    obj_item = ItemAcordoOrgao.objects.filter(id=int(item_id), orgao=orgao).first()
+                    if obj_item:
+                        mudou_para_recebido = (
+                            obj_item.status != StatusRecebimentoAcordo.RECEBIDO and
+                            status_item == StatusRecebimentoAcordo.RECEBIDO
+                        )
+                        obj_item.descricao = desc_item
+                        obj_item.quantidade = qtd_item
+                        obj_item.status = status_item
+                        if status_item == StatusRecebimentoAcordo.RECEBIDO:
+                            if not obj_item.data_recebimento or mudou_para_recebido:
+                                obj_item.data_recebimento = today_date
+                        else:
+                            obj_item.data_recebimento = None
+                        obj_item.save()
+                        keep_ids.append(obj_item.id)
+                        continue
+
+                novo_item = ItemAcordoOrgao.objects.create(
+                    orgao=orgao,
+                    descricao=desc_item,
+                    quantidade=qtd_item,
+                    status=status_item,
+                    data_recebimento=today_date if status_item == StatusRecebimentoAcordo.RECEBIDO else None
+                )
+                keep_ids.append(novo_item.id)
+
+            # Remove itens que foram excluídos da lista dinâmica do órgão
+            ItemAcordoOrgao.objects.filter(orgao=orgao).exclude(id__in=keep_ids).delete()
+
         return JsonResponse({
             'success': True,
             'message': msg,
@@ -234,6 +304,62 @@ def salvar_orgao_api(request):
         })
     except Exception as e:
         return JsonResponse({'success': False, 'error': f'Falha ao salvar órgão: {str(e)}'}, status=500)
+
+
+@login_required
+@diretor_required
+@require_POST
+def atualizar_status_item_acordo_api(request, item_id):
+    """
+    Atualiza o status de controle de recebimento ('aguardando' <-> 'recebido')
+    de um ItemAcordoOrgao diretamente na aba Órgãos Conveniados da Central Administrativa.
+    """
+    try:
+        item = get_object_or_404(ItemAcordoOrgao, id=item_id)
+        if request.content_type == 'application/json':
+            data = json.loads(request.body or '{}')
+        else:
+            data = request.POST
+
+        novo_status = (data.get('status') or '').strip()
+        if novo_status not in [StatusRecebimentoAcordo.AGUARDANDO, StatusRecebimentoAcordo.RECEBIDO]:
+            novo_status = (
+                StatusRecebimentoAcordo.RECEBIDO
+                if item.status == StatusRecebimentoAcordo.AGUARDANDO
+                else StatusRecebimentoAcordo.AGUARDANDO
+            )
+
+        item.status = novo_status
+        if novo_status == StatusRecebimentoAcordo.RECEBIDO:
+            item.data_recebimento = timezone.localdate()
+        else:
+            item.data_recebimento = None
+        item.save()
+
+        itens_orgao = ItemAcordoOrgao.objects.filter(orgao_id=item.orgao_id)
+        tot = itens_orgao.count()
+        rec = itens_orgao.filter(status=StatusRecebimentoAcordo.RECEBIDO).count()
+        ag = tot - rec
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Status do item "{item.descricao}" alterado para "{item.get_status_display()}".',
+            'item': {
+                'id': item.id,
+                'orgao_id': item.orgao_id,
+                'status': item.status,
+                'status_display': item.get_status_display(),
+                'data_recebimento': item.data_recebimento.strftime('%d/%m/%Y') if item.data_recebimento else '',
+            },
+            'counts': {
+                'total': tot,
+                'recebidos': rec,
+                'aguardando': ag,
+            }
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': f'Falha ao atualizar status do item: {str(e)}'}, status=500)
+
 
 
 @login_required

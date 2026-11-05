@@ -8,10 +8,38 @@ from django.contrib.auth import get_user_model
 from presencas.models import (
     Turma, Aluno, RegistroPresenca, StatusPresenca,
     DiarioDeClasse, OcorrenciaCaderno, TipoOcorrencia, TurnoAluno,
-    RegistroAmamentacao
+    RegistroAmamentacao, RegistroExtracao, extrair_nome_usuario, obter_responsavel_enfermaria
 )
 
 User = get_user_model()
+
+
+def resolver_usuario_ou_nome(raw_val, user_fallback=None, is_enfermaria=False):
+    """
+    Resolve (user_obj_ou_None, nome_em_texto) a partir do valor importado ou fallback:
+    - No caso de enfermaria, busca pela role ENFERMEIRA; se o usuário não existir mais,
+      retorna (None, nome_em_texto) sem relação ao usuário.
+    - Para demais registros, se o nome/username informado existir no banco, vincula o User;
+      se o usuário não existir mais, retorna (None, nome_em_texto) mantendo apenas o texto.
+    """
+    nome_str = str(raw_val or '').strip()
+    if is_enfermaria:
+        return obter_responsavel_enfermaria(user_fallback=None, nome_fallback=nome_str)
+
+    if nome_str:
+        u = User.objects.filter(username__iexact=nome_str).first()
+        if not u:
+            for cand in User.objects.all():
+                if extrair_nome_usuario(cand).lower() == nome_str.lower():
+                    u = cand
+                    break
+        if u:
+            return u, extrair_nome_usuario(u)
+        return None, nome_str
+
+    if user_fallback:
+        return user_fallback, extrair_nome_usuario(user_fallback)
+    return None, ''
 
 
 def parse_date_flexible(val):
@@ -364,6 +392,9 @@ def import_presencas(rows, user=None):
 
             status = parse_status_presenca(raw_status, obs)
             status_m, status_v = parse_turnos_presenca(aluno, status, obs)
+            raw_reg_por = r.get('registrado_por') or r.get('Registrado por') or r.get('registrado_por_nome') or ''
+            is_enf_obs = any(t in (obs or '').lower() for t in ['enfermagem', 'enfermaria', 'afastamento médico'])
+            reg_user, reg_nome = resolver_usuario_ou_nome(raw_reg_por, user_fallback=user, is_enfermaria=is_enf_obs)
 
             reg = RegistroPresenca.objects.filter(aluno=aluno, data=data_val).first()
             if not reg:
@@ -375,7 +406,8 @@ def import_presencas(rows, user=None):
                     status_matutino=status_m,
                     status_vespertino=status_v,
                     observacao=obs,
-                    registrado_por=user,
+                    registrado_por=reg_user,
+                    registrado_por_nome=reg_nome,
                 )
                 created += 1
             else:
@@ -384,6 +416,9 @@ def import_presencas(rows, user=None):
                 reg.status_vespertino = status_v
                 if obs:
                     reg.observacao = obs
+                if raw_reg_por or is_enf_obs:
+                    reg.registrado_por = reg_user
+                    reg.registrado_por_nome = reg_nome
                 reg.save()
                 updated += 1
     return created, updated
@@ -482,6 +517,11 @@ def import_ocorrencias(rows, user=None):
                     lookup = lookup.filter(horario=h_obj)
                 existing = lookup.first()
 
+            raw_reg_por = r.get('registrado_por') or r.get('Registrado por') or r.get('registrado_por_nome') or ''
+            texto_oc = f"{motivo or ''} {obs or ''}".lower()
+            is_enf_oc = any(t in texto_oc for t in ['enfermagem', 'enfermaria', 'afastamento médico'])
+            reg_user, reg_nome = resolver_usuario_ou_nome(raw_reg_por, user_fallback=user, is_enfermaria=is_enf_oc)
+
             if not existing:
                 OcorrenciaCaderno.objects.create(
                     tipo=tipo,
@@ -497,7 +537,8 @@ def import_ocorrencias(rows, user=None):
                     horario=h_obj,
                     horario_retorno=hr_obj,
                     quantidade=int(qtd_val) if str(qtd_val).isdigit() else 1,
-                    registrado_por=user,
+                    registrado_por=reg_user,
+                    registrado_por_nome=reg_nome,
                 )
                 created += 1
             else:
@@ -509,14 +550,17 @@ def import_ocorrencias(rows, user=None):
                 existing.observacao = obs
                 if h_obj: existing.horario = h_obj
                 if hr_obj: existing.horario_retorno = hr_obj
+                if raw_reg_por or is_enf_oc:
+                    existing.registrado_por = reg_user
+                    existing.registrado_por_nome = reg_nome
                 existing.save()
                 updated += 1
 
     return created, updated
 
 
-def import_amamentacao(rows, user=None):
-    """Importa registros diários da Sala de Amamentação para a model RegistroAmamentacao."""
+def import_amamentacao(rows, user=None, model_cls=RegistroAmamentacao):
+    """Importa registros diários do Espaço Materno (Sala de Amamentação ou Sala de Extração)."""
     created, updated = 0, 0
     with transaction.atomic():
         for r in rows:
@@ -542,20 +586,24 @@ def import_amamentacao(rows, user=None):
             existing = None
             row_id = r.get('id') or r.get('ID')
             if row_id and str(row_id).isdigit():
-                existing = RegistroAmamentacao.objects.filter(id=int(row_id)).first()
+                existing = model_cls.objects.filter(id=int(row_id)).first()
 
             if not existing:
-                existing = RegistroAmamentacao.objects.filter(data=data_val).first()
+                existing = model_cls.objects.filter(data=data_val).first()
+
+            raw_reg_por = r.get('registrado_por') or r.get('Registrado por') or r.get('registrado_por_nome') or ''
+            reg_user, reg_nome = resolver_usuario_ou_nome(raw_reg_por, user_fallback=user, is_enfermaria=False)
 
             if not existing:
-                RegistroAmamentacao.objects.create(
+                model_cls.objects.create(
                     data=data_val,
                     quantidade=qtd_int,
                     ano=data_val.year,
                     mes=data_val.month,
                     observacao=obs,
                     attachment_name=attachment_name,
-                    registrado_por=user,
+                    registrado_por=reg_user,
+                    registrado_por_nome=reg_nome,
                 )
                 created += 1
             else:
@@ -567,10 +615,18 @@ def import_amamentacao(rows, user=None):
                     existing.observacao = obs
                 if attachment_name:
                     existing.attachment_name = attachment_name
+                if raw_reg_por:
+                    existing.registrado_por = reg_user
+                    existing.registrado_por_nome = reg_nome
                 existing.save()
                 updated += 1
 
     return created, updated
+
+
+def import_extracao(rows, user=None):
+    """Importa registros diários da Sala de Extração (Espaço Materno) para a model RegistroExtracao."""
+    return import_amamentacao(rows, user=user, model_cls=RegistroExtracao)
 
 
 def import_enfermaria(rows, user=None):
@@ -628,6 +684,9 @@ def import_enfermaria(rows, user=None):
                     lookup = lookup.filter(horario=h_obj)
                 existing = lookup.first()
 
+            raw_reg_por = r.get('registrado_por') or r.get('Registrado por') or r.get('registrado_por_nome') or ''
+            reg_user, reg_nome = resolver_usuario_ou_nome(raw_reg_por, user_fallback=user, is_enfermaria=True)
+
             if not existing:
                 AtendimentoEnfermaria.objects.create(
                     aluno=aluno,
@@ -640,7 +699,8 @@ def import_enfermaria(rows, user=None):
                     saida_imediata=saida_imed,
                     retornara_dia_seguinte=retornara,
                     data_retorno_prevista=data_retorno,
-                    registrado_por=user,
+                    registrado_por=reg_user,
+                    registrado_por_nome=reg_nome,
                     ativo=True
                 )
                 created += 1
@@ -653,6 +713,8 @@ def import_enfermaria(rows, user=None):
                 existing.retornara_dia_seguinte = retornara
                 existing.data_retorno_prevista = data_retorno
                 if h_obj: existing.horario = h_obj
+                existing.registrado_por = reg_user
+                existing.registrado_por_nome = reg_nome
                 existing.ativo = True
                 existing.save()
                 updated += 1
@@ -685,6 +747,8 @@ def process_backup_import(uploaded_file, entity, user=None):
         return import_ocorrencias(rows, user)
     elif entity == 'amamentacao':
         return import_amamentacao(rows, user)
+    elif entity == 'extracao':
+        return import_extracao(rows, user)
     elif entity == 'enfermaria':
         return import_enfermaria(rows, user)
     else:

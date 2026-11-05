@@ -56,8 +56,9 @@ A instituição organiza as turmas em uma progressão estrita por faixa etária:
 | **4** | **Sala Carinho** | 24 a 30 meses (Maternal II) | 🧸 | Esmeralda (`#059669`) |
 | **5** | **Sala Alegria** | 30 a 36 meses (Jardim) | 👶 | Azul Royal (`#2563eb`) |
 
-### 2.1. Transição de Turma (Mudança de Sala)
-* Quando o aluno atinge a idade de transição, o Administrador ou Diretor altera o campo `turma` no perfil do aluno.
+### 2.1. Transição de Turma e de Turno (Observabilidade de Realocação)
+* Quando o aluno atinge a idade de transição ou muda de turno, o Administrador ou Coordenador altera o campo `turma` ou `turno` no perfil do aluno (podendo informar a data efetiva e o motivo da realocação).
+* **Observabilidade de Períodos (`HistoricoAlocacaoAluno`)**: O sistema registra automaticamente o período (`data_inicio` até `data_fim` / `Atual`) em que a criança permaneceu em cada **Turma (Sala)** e em cada **Turno**, exibindo na Ficha Cadastral do Aluno a indicação **"Sala atual:"** e **"Turno atual:"** no cabeçalho e o bloco detalhado de períodos por turma e por turno (tendo como padrão a alocação atual).
 * **Preservação de Histórico**: As chamadas anteriores e ocorrências do aluno permanecem registradas na sala original em que ocorreram, garantindo a integridade dos relatórios históricos.
 
 ---

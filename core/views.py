@@ -13,7 +13,7 @@ from django.db.models import Count, Q, Sum
 from presencas.models import (
     Turma, Aluno, RegistroPresenca, StatusPresenca,
     DiarioDeClasse, OcorrenciaCaderno, TipoOcorrencia,
-    RegistroAmamentacao, AtendimentoEnfermaria, Orgao
+    RegistroAmamentacao, RegistroExtracao, AtendimentoEnfermaria, Orgao
 )
 from presencas.services import (
     get_novas_matriculas_periodo,
@@ -211,29 +211,44 @@ def build_dashboard_context(request):
     salas_cards_data.sort(key=lambda s: ordem_salas_map.get(s['nome'].lower().strip(), 99))
 
     # =========================================================================
-    # 2. CONTROLE DE FREQUÊNCIA E PRESENÇAS DO PERÍODO
+    # 2. CONTROLE DE FREQUÊNCIA E PRESENÇAS DO PERÍODO (DIAS ÚTEIS)
     # =========================================================================
     registros_qs = RegistroPresenca.objects.filter(
         data__gte=date_start,
-        data__lte=date_end
+        data__lte=date_end,
+        data__week_day__in=[2, 3, 4, 5, 6]
+    ).filter(
+        Q(data__lte=today) | Q(diario_classe__isnull=False) | Q(status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL])
     )
     if is_professor:
         registros_qs = registros_qs.filter(turma__in=turmas_qs)
     if classroom_filter:
+        c_clean = classroom_filter.replace('Sala', '').replace('sala', '').strip()
         registros_qs = registros_qs.filter(
-            Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
+            Q(turma__nome__iexact=classroom_filter) |
+            Q(turma__nome__iexact=c_clean) |
+            Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
         )
     if student_id_filter:
         registros_qs = registros_qs.filter(aluno_id=student_id_filter)
 
+    # Filtra apenas dias que efetivamente tiveram chamada lançada (se houver)
+    datas_chamada_efetiva_dash = set(
+        registros_qs.filter(
+            Q(diario_classe__isnull=False) | Q(status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL])
+        ).values_list('data', flat=True)
+    )
+    if datas_chamada_efetiva_dash:
+        registros_qs = registros_qs.filter(data__in=datas_chamada_efetiva_dash)
+
     # =========================================================================
     # 2. CONTROLE DE FREQUÊNCIA (CHAMADA DIÁRIA - REGISTROPRESENCA)
     # =========================================================================
-    total_registros = registros_qs.count()
-    total_presencas = registros_qs.filter(status=StatusPresenca.PRESENTE).count()
+    total_presencas = registros_qs.filter(status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL]).count()
     total_faltas_injust = registros_qs.filter(status=StatusPresenca.AUSENTE).count()
     total_justificadas = registros_qs.filter(status=StatusPresenca.JUSTIFICADO).count()
     total_faltas = total_faltas_injust + total_justificadas
+    total_registros = total_presencas + total_faltas
 
     assiduidade_rate = round((total_presencas / total_registros) * 100) if total_registros > 0 else 100
 
@@ -294,18 +309,31 @@ def build_dashboard_context(request):
     saidas_count = saidas_qs.count()
     saidas_retornos = saidas_qs.filter(retorna=True).count()
 
-    # Amamentação (Tabela específica RegistroAmamentacao)
+    # Espaço Materno: Sala de Amamentação (RegistroAmamentacao) e Sala de Extração (RegistroExtracao)
     amam_reg_qs = RegistroAmamentacao.objects.filter(
+        data__gte=date_start,
+        data__lte=date_end
+    )
+    extr_reg_qs = RegistroExtracao.objects.filter(
         data__gte=date_start,
         data__lte=date_end
     )
     if is_professor or student_id_filter or classroom_filter:
         amam_reg_qs = amam_reg_qs.none()
+        extr_reg_qs = extr_reg_qs.none()
 
     amamentacao_sum_qty = amam_reg_qs.aggregate(total=Sum('quantidade'))['total'] or 0
     amamentacao_count = amamentacao_sum_qty
     amamentacao_dias_count = amam_reg_qs.count()
     amamentacao_avg = round(amamentacao_count / amamentacao_dias_count, 1) if amamentacao_dias_count > 0 else 0
+
+    extracao_sum_qty = extr_reg_qs.aggregate(total=Sum('quantidade'))['total'] or 0
+    extracao_count = extracao_sum_qty
+    extracao_dias_count = extr_reg_qs.count()
+    extracao_avg = round(extracao_count / extracao_dias_count, 1) if extracao_dias_count > 0 else 0
+
+    espaco_materno_count = amamentacao_count + extracao_count
+    espaco_materno_dias_count = len(set(amam_reg_qs.values_list('data', flat=True)) | set(extr_reg_qs.values_list('data', flat=True)))
 
 
     students_json_list = []
@@ -354,8 +382,8 @@ def build_dashboard_context(request):
             chart1_data.append(0)
             continue
         c_regs = registros_qs.filter(turma__nome__iexact=c_name)
-        c_active = c_regs.filter(status__in=[StatusPresenca.PRESENTE, StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO]).count()
-        c_pres = c_regs.filter(status=StatusPresenca.PRESENTE).count()
+        c_active = c_regs.filter(status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL, StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO]).count()
+        c_pres = c_regs.filter(status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL]).count()
         c_rate = round((c_pres / c_active) * 100) if c_active > 0 else 100
         chart1_data.append(c_rate)
 
@@ -366,7 +394,7 @@ def build_dashboard_context(request):
     cur_day = date_start
     while cur_day <= date_end:
         day_regs = registros_qs.filter(data=cur_day)
-        day_p = day_regs.filter(status=StatusPresenca.PRESENTE).count()
+        day_p = day_regs.filter(status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL]).count()
         day_f = day_regs.filter(Q(status=StatusPresenca.AUSENTE) | Q(status=StatusPresenca.JUSTIFICADO)).count()
         if day_regs.exists():
             chart2_labels.append(cur_day.strftime('%d/%m'))
@@ -491,13 +519,13 @@ def build_dashboard_context(request):
         chart3_data.append(m_delays.count())
 
     # Distribuição de Ocorrências (Donut)
-    chart4_labels = ['Faltas', 'Atestados Médicos', 'Atrasos', 'Saídas Antecipadas', 'Amamentação']
+    chart4_labels = ['Faltas', 'Atestados Médicos', 'Atrasos', 'Saídas Antecipadas', 'Espaço Materno']
     chart4_data = [
         caderno_faltas_count,
         atestados_count,
         delays_count,
         saidas_count,
-        amamentacao_count
+        espaco_materno_count
     ]
 
     # Crianças com Mais Ocorrências no Caderno (Horizontal Bar)
@@ -509,22 +537,33 @@ def build_dashboard_context(request):
     chart5_labels = [i['aluno__nome'] for i in top_oc_alunos] or ['Nenhuma ocorrência']
     chart5_data = [i['total'] for i in top_oc_alunos] or [0]
 
-    # Série Diária de Amamentação (Tabela específica RegistroAmamentacao)
+    # Série Diária do Espaço Materno (Sala de Amamentação & Sala de Extração)
     amam_by_date = {}
     for o in amam_reg_qs:
         d_key = o.data
         qty = o.quantidade if (o.quantidade is not None and o.quantidade > 0) else 1
         amam_by_date[d_key] = amam_by_date.get(d_key, 0) + qty
 
+    extr_by_date = {}
+    for o in extr_reg_qs:
+        d_key = o.data
+        qty = o.quantidade if (o.quantidade is not None and o.quantidade > 0) else 1
+        extr_by_date[d_key] = extr_by_date.get(d_key, 0) + qty
+
     cur_d = date_start
     amam_labels = []
     amam_values = []
+    extr_values = []
     amam_total_periodo = 0
+    extr_total_periodo = 0
     while cur_d <= date_end:
         amam_labels.append(cur_d.strftime('%d/%m'))
         qty_day = amam_by_date.get(cur_d, 0)
+        qty_extr = extr_by_date.get(cur_d, 0)
         amam_values.append(qty_day)
+        extr_values.append(qty_extr)
         amam_total_periodo += qty_day
+        extr_total_periodo += qty_extr
         cur_d += timedelta(days=1)
 
     # Consolidado Mês a Mês: Frequência vs Matriculados (Série Multiano 2019 a 2026)
@@ -551,43 +590,87 @@ def build_dashboard_context(request):
 
     if '2026' not in hist_by_year:
         hist_by_year['2026'] = {m: {'present': 0, 'absent': 0, 'enrolled': 0} for m in range(1, 13)}
-    # Sobrescreve ano 2026 com as médias calculadas reais de chamada
-    for m in range(1, 13):
+    # Sobrescreve ano 2026 com as médias calculadas reais de chamada (a partir de Ago/2026 quando sem filtro,
+    # preservando a série histórica oficial de Jan a Jul/2026, idêntico ao Relatório do Caderno)
+    mes_inicio_2026 = 1 if (is_professor or classroom_filter or student_id_filter) else 8
+    for m in range(mes_inicio_2026, 13):
         import calendar as _cal
         _last_day = _cal.monthrange(2026, m)[1]
         start_m = date(2026, m, 1)
         end_m = date(2026, m, _last_day)
 
-        # Total Geral de Matriculados no mês (pertencem quem entrou e quem saiu no mês)
-        alunos_m_qs = Aluno.objects.filter(
-            Q(data_entrada__isnull=True) | Q(data_entrada__lte=end_m)
-        ).filter(
-            Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=start_m)
-        )
+        alunos_m_base = Aluno.objects.all()
         if is_professor:
-            alunos_m_qs = alunos_m_qs.filter(turma__in=turmas_qs)
+            alunos_m_base = alunos_m_base.filter(turma__in=turmas_qs)
         if classroom_filter:
-            alunos_m_qs = alunos_m_qs.filter(Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None))
+            c_clean = classroom_filter.replace('Sala', '').replace('sala', '').strip()
+            alunos_m_base = alunos_m_base.filter(
+                Q(turma__nome__iexact=classroom_filter) |
+                Q(turma__nome__iexact=c_clean) |
+                Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
+            )
         if student_id_filter:
-            alunos_m_qs = alunos_m_qs.filter(id=student_id_filter)
-        total_enrolled_m = alunos_m_qs.count()
+            alunos_m_base = alunos_m_base.filter(id=student_id_filter)
 
-        # Apenas dias úteis (Segunda a Sexta)
-        m_regs = RegistroPresenca.objects.filter(data__year=2026, data__month=m, data__week_day__in=[2, 3, 4, 5, 6])
+        # Apenas dias úteis (Segunda a Sexta), ignorando ausências futuras sem diário lançado
+        m_regs = RegistroPresenca.objects.filter(
+            data__year=2026,
+            data__month=m,
+            data__week_day__in=[2, 3, 4, 5, 6]
+        ).filter(
+            Q(data__lte=today) | Q(diario_classe__isnull=False) | Q(status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL])
+        )
         if is_professor:
             m_regs = m_regs.filter(turma__in=turmas_qs)
         if classroom_filter:
-            m_regs = m_regs.filter(Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None))
+            c_clean = classroom_filter.replace('Sala', '').replace('sala', '').strip()
+            m_regs = m_regs.filter(
+                Q(turma__nome__iexact=classroom_filter) |
+                Q(turma__nome__iexact=c_clean) |
+                Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
+            )
         if student_id_filter:
             m_regs = m_regs.filter(aluno_id=student_id_filter)
 
-        dias_uteis_com_chamada = len(set(m_regs.values_list('data', flat=True)))
+        datas_chamada_efetiva_m = set(
+            m_regs.filter(
+                Q(diario_classe__isnull=False) | Q(status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL])
+            ).values_list('data', flat=True)
+        )
+        datas_chamada_m = datas_chamada_efetiva_m or set(m_regs.values_list('data', flat=True))
+        dias_uteis_com_chamada = len(datas_chamada_m)
+
         if dias_uteis_com_chamada > 0:
-            p_count = m_regs.filter(status=StatusPresenca.PRESENTE).count()
-            avg_p = round(p_count / dias_uteis_com_chamada, 1)
-            enr_val = total_enrolled_m
-            avg_f = max(0.0, round(enr_val - avg_p, 1))
+            m_regs_validos = m_regs.filter(data__in=datas_chamada_m)
+            max_enrolled_m = 0
+            for d_check in sorted(list(datas_chamada_m)):
+                c_dia = alunos_m_base.filter(
+                    Q(data_entrada__isnull=True) | Q(data_entrada__lte=d_check)
+                ).filter(
+                    Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=d_check)
+                ).count()
+                c_chamada_dia = m_regs_validos.filter(
+                    data=d_check,
+                    status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL, StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO]
+                ).count()
+                pico_d = max(c_dia, c_chamada_dia)
+                if pico_d > max_enrolled_m:
+                    max_enrolled_m = pico_d
+
+            if max_enrolled_m == 0:
+                max_enrolled_m = alunos_m_base.filter(
+                    Q(data_entrada__isnull=True) | Q(data_entrada__lte=end_m)
+                ).filter(
+                    Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=start_m)
+                ).count()
+
+            p_count = m_regs_validos.filter(status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL]).count()
+            avg_p = round(p_count / dias_uteis_com_chamada)
+            enr_val = max_enrolled_m
+            avg_f = max(0, enr_val - avg_p)
             hist_by_year['2026'][m] = {'present': avg_p, 'absent': avg_f, 'enrolled': enr_val}
+        elif is_professor or classroom_filter or student_id_filter:
+            hist_by_year['2026'][m] = {'present': 0, 'absent': 0, 'enrolled': 0}
 
     if is_professor:
         hist_by_year = {'2026': hist_by_year.get('2026', {m: {'present': 0, 'absent': 0, 'enrolled': 0} for m in range(1, 13)})}
@@ -634,12 +717,20 @@ def build_dashboard_context(request):
     if is_professor:
         cal_regs = cal_regs.filter(turma__in=turmas_qs)
     if classroom_filter:
-        cal_regs = cal_regs.filter(Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None))
+        c_clean = classroom_filter.replace('Sala', '').replace('sala', '').strip()
+        cal_regs = cal_regs.filter(
+            Q(turma__nome__iexact=classroom_filter) |
+            Q(turma__nome__iexact=c_clean) |
+            Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
+        )
     if student_id_filter:
         cal_regs = cal_regs.filter(aluno_id=student_id_filter)
 
     cal_by_day = {}
-    for d in cal_regs.values('data').annotate(p=Count('id', filter=Q(status=StatusPresenca.PRESENTE)), tot=Count('id')):
+    for d in cal_regs.values('data').annotate(
+        p=Count('id', filter=Q(status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL])),
+        tot=Count('id', filter=Q(status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL, StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO]))
+    ):
         d_iso = d['data'].isoformat()
         pct = round((d['p'] / d['tot']) * 100) if d['tot'] > 0 else 0
         cal_by_day[d_iso] = {
@@ -880,8 +971,15 @@ def build_dashboard_context(request):
             'amamentacao_count': amamentacao_count,
             'amamentacao_avg': amamentacao_avg,
             'amamentacao_dias': amamentacao_dias_count,
+            'extracao_count': extracao_count,
+            'extracao_avg': extracao_avg,
+            'extracao_dias': extracao_dias_count,
+            'espaco_materno_count': espaco_materno_count,
+            'espaco_materno_dias': espaco_materno_dias_count,
         },
         'amam_total': amam_total_periodo,
+        'extr_total': extr_total_periodo,
+        'espaco_materno_total': amam_total_periodo + extr_total_periodo,
         'cal_by_day_json': json.dumps(cal_by_day),
         'charts_json': json.dumps({
             'chart1': {'labels': chart1_labels, 'data': chart1_data},
@@ -894,7 +992,7 @@ def build_dashboard_context(request):
             'chart9': {'labels': chart9_labels, 'data': chart9_data},
             'matriculados_6m': {'labels': matriculados_labels, 'data': matriculados_data},
             'frequencia_mes_a_mes': year_charts_data.get('2026', {}),
-            'amam_diaria': {'labels': amam_labels, 'data': amam_values, 'total': amam_total_periodo},
+            'amam_diaria': {'labels': amam_labels, 'data': amam_values, 'extracao_data': extr_values, 'total': amam_total_periodo, 'extracao_total': extr_total_periodo},
             'orgaos_comparison': {
                 'labels': chart_orgaos_labels,
                 'alunos': chart_orgaos_alunos,
@@ -973,6 +1071,9 @@ def build_relatorios_context(request):
         except ValueError:
             date_start = this_month_start
             date_end = this_month_end
+
+    # Sincroniza alunos cujo desligamento já ocorreu para ativo=False (idêntico ao Painel Geral)
+    Aluno.objects.filter(ativo=True, data_desligamento__lte=today).update(ativo=False)
 
     turmas_qs = Turma.objects.filter(ativo=True).order_by('nome')
     all_students_qs = Aluno.objects.all().select_related('turma').order_by('nome')
@@ -1396,11 +1497,10 @@ def build_relatorios_context(request):
             continue
 
     # Calcula e injeta os meses operacionais do sistema (Agosto/2026 até hoje) com a MÁXIMA de matriculados
-    turma_id_int = int(classroom_filter) if (classroom_filter and classroom_filter.isdigit()) else None
     meses_sistema, consolidado_sistema = calcular_consolidado_mensal_sistema(
         ano_inicio=2026,
         mes_inicio=8,
-        turma_id=turma_id_int,
+        turma_id=classroom_filter or None,
         status_aluno=status_aluno_filter
     )
 
@@ -1415,16 +1515,21 @@ def build_relatorios_context(request):
     historical_formatted_list.sort(key=lambda x: (x['year'], x['month_num']), reverse=True)
     available_years = sorted(list(available_years_set), reverse=True)
 
-    # Considera estritamente dias úteis (Segunda a Sexta)
+    # Considera estritamente dias úteis (Segunda a Sexta), ignorando ausências futuras sem diário lançado
     registros_periodo_all = RegistroPresenca.objects.filter(
         data__gte=date_start,
         data__lte=date_end,
         data__week_day__in=[2, 3, 4, 5, 6]
+    ).filter(
+        Q(data__lte=today) | Q(diario_classe__isnull=False) | Q(status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL])
     ).select_related('turma', 'aluno')
 
     if classroom_filter:
+        c_clean = classroom_filter.replace('Sala', '').replace('sala', '').strip()
         registros_periodo_all = registros_periodo_all.filter(
-            Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
+            Q(turma__nome__iexact=classroom_filter) |
+            Q(turma__nome__iexact=c_clean) |
+            Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
         )
 
     if status_aluno_filter == 'ativos':
@@ -1432,12 +1537,27 @@ def build_relatorios_context(request):
     elif status_aluno_filter == 'inativos':
         registros_periodo_all = registros_periodo_all.filter(aluno__ativo=False)
 
-    datas_chamada_distintas = set(d for d in registros_periodo_all.values_list('data', flat=True) if d.weekday() < 5)
+    datas_chamada_efetiva = set(
+        d for d in registros_periodo_all.filter(
+            Q(diario_classe__isnull=False) | Q(status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL])
+        ).values_list('data', flat=True)
+        if d.weekday() < 5
+    )
+    datas_chamada_distintas = datas_chamada_efetiva or set(
+        d for d in registros_periodo_all.values_list('data', flat=True) if d.weekday() < 5
+    )
+    if datas_chamada_efetiva:
+        registros_periodo_all = registros_periodo_all.filter(data__in=datas_chamada_efetiva)
     dias_com_chamada_count = len(datas_chamada_distintas) or 1
 
     aluno_mat_base = Aluno.objects.all()
     if classroom_filter:
-        aluno_mat_base = aluno_mat_base.filter(Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None))
+        c_clean = classroom_filter.replace('Sala', '').replace('sala', '').strip()
+        aluno_mat_base = aluno_mat_base.filter(
+            Q(turma__nome__iexact=classroom_filter) |
+            Q(turma__nome__iexact=c_clean) |
+            Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
+        )
     if status_aluno_filter == 'ativos':
         aluno_mat_base = aluno_mat_base.filter(ativo=True)
     elif status_aluno_filter == 'inativos':
@@ -1452,8 +1572,13 @@ def build_relatorios_context(request):
         ).filter(
             Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=d_pico)
         ).count()
-        if c_pico > max_matriculados_periodo:
-            max_matriculados_periodo = c_pico
+        c_chamada_pico = registros_periodo_all.filter(
+            data=d_pico,
+            status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL, StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO]
+        ).count()
+        pico_efetivo = max(c_pico, c_chamada_pico)
+        if pico_efetivo > max_matriculados_periodo:
+            max_matriculados_periodo = pico_efetivo
 
     if max_matriculados_periodo == 0:
         max_matriculados_periodo = aluno_mat_base.filter(
@@ -1464,7 +1589,7 @@ def build_relatorios_context(request):
 
     total_matriculados_ativos = max_matriculados_periodo
 
-    total_pres_p = registros_periodo_all.filter(status=StatusPresenca.PRESENTE).count()
+    total_pres_p = registros_periodo_all.filter(status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL]).count()
     total_falt_p = registros_periodo_all.filter(status__in=[StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO]).count()
     total_reg_p = total_pres_p + total_falt_p
 
@@ -1486,7 +1611,7 @@ def build_relatorios_context(request):
     for m_i in range(1, max_mes_grafico + 1):
         m_k = f"{current_year}-{m_i:02d}"
         h_found = next((h for h in historical_formatted_list if h['month'] == m_k), None)
-        if h_found and status_aluno_filter == 'all' and not classroom_filter:
+        if h_found and (h_found.get('origem') == 'sistema' or (status_aluno_filter == 'all' and not classroom_filter)):
             freq_mes_presentes.append(h_found['present'])
             freq_mes_ausentes.append(h_found['absences'])
             freq_mes_matriculados.append(h_found['enrolled'])
@@ -1500,19 +1625,33 @@ def build_relatorios_context(request):
                 data__year=current_year,
                 data__month=m_i,
                 data__week_day__in=[2, 3, 4, 5, 6]
+            ).filter(
+                Q(data__lte=today) | Q(diario_classe__isnull=False) | Q(status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL])
             )
             if classroom_filter:
-                regs_mes = regs_mes.filter(Q(turma__nome__iexact=classroom_filter) | Q(turma_id=classroom_filter if classroom_filter.isdigit() else None))
+                c_clean = classroom_filter.replace('Sala', '').replace('sala', '').strip()
+                regs_mes = regs_mes.filter(
+                    Q(turma__nome__iexact=classroom_filter) |
+                    Q(turma__nome__iexact=c_clean) |
+                    Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
+                )
             if status_aluno_filter == 'ativos':
                 regs_mes = regs_mes.filter(aluno__ativo=True)
             elif status_aluno_filter == 'inativos':
                 regs_mes = regs_mes.filter(aluno__ativo=False)
 
-            dias_chamada_mes = len(set(regs_mes.values_list('data', flat=True)))
+            datas_chamada_efetiva_m = set(
+                regs_mes.filter(
+                    Q(diario_classe__isnull=False) | Q(status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL])
+                ).values_list('data', flat=True)
+            )
+            datas_chamada_m = datas_chamada_efetiva_m or set(regs_mes.values_list('data', flat=True))
+            dias_chamada_mes = len(datas_chamada_m)
+            if datas_chamada_efetiva_m:
+                regs_mes = regs_mes.filter(data__in=datas_chamada_efetiva_m)
             
             # MÁXIMA de matriculados no mês (Pico simultâneo de matrículas)
             max_m_val = 0
-            datas_chamada_m = set(regs_mes.values_list('data', flat=True)) if dias_chamada_mes > 0 else set()
             dias_teste_m = sorted(list(datas_chamada_m)) if datas_chamada_m else [
                 date(current_year, m_i, _d) for _d in range(1, _last_day + 1)
                 if date(current_year, m_i, _d).weekday() < 5
@@ -1523,14 +1662,19 @@ def build_relatorios_context(request):
                 ).filter(
                     Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=_d_t)
                 ).count()
-                if _c_m > max_m_val:
-                    max_m_val = _c_m
+                _c_chamada_m = regs_mes.filter(
+                    data=_d_t,
+                    status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL, StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO]
+                ).count() if dias_chamada_mes > 0 else 0
+                _pico_m = max(_c_m, _c_chamada_m)
+                if _pico_m > max_m_val:
+                    max_m_val = _pico_m
 
             m_val = max_m_val or aluno_mat_base.count()
 
             p_val = 0
             if dias_chamada_mes > 0:
-                pres_mes = regs_mes.filter(status=StatusPresenca.PRESENTE).count()
+                pres_mes = regs_mes.filter(status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL]).count()
                 p_val = round(pres_mes / dias_chamada_mes)
 
             a_val = max(m_val - p_val, 0)
@@ -1547,7 +1691,7 @@ def build_relatorios_context(request):
         regs_dt = registros_periodo_all.filter(data=d)
         if not regs_dt.exists():
             continue
-        pres = regs_dt.filter(status=StatusPresenca.PRESENTE).count()
+        pres = regs_dt.filter(status__in=[StatusPresenca.PRESENTE, StatusPresenca.PARCIAL]).count()
         falt = regs_dt.filter(status__in=[StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO]).count()
         tot = pres + falt
         taxa = round((pres / tot) * 100) if tot > 0 else 100
@@ -1556,7 +1700,7 @@ def build_relatorios_context(request):
         ).filter(
             Q(data_desligamento__isnull=True) | Q(data_desligamento__gte=d)
         )
-        mat_d = mat_d_qs.count() or max_matriculados_periodo
+        mat_d = max(mat_d_qs.count(), tot) or max_matriculados_periodo
 
         freq_tabela_list.append({
             'data': d,
@@ -1949,7 +2093,8 @@ def central_exportacao_view(request):
                     'alunos': 'Crianças & Matrículas',
                     'presencas': 'Registros de Frequência (Chamadas)',
                     'ocorrencias': 'Caderno SEAMI (Ocorrências)',
-                    'amamentacao': 'Registros de Amamentação',
+                    'amamentacao': 'Espaço Materno · Sala de Amamentação',
+                    'extracao': 'Espaço Materno · Sala de Extração',
                     'enfermaria': 'Enfermaria (Atendimentos Clínicos)',
                 }
                 lbl = entity_labels.get(entity, entity.title())
@@ -2111,7 +2256,7 @@ def central_exportacao_view(request):
                         "status_matutino": r.status_matutino,
                         "status_vespertino": r.status_vespertino,
                         "observacao": r.observacao,
-                        "registrado_por": r.registrado_por.get_full_name() or r.registrado_por.username if r.registrado_por else "",
+                        "registrado_por": r.registrado_por_display,
                         "criado_em": timezone.localtime(r.criado_em).strftime("%d/%m/%Y %H:%M:%S") if r.criado_em else "",
                     }
                     for r in qs
@@ -2136,7 +2281,7 @@ def central_exportacao_view(request):
                         r.get_status_matutino_display() if hasattr(r, 'get_status_matutino_display') else r.status_matutino,
                         r.get_status_vespertino_display() if hasattr(r, 'get_status_vespertino_display') else r.status_vespertino,
                         r.observacao,
-                        r.registrado_por.get_full_name() or r.registrado_por.username if r.registrado_por else "",
+                        r.registrado_por_display,
                         timezone.localtime(r.criado_em).strftime("%d/%m/%Y %H:%M:%S") if r.criado_em else "",
                     ])
                 return resp
@@ -2165,7 +2310,7 @@ def central_exportacao_view(request):
                         "motivo": o.motivo,
                         "quantidade": o.quantidade,
                         "observacao": o.observacao,
-                        "registrado_por": o.registrado_por.get_full_name() or o.registrado_por.username if o.registrado_por else "",
+                        "registrado_por": o.registrado_por_display,
                     }
                     for o in qs
                 ]
@@ -2199,13 +2344,15 @@ def central_exportacao_view(request):
                         o.motivo,
                         o.quantidade,
                         o.observacao,
-                        o.registrado_por.get_full_name() or o.registrado_por.username if o.registrado_por else "",
+                        o.registrado_por_display,
                     ])
                 return resp
 
-        # 5. ORDEM 5: REGISTROS DE AMAMENTAÇÃO (SALA DE AMAMENTAÇÃO)
-        elif download == 'amamentacao':
-            qs = RegistroAmamentacao.objects.select_related('registrado_por').order_by('-data')
+        # 5. ORDEM 5: ESPAÇO MATERNO - SALA DE AMAMENTAÇÃO E SALA DE EXTRAÇÃO
+        elif download in ['amamentacao', 'extracao']:
+            target_cls = RegistroExtracao if download == 'extracao' else RegistroAmamentacao
+            file_slug = '5b_sala_extracao_seami' if download == 'extracao' else '5_amamentacao_seami'
+            qs = target_cls.objects.select_related('registrado_por').order_by('-data')
             if fmt == 'json':
                 data = [
                     {
@@ -2216,17 +2363,17 @@ def central_exportacao_view(request):
                         "mes": r.mes,
                         "observacao": r.observacao,
                         "attachment_name": r.attachment_name or "",
-                        "registrado_por": r.registrado_por.get_full_name() or r.registrado_por.username if r.registrado_por else "",
+                        "registrado_por": r.registrado_por_display,
                         "criado_em": timezone.localtime(r.criado_em).strftime("%d/%m/%Y %H:%M:%S") if r.criado_em else "",
                     }
                     for r in qs
                 ]
                 resp = HttpResponse(json.dumps(data, indent=2, ensure_ascii=False), content_type="application/json; charset=utf-8")
-                resp['Content-Disposition'] = f'attachment; filename="5_amamentacao_seami_{timestamp}.json"'
+                resp['Content-Disposition'] = f'attachment; filename="{file_slug}_{timestamp}.json"'
                 return resp
             else:
                 resp = HttpResponse(content_type="text/csv; charset=utf-8-sig")
-                resp['Content-Disposition'] = f'attachment; filename="5_amamentacao_seami_{timestamp}.csv"'
+                resp['Content-Disposition'] = f'attachment; filename="{file_slug}_{timestamp}.csv"'
                 w = csv.writer(resp, delimiter=";")
                 w.writerow(["ID", "Data", "Quantidade", "Ano", "Mês", "Observação", "Anexo", "Registrado por", "Criado em"])
                 for r in qs:
@@ -2238,7 +2385,7 @@ def central_exportacao_view(request):
                         r.mes,
                         r.observacao,
                         r.attachment_name or "",
-                        r.registrado_por.get_full_name() or r.registrado_por.username if r.registrado_por else "",
+                        r.registrado_por_display,
                         timezone.localtime(r.criado_em).strftime("%d/%m/%Y %H:%M:%S") if r.criado_em else "",
                     ])
                 return resp
@@ -2263,7 +2410,7 @@ def central_exportacao_view(request):
                         "retornara_dia_seguinte": at.retornara_dia_seguinte,
                         "data_retorno_prevista": at.data_retorno_prevista.strftime("%d/%m/%Y") if at.data_retorno_prevista else "",
                         "observacoes_medicas": at.observacoes_medicas or "",
-                        "registrado_por": at.registrado_por.get_full_name() or at.registrado_por.username if at.registrado_por else "",
+                        "registrado_por": at.registrado_por_display,
                         "criado_em": timezone.localtime(at.criado_em).strftime("%d/%m/%Y %H:%M:%S") if at.criado_em else "",
                     }
                     for at in qs
@@ -2296,7 +2443,7 @@ def central_exportacao_view(request):
                         "Sim" if at.retornara_dia_seguinte else "Não",
                         at.data_retorno_prevista.strftime("%d/%m/%Y") if at.data_retorno_prevista else "",
                         at.observacoes_medicas or "",
-                        at.registrado_por.get_full_name() or at.registrado_por.username if at.registrado_por else "",
+                        at.registrado_por_display,
                         timezone.localtime(at.criado_em).strftime("%d/%m/%Y %H:%M:%S") if at.criado_em else "",
                     ])
                 return resp
@@ -2349,8 +2496,10 @@ def central_exportacao_view(request):
         'total_alunos': Aluno.objects.count(),
         'total_alunos_ativos': Aluno.objects.filter(ativo=True).count(),
         'total_presencas': RegistroPresenca.objects.count(),
-        'total_ocorrencias': OcorrenciaCaderno.objects.exclude(tipo=TipoOcorrencia.AMAMENTACAO).count(),
+        'total_ocorrencias': OcorrenciaCaderno.objects.exclude(tipo__in=[TipoOcorrencia.AMAMENTACAO, TipoOcorrencia.EXTRACAO]).count(),
         'total_amamentacao': RegistroAmamentacao.objects.count(),
+        'total_extracao': RegistroExtracao.objects.count(),
+        'total_espaco_materno': RegistroAmamentacao.objects.count() + RegistroExtracao.objects.count(),
         'total_enfermaria': AtendimentoEnfermaria.objects.filter(ativo=True).count(),
         'total_usuarios': User.objects.count(),
         'total_convites': ConviteUsuario.objects.count(),

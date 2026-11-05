@@ -67,3 +67,4 @@ Gera uma visão limpa, elegante e profissional para envio às famílias no perí
   * `(*)` *Sugestão de marca visando durabilidade e segurança pedagógica*.
   * `(**)` *Materiais de uso contínuo de higiene e berçário*.
 * **Impressão & Download em PDF**: Botão otimizado para gerar PDF institucional pronto para impressão ou compartilhamento via e-mail / aplicativo escolar.
+

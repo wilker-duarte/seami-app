@@ -216,3 +216,4 @@ class MovimentacaoEstoque(models.Model):
 
     def __str__(self):
         return f"[{self.get_tipo_display()}] {self.quantidade} {self.item.get_unidade_medida_display()} de {self.item.nome} em {self.data.strftime('%d/%m/%Y')}"
+

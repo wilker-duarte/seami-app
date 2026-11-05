@@ -126,11 +126,12 @@
 
         <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px 18px; box-shadow: var(--shadow-sm); border-top: 3px solid #ec4899;">
             <div style="display: flex; justify-content: space-between; align-items: center; color: var(--text-secondary); font-size: 12px; font-weight: 700;">
-                <span>5. Amamentação</span>
+                <span>5. Espaço Materno</span>
                 <i data-lucide="heart" style="width: 16px; height: 16px; color: #ec4899;"></i>
             </div>
             <div style="font-size: 22px; font-weight: 800; font-family: var(--font-title); color: var(--text-primary); margin-top: 6px;">
-                {{ total_amamentacao }}
+                {{ total_espaco_materno|default:total_amamentacao }}
+                <span style="font-size: 11px; font-weight: 600; color: var(--text-secondary);">({{ total_amamentacao }} amam. · {{ total_extracao|default:0 }} extr.)</span>
             </div>
         </div>
 
@@ -314,7 +315,7 @@
             </div>
         </div>
 
-        <!-- 5. ORDEM 5: REGISTROS DE AMAMENTAÇÃO -->
+        <!-- 5. ORDEM 5: ESPAÇO MATERNO (AMAMENTAÇÃO E SALA DE EXTRAÇÃO) -->
         <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 24px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between; gap: 20px; border-top: 4px solid #ec4899;">
             <div>
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
@@ -324,31 +325,48 @@
                         </div>
                         <div>
                             <h3 style="font-family: var(--font-title); font-size: 16px; font-weight: 800; color: var(--text-primary); margin: 0;">
-                                5. Registros de Amamentação
+                                5. Espaço Materno (Amamentação & Extração)
                             </h3>
                             <span style="font-size: 11.5px; font-weight: 700; color: #db2777; background: #fdf2f8; padding: 2px 8px; border-radius: 6px;">5º PASSO NA IMPORTAÇÃO</span>
                         </div>
                     </div>
                 </div>
                 <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
-                    Apontamentos diários de amamentação e desmame gradual do Caderno SEAMI, volumes, quantidades de mamadeiras diárias e horários registrados.
+                    Apontamentos diários do Espaço Materno no Caderno SEAMI: <strong>Sala de Amamentação</strong> e <strong>Sala de Extração</strong> (quantidade de utilização da sala e observações).
                 </p>
             </div>
 
             <div style="display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+                <div style="font-size: 11.5px; font-weight: 700; color: #db2777;">🤱 Sala de Amamentação</div>
                 <div style="display: flex; gap: 10px;">
-                    <a href="?download=amamentacao&format=csv" class="primary-btn" style="flex: 1; padding: 9px 12px; border-radius: var(--radius-sm); background-color: var(--color-primary); color: white; border: none; font-size: 13px; font-weight: 600; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                        <i data-lucide="download" style="width: 15px; height: 15px;"></i>
-                        <span>Planilha CSV</span>
+                    <a href="?download=amamentacao&format=csv" class="primary-btn" style="flex: 1; padding: 8px 12px; border-radius: var(--radius-sm); background-color: #db2777; color: white; border: none; font-size: 12.5px; font-weight: 600; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        <i data-lucide="download" style="width: 14px; height: 14px;"></i>
+                        <span>CSV Amamentação</span>
                     </a>
-                    <a href="?download=amamentacao&format=json" class="secondary-btn" style="padding: 9px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); color: var(--text-primary); text-decoration: none; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
-                        <i data-lucide="code" style="width: 15px; height: 15px;"></i>
+                    <a href="?download=amamentacao&format=json" class="secondary-btn" style="padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); color: var(--text-primary); text-decoration: none; font-size: 12.5px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                        <i data-lucide="code" style="width: 14px; height: 14px;"></i>
                         <span>JSON</span>
                     </a>
                 </div>
-                <button type="button" onclick="openImportModal('amamentacao')" class="secondary-btn" style="width: 100%; padding: 8px 12px; border-radius: var(--radius-sm); border: 1px dashed #059669; color: #059669; background-color: #f0fdf4; cursor: pointer; font-size: 12.5px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                    <i data-lucide="upload-cloud" style="width: 15px; height: 15px;"></i>
-                    <span>Restaurar / Importar Amamentação</span>
+                <button type="button" onclick="openImportModal('amamentacao')" class="secondary-btn" style="width: 100%; padding: 7px 12px; border-radius: var(--radius-sm); border: 1px dashed #db2777; color: #db2777; background-color: #fdf2f8; cursor: pointer; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <i data-lucide="upload-cloud" style="width: 14px; height: 14px;"></i>
+                    <span>Importar Sala de Amamentação</span>
+                </button>
+
+                <div style="font-size: 11.5px; font-weight: 700; color: #9333ea; margin-top: 4px;">🍼 Sala de Extração</div>
+                <div style="display: flex; gap: 10px;">
+                    <a href="?download=extracao&format=csv" class="primary-btn" style="flex: 1; padding: 8px 12px; border-radius: var(--radius-sm); background-color: #9333ea; color: white; border: none; font-size: 12.5px; font-weight: 600; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        <i data-lucide="download" style="width: 14px; height: 14px;"></i>
+                        <span>CSV Sala de Extração</span>
+                    </a>
+                    <a href="?download=extracao&format=json" class="secondary-btn" style="padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); color: var(--text-primary); text-decoration: none; font-size: 12.5px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                        <i data-lucide="code" style="width: 14px; height: 14px;"></i>
+                        <span>JSON</span>
+                    </a>
+                </div>
+                <button type="button" onclick="openImportModal('extracao')" class="secondary-btn" style="width: 100%; padding: 7px 12px; border-radius: var(--radius-sm); border: 1px dashed #9333ea; color: #9333ea; background-color: #faf5ff; cursor: pointer; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <i data-lucide="upload-cloud" style="width: 14px; height: 14px;"></i>
+                    <span>Importar Sala de Extração</span>
                 </button>
             </div>
         </div>
@@ -500,7 +518,8 @@
                     <option value="alunos">2. Crianças & Matrículas (2º Passo)</option>
                     <option value="presencas">3. Chamadas Registradas / Frequência (3º Passo)</option>
                     <option value="ocorrencias">4. Caderno SEAMI / Ocorrências (4º Passo)</option>
-                    <option value="amamentacao">5. Registros de Amamentação (5º Passo)</option>
+                    <option value="amamentacao">5a. Espaço Materno · Sala de Amamentação (5º Passo)</option>
+                    <option value="extracao">5b. Espaço Materno · Sala de Extração (5º Passo)</option>
                     <option value="enfermaria">6. Registros da Enfermaria (6º Passo)</option>
                 </select>
             </div>

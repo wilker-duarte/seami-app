@@ -353,3 +353,4 @@ def historico_item_json(request, item_id):
     }
 
     return JsonResponse(data)
+

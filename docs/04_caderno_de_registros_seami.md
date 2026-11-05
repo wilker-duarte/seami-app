@@ -14,7 +14,7 @@ graph TD
     A --> C[2. Faltas no Caderno]
     A --> D[3. Atestados Médicos]
     A --> E[4. Saídas Antecipadas]
-    A --> F[5. Amamentação]
+    A --> F[5. Espaço Materno: Amamentação e Extração]
 ```
 
 ---
@@ -67,12 +67,21 @@ Controle de segurança para retirada da criança antes do encerramento do turno:
 
 ---
 
-## 🍼 6. Amamentação (`/caderno/amamentacao/`)
+## 🤱 6. Espaço Materno (`/caderno-seami/amamentacao/` e `/caderno-seami/extracao/`)
 
-Acompanhamento do acolhimento à lactante no berçário:
+O módulo **Espaço Materno** reúne duas partes complementares de apoio às mães lactantes da instituição:
 
-* **Horário da Visita**: Início e fim da amamentação presencial.
-* **Observações**: Receptividade da criança e volume complementar oferecido.
+### 6.1. Sala de Amamentação (`RegistroAmamentacao`)
+* Mantém integralmente o funcionamento de controle da **Sala de Amamentação**:
+  * **Data e Quantidade Diária**: Registro diário de sessões/utilizações presenciais na sala.
+  * **Observações e Anexos**: Detalhes adicionais e documentos comprobatórios opcionais.
+  * **Série Histórica Mensal e Relatório PDF**: Evolução gráfica mês a mês, consolidado mensal e exportação em PDF.
+
+### 6.2. Sala de Extração (`RegistroExtracao`)
+* Nova parte do **Espaço Materno**, com estrutura idêntica à de Amamentação, voltada ao controle da **Sala de Extração** (utilizada pela mãe para extrair e armazenar o leite materno):
+  * **Data e Quantidade de Utilização da Sala**: Registro diário apenas da quantidade de vezes que a sala foi utilizada no dia (sem necessidade de especificar a finalidade da extração).
+  * **Observações e Anexos**: Campo livre opcional e suporte a anexo.
+  * **Série Histórica Mensal e Relatório PDF**: Gráfico evolutivo mensal, tabela consolidada mês a mês, adição de histórico mensal e exportação dedicada em PDF.
 
 ---
 

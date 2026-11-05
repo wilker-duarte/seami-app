@@ -255,6 +255,7 @@
                             <th style="padding: 12px 14px; font-weight: 700; text-align: center;">Sigla</th>
                             <th style="padding: 12px 16px; font-weight: 700; text-align: center;">Alunos (Contrato)</th>
                             <th style="padding: 12px 16px; font-weight: 700; text-align: center;">Pais Vinculados</th>
+                            <th style="padding: 12px 16px; font-weight: 700; min-width: 320px;">Itens em Cumprimento de Acordo (Recebimento)</th>
                             <th style="padding: 12px 14px; font-weight: 700; text-align: center;">Status</th>
                             <th style="padding: 12px 18px; font-weight: 700; text-align: right;">Ações</th>
                         </tr>
@@ -262,25 +263,74 @@
                     <tbody>
                         {% for org in orgaos_cards %}
                         <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.15s;" onmouseenter="this.style.backgroundColor='var(--bg-input)'" onmouseleave="this.style.backgroundColor='transparent'">
-                            <td style="padding: 14px 18px;">
+                            <td style="padding: 14px 18px; vertical-align: top;">
                                 <div style="font-weight: 700; color: var(--text-primary); font-size: 14px;">{{ org.nome }}</div>
                                 {% if org.descricao %}
                                 <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 2px;">{{ org.descricao }}</div>
                                 {% endif %}
                             </td>
-                            <td style="padding: 14px; text-align: center;">
+                            <td style="padding: 14px; text-align: center; vertical-align: top;">
                                 <span style="background-color: var(--bg-body); color: var(--text-primary); font-weight: 800; font-size: 11.5px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border-color);">
                                     {{ org.sigla }}
                                 </span>
                             </td>
-                            <td style="padding: 14px 16px; text-align: center;">
+                            <td style="padding: 14px 16px; text-align: center; vertical-align: top;">
                                 <span style="font-weight: 800; font-size: 14.5px; color: #1e40af;">{{ org.count_alunos }}</span>
                                 <span style="font-size: 11px; color: var(--text-secondary); margin-left: 2px;">({{ org.pct_alunos }}%)</span>
                             </td>
-                            <td style="padding: 14px 16px; text-align: center; font-weight: 800; font-size: 14.5px; color: #6d28d9;">
+                            <td style="padding: 14px 16px; text-align: center; font-weight: 800; font-size: 14.5px; color: #6d28d9; vertical-align: top;">
                                 {{ org.count_pais }}
                             </td>
-                            <td style="padding: 14px; text-align: center;">
+
+                            <!-- Coluna de Itens em Cumprimento de Acordo e Controle de Recebimento -->
+                            <td style="padding: 12px 16px; vertical-align: top;">
+                                {% if org.itens_acordo %}
+                                <div style="display: flex; flex-direction: column; gap: 6px;">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
+                                        <span id="badge-resumo-acordo-{{ org.id }}" style="font-size: 11px; font-weight: 700; color: var(--text-secondary); background: var(--bg-body); padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border-color);">
+                                            {{ org.total_acordo_recebidos }}/{{ org.total_itens_acordo }} recebido(s)
+                                        </span>
+                                    </div>
+                                    {% for item_ac in org.itens_acordo %}
+                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 7px;">
+                                        <div style="font-size: 12.5px; font-weight: 600; color: var(--text-primary); line-height: 1.3;">
+                                            {{ item_ac.descricao }}
+                                            {% if item_ac.quantidade %}
+                                            <span style="font-size: 11px; font-weight: 700; color: #4338ca; background: #eef2ff; border: 1px solid #c7d2fe; padding: 1px 6px; border-radius: 4px; margin-left: 4px;">
+                                                {{ item_ac.quantidade }}
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                        <select
+                                            onchange="alterarStatusItemAcordoOrgao({{ item_ac.id }}, this.value, this)"
+                                            style="padding: 4px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 700; cursor: pointer; outline: none; flex-shrink: 0; {% if item_ac.status == 'recebido' %}background-color: #ecfdf5; color: #047857; border: 1px solid #6ee7b7;{% else %}background-color: #fffbeb; color: #b45309; border: 1px solid #fcd34d;{% endif %}">
+                                            <option value="aguardando" {% if item_ac.status == 'aguardando' %}selected{% endif %}>⏳ Aguardando recebimento</option>
+                                            <option value="recebido" {% if item_ac.status == 'recebido' %}selected{% endif %}>✅ Recebido</option>
+                                        </select>
+                                    </div>
+                                    {% endfor %}
+                                    <!-- Botão de adicionar item abaixo do último item da lista -->
+                                    <button type="button"
+                                        onclick='editarOrgao({{ org.id }}, "{{ org.nome|escapejs }}", "{{ org.sigla|escapejs }}", "{{ org.descricao|escapejs }}", {{ org.ativo|yesno:"true,false" }}, {{ org.itens_acordo_json|safe }}, true)'
+                                        style="margin-top: 2px; padding: 5px 10px; border-radius: 6px; border: 1px dashed #6366f1; background-color: #eef2ff; color: #4338ca; font-size: 11.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: fit-content;">
+                                        <i data-lucide="plus" style="width: 13px; height: 13px;"></i>
+                                        <span>Adicionar Item</span>
+                                    </button>
+                                </div>
+                                {% else %}
+                                <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 6px;">
+                                    <span style="font-size: 12px; color: var(--text-secondary); font-style: italic;">Nenhum item de acordo vinculado</span>
+                                    <button type="button"
+                                        onclick='editarOrgao({{ org.id }}, "{{ org.nome|escapejs }}", "{{ org.sigla|escapejs }}", "{{ org.descricao|escapejs }}", {{ org.ativo|yesno:"true,false" }}, [], true)'
+                                        style="padding: 5px 10px; border-radius: 6px; border: 1px dashed #6366f1; background-color: #eef2ff; color: #4338ca; font-size: 11.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
+                                        <i data-lucide="plus" style="width: 13px; height: 13px;"></i>
+                                        <span>Adicionar Item de Acordo</span>
+                                    </button>
+                                </div>
+                                {% endif %}
+                            </td>
+
+                            <td style="padding: 14px; text-align: center; vertical-align: top;">
                                 {% if org.ativo %}
                                 <span style="background-color: #ecfdf5; color: #047857; font-weight: 700; font-size: 11px; padding: 3px 9px; border-radius: 12px; border: 1px solid #a7f3d0; display: inline-flex; align-items: center; gap: 4px;">
                                     <span style="width: 6px; height: 6px; border-radius: 50%; background-color: #10b981;"></span> Ativo
@@ -291,9 +341,9 @@
                                 </span>
                                 {% endif %}
                             </td>
-                            <td style="padding: 14px 18px; text-align: right;">
+                            <td style="padding: 14px 18px; text-align: right; vertical-align: top;">
                                 <div style="display: inline-flex; align-items: center; gap: 6px;">
-                                    <button type="button" onclick="editarOrgao({{ org.id }}, '{{ org.nome|escapejs }}', '{{ org.sigla|escapejs }}', '{{ org.descricao|escapejs }}', {{ org.ativo|yesno:'true,false' }})" style="padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Editar informações do órgão">
+                                    <button type="button" onclick='editarOrgao({{ org.id }}, "{{ org.nome|escapejs }}", "{{ org.sigla|escapejs }}", "{{ org.descricao|escapejs }}", {{ org.ativo|yesno:"true,false" }}, {{ org.itens_acordo_json|safe }})' style="padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Editar informações e itens de acordo do órgão">
                                         <i data-lucide="edit" style="width: 13px; height: 13px;"></i> Editar
                                     </button>
 
@@ -309,7 +359,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="6" style="padding: 32px; text-align: center; color: var(--text-secondary); font-size: 13.5px;">
+                            <td colspan="7" style="padding: 32px; text-align: center; color: var(--text-secondary); font-size: 13.5px;">
                                 Nenhum órgão conveniado encontrado para os filtros selecionados.
                             </td>
                         </tr>
@@ -531,7 +581,7 @@
 <!-- MODAL: CADASTRAR / EDITAR ÓRGÃO CONVENIADO                        -->
 <!-- ================================================================= -->
 <div id="modal-orgao-form" style="display: none; position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.6); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 16px;">
-    <div style="background-color: var(--bg-card); width: 100%; max-width: 520px; border-radius: var(--radius-lg); border: 1px solid var(--border-color); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden;" onclick="event.stopPropagation()">
+    <div style="background-color: var(--bg-card); width: 100%; max-width: 720px; max-height: 92vh; border-radius: var(--radius-lg); border: 1px solid var(--border-color); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden;" onclick="event.stopPropagation()">
         <div style="padding: 18px 22px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
             <div style="display: flex; align-items: center; gap: 10px;">
                 <div style="width: 36px; height: 36px; border-radius: 8px; background: #dbeafe; color: #2563eb; display: flex; align-items: center; justify-content: center;">
@@ -539,13 +589,13 @@
                 </div>
                 <div>
                     <h3 id="modal-orgao-title" style="margin: 0; font-size: 16px; font-weight: 800; color: var(--text-primary);">Novo Órgão Conveniado</h3>
-                    <span style="font-size: 11.5px; color: var(--text-secondary);">Cadastre o órgão conveniado para admissão e vinculação de responsáveis</span>
+                    <span style="font-size: 11.5px; color: var(--text-secondary);">Cadastre o órgão conveniado e os itens a receber em cumprimento de acordo</span>
                 </div>
             </div>
             <button type="button" onclick="fecharModalOrgao()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-secondary);">&times;</button>
         </div>
 
-        <form id="form-orgao" onsubmit="event.preventDefault(); salvarOrgaoSubmit();" style="padding: 22px; display: flex; flex-direction: column; gap: 14px;">
+        <form id="form-orgao" onsubmit="event.preventDefault(); salvarOrgaoSubmit();" style="padding: 22px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px;">
             <input type="hidden" id="orgao-id" value="">
 
             <div>
@@ -577,7 +627,44 @@
                 <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
                     Descrição / Número do Contrato / Esfera (Opcional)
                 </label>
-                <textarea id="orgao-descricao" rows="3" placeholder="Informações do convênio, número do contrato ou observações administrativas..." style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); font-size: 13px; color: var(--text-primary); outline: none; resize: vertical; box-sizing: border-box;"></textarea>
+                <textarea id="orgao-descricao" rows="2" placeholder="Informações do convênio, número do contrato ou observações administrativas..." style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); font-size: 13px; color: var(--text-primary); outline: none; resize: vertical; box-sizing: border-box;"></textarea>
+            </div>
+
+            <!-- ========================================================= -->
+            <!-- ITENS QUE SERÃO RECEBIDOS EM CUMPRIMENTO DE ACORDO        -->
+            <!-- ========================================================= -->
+            <div style="border-top: 1px solid var(--border-color); padding-top: 14px; display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+                    <label style="font-size: 13px; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                        <i data-lucide="list-checks" style="width: 16px; height: 16px; color: #2563eb;"></i>
+                        <span>Itens a Receber em Cumprimento de Acordo</span>
+                    </label>
+                    <span style="font-size: 11px; color: var(--text-secondary);">
+                        Controle de recebimento por item: <strong>Aguardando recebimento</strong> ou <strong>Recebido</strong>
+                    </span>
+                </div>
+
+                <!-- Cabeçalho das colunas da lista dinâmica -->
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1.4fr 36px; gap: 8px; padding: 7px 10px; background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 7px; font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.4px;">
+                    <div>Item / Descrição</div>
+                    <div>Qtd. / Detalhe</div>
+                    <div>Status (Controle de Recebimento)</div>
+                    <div></div>
+                </div>
+
+                <!-- Lista dinâmica de itens -->
+                <div id="orgao-itens-acordo-lista" style="display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Linhas inseridas dinamicamente via JS -->
+                </div>
+
+                <!-- Botão de adicionar item posicionado ABAIXO DO ÚLTIMO ITEM DA LISTA -->
+                <div>
+                    <button type="button" id="btn-adicionar-item-acordo" onclick="adicionarLinhaItemAcordoOrgao()"
+                        style="width: 100%; padding: 9px 14px; border-radius: 8px; border: 1.5px dashed #3b82f6; background-color: #eff6ff; color: #1d4ed8; font-size: 12.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.15s;">
+                        <i data-lucide="plus-circle" style="width: 15px; height: 15px;"></i>
+                        <span>+ Adicionar Item</span>
+                    </button>
+                </div>
             </div>
 
             <div style="padding-top: 14px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px;">
@@ -783,8 +870,83 @@
     }
 
     // =========================================================================
-    // MODAL DE ÓRGÃOS CONVENIADOS
+    // MODAL DE ÓRGÃOS CONVENIADOS & ITENS EM CUMPRIMENTO DE ACORDO
     // =========================================================================
+    function atualizarCorSelectStatusAcordo(selectEl) {
+        if (selectEl.value === 'recebido') {
+            selectEl.style.backgroundColor = '#ecfdf5';
+            selectEl.style.color = '#047857';
+            selectEl.style.border = '1px solid #6ee7b7';
+        } else {
+            selectEl.style.backgroundColor = '#fffbeb';
+            selectEl.style.color = '#b45309';
+            selectEl.style.border = '1px solid #fcd34d';
+        }
+    }
+
+    function adicionarLinhaItemAcordoOrgao(dados = {}, focusInput = true) {
+        const container = document.getElementById('orgao-itens-acordo-lista');
+        if (!container) return;
+
+        const idVal = dados.id || '';
+        const descVal = (dados.descricao || '').replace(/"/g, '&quot;');
+        const qtdVal = (dados.quantidade || '').replace(/"/g, '&quot;');
+        const statusVal = dados.status || 'aguardando';
+
+        const row = document.createElement('div');
+        row.className = 'linha-item-acordo-orgao';
+        row.dataset.itemId = idVal;
+        row.style.cssText = 'display: grid; grid-template-columns: 2fr 1fr 1.4fr 36px; gap: 8px; align-items: center; padding: 7px 10px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 7px;';
+
+        row.innerHTML = `
+            <input type="text" class="input-acordo-descricao" value="${descVal}" placeholder="Nome ou descrição do item acordado..."
+                style="width: 100%; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); font-size: 12.5px; color: var(--text-primary); font-weight: 600; box-sizing: border-box;">
+            <input type="text" class="input-acordo-quantidade" value="${qtdVal}" placeholder="Ex: 10 unid, 5 cx"
+                style="width: 100%; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); font-size: 12.5px; color: var(--text-primary); box-sizing: border-box;">
+            <select class="select-acordo-status" onchange="atualizarCorSelectStatusAcordo(this)"
+                style="width: 100%; padding: 7px 8px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; outline: none; ${statusVal === 'recebido' ? 'background-color: #ecfdf5; color: #047857; border: 1px solid #6ee7b7;' : 'background-color: #fffbeb; color: #b45309; border: 1px solid #fcd34d;'}">
+                <option value="aguardando" ${statusVal === 'aguardando' ? 'selected' : ''}>⏳ Aguardando recebimento</option>
+                <option value="recebido" ${statusVal === 'recebido' ? 'selected' : ''}>✅ Recebido</option>
+            </select>
+            <button type="button" onclick="removerLinhaItemAcordoOrgao(this)" title="Remover item"
+                style="padding: 6px; border-radius: 6px; border: 1px solid #fca5a5; background: #fff1f2; color: #b91c1c; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;">
+                <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+            </button>
+        `;
+
+        container.appendChild(row);
+        if (window.lucide) lucide.createIcons();
+
+        if (focusInput && !dados.descricao) {
+            const inputDesc = row.querySelector('.input-acordo-descricao');
+            if (inputDesc) inputDesc.focus();
+        }
+    }
+
+    function removerLinhaItemAcordoOrgao(btnEl) {
+        const row = btnEl.closest('.linha-item-acordo-orgao');
+        if (row) row.remove();
+    }
+
+    function coletarItensAcordoModal() {
+        const rows = document.querySelectorAll('#orgao-itens-acordo-lista .linha-item-acordo-orgao');
+        const itens = [];
+        rows.forEach(row => {
+            const desc = (row.querySelector('.input-acordo-descricao')?.value || '').trim();
+            if (!desc) return;
+            const qtd = (row.querySelector('.input-acordo-quantidade')?.value || '').trim();
+            const status = row.querySelector('.select-acordo-status')?.value || 'aguardando';
+            const itemId = row.dataset.itemId || null;
+            itens.push({
+                id: itemId,
+                descricao: desc,
+                quantidade: qtd,
+                status: status
+            });
+        });
+        return itens;
+    }
+
     function abrirModalOrgao() {
         document.getElementById('modal-orgao-title').innerText = 'Novo Órgão Conveniado';
         document.getElementById('btn-submit-orgao-text').innerText = 'Salvar Órgão';
@@ -794,11 +956,17 @@
         document.getElementById('orgao-descricao').value = '';
         document.getElementById('orgao-ativo').checked = true;
 
+        const container = document.getElementById('orgao-itens-acordo-lista');
+        if (container) {
+            container.innerHTML = '';
+            adicionarLinhaItemAcordoOrgao({}, false);
+        }
+
         document.getElementById('modal-orgao-form').style.display = 'flex';
         if (window.lucide) lucide.createIcons();
     }
 
-    function editarOrgao(id, nome, sigla, descricao, ativo) {
+    function editarOrgao(id, nome, sigla, descricao, ativo, itensAcordo = [], adicionarNovaLinha = false) {
         document.getElementById('modal-orgao-title').innerText = 'Editar Órgão Conveniado';
         document.getElementById('btn-submit-orgao-text').innerText = 'Atualizar Órgão';
         document.getElementById('orgao-id').value = id;
@@ -806,6 +974,19 @@
         document.getElementById('orgao-sigla').value = sigla;
         document.getElementById('orgao-descricao').value = descricao;
         document.getElementById('orgao-ativo').checked = ativo;
+
+        const container = document.getElementById('orgao-itens-acordo-lista');
+        if (container) {
+            container.innerHTML = '';
+            if (Array.isArray(itensAcordo) && itensAcordo.length > 0) {
+                itensAcordo.forEach(item => adicionarLinhaItemAcordoOrgao(item, false));
+                if (adicionarNovaLinha) {
+                    adicionarLinhaItemAcordoOrgao({}, true);
+                }
+            } else {
+                adicionarLinhaItemAcordoOrgao({}, adicionarNovaLinha);
+            }
+        }
 
         document.getElementById('modal-orgao-form').style.display = 'flex';
         if (window.lucide) lucide.createIcons();
@@ -821,6 +1002,7 @@
         const sigla = document.getElementById('orgao-sigla').value.trim();
         const descricao = document.getElementById('orgao-descricao').value.trim();
         const ativo = document.getElementById('orgao-ativo').checked;
+        const itensAcordo = coletarItensAcordoModal();
 
         if (!nome) {
             alert('Por favor, informe o nome do órgão.');
@@ -844,7 +1026,8 @@
                     nome: nome,
                     sigla: sigla,
                     descricao: descricao,
-                    ativo: ativo
+                    ativo: ativo,
+                    itens_acordo: itensAcordo
                 })
             });
             const data = await resp.json();
@@ -860,6 +1043,34 @@
         } finally {
             btn.disabled = false;
             btn.innerHTML = originalHtml;
+        }
+    }
+
+    async function alterarStatusItemAcordoOrgao(itemId, novoStatus, selectEl) {
+        atualizarCorSelectStatusAcordo(selectEl);
+        try {
+            const resp = await fetch(`/administracao/orgaos/acordo-item/${itemId}/status/`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify({ status: novoStatus })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                showAdminToast(data.message, true);
+                if (data.item && data.counts) {
+                    const badge = document.getElementById(`badge-resumo-acordo-${data.item.orgao_id}`);
+                    if (badge) {
+                        badge.innerText = `${data.counts.recebidos}/${data.counts.total} recebido(s)`;
+                    }
+                }
+            } else {
+                alert('Erro: ' + (data.error || 'Falha ao atualizar status do item.'));
+            }
+        } catch (err) {
+            alert('Falha na comunicação ao atualizar status de recebimento.');
         }
     }
 
