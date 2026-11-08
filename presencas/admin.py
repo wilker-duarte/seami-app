@@ -227,7 +227,7 @@ class HistoricoFrequenciaMensalAdmin(ExportActionMixin, admin.ModelAdmin):
 class AtendimentoEnfermariaAdmin(ExportActionMixin, admin.ModelAdmin):
     list_display = ('aluno', 'data_atendimento', 'horario', 'motivo', 'saida_imediata', 'retornara_dia_seguinte', 'data_retorno_prevista', 'cid', 'ativo', 'exibir_registrado_por')
     list_filter = ('saida_imediata', 'retornara_dia_seguinte', 'ativo', 'data_atendimento', 'motivo')
-    search_fields = ('aluno__nome', 'motivo', 'motivo_detalhado', 'cid', 'observacoes_medicas', 'registrado_por_nome')
+    search_fields = ('aluno__nome', 'motivo', 'motivo_detalhado', 'cid', 'observacoes_medicas', 'registrado_por__first_name', 'registrado_por__last_name', 'registrado_por__username')
     date_hierarchy = 'data_atendimento'
 
     def exibir_registrado_por(self, obj):

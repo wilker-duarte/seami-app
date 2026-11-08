@@ -8,8 +8,11 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.db import models
 
-from presencas.models import Aluno, Turma, AtendimentoEnfermaria
+from django.contrib.auth import get_user_model
+from presencas.models import Aluno, Turma, AtendimentoEnfermaria, OcorrenciaCaderno, RegistroPresenca, extrair_nome_usuario
 from presencas.services import registrar_atendimento_enfermaria
+
+User = get_user_model()
 
 
 @login_required
@@ -62,6 +65,28 @@ def enfermaria_dashboard_view(request):
         except ValueError:
             next_month = (today.replace(day=28) + timedelta(days=4))
             date_end = next_month - timedelta(days=next_month.day)
+
+    # Garante que registros existentes na Enfermaria sem FK de usuário (ex: afetados por migração antiga)
+    # sejam vinculados imediatamente à FK de usuário (User)
+    if request.user.is_authenticated and AtendimentoEnfermaria.objects.filter(registrado_por__isnull=True).exists():
+        AtendimentoEnfermaria.objects.filter(registrado_por__isnull=True).update(registrado_por=request.user)
+        nome_usr = extrair_nome_usuario(request.user)
+        OcorrenciaCaderno.objects.filter(
+            registrado_por__isnull=True
+        ).filter(
+            models.Q(motivo__icontains='Enfermagem') |
+            models.Q(motivo__icontains='Enfermaria') |
+            models.Q(motivo__icontains='Afastamento Médico') |
+            models.Q(observacao__icontains='Enfermagem') |
+            models.Q(observacao__icontains='Enfermaria')
+        ).update(registrado_por=request.user, registrado_por_nome=nome_usr)
+        RegistroPresenca.objects.filter(
+            registrado_por__isnull=True
+        ).filter(
+            models.Q(observacao__icontains='Enfermagem') |
+            models.Q(observacao__icontains='Enfermaria') |
+            models.Q(observacao__icontains='Afastamento Médico')
+        ).update(registrado_por=request.user, registrado_por_nome=nome_usr)
 
     # 2. Query Base de Atendimentos Ativos (Soft-Delete Filtrado)
     qs = AtendimentoEnfermaria.objects.ativos().select_related(
@@ -154,9 +179,13 @@ def enfermaria_dashboard_view(request):
             'observacoes_medicas': at.observacoes_medicas or '',
             'documento_url': at.documento_anexo.url if at.documento_anexo else '',
             'documento_name': at.documento_anexo.name.split('/')[-1] if at.documento_anexo else '',
-            'registrado_por': at.registrado_por_display or 'Enfermeira',
+            'registrado_por': (at.registrado_por.get_full_name() or at.registrado_por.username) if at.registrado_por_id and at.registrado_por else 'Não vinculado',
+            'registrado_por_role': at.registrado_por.get_role_display() if at.registrado_por_id and at.registrado_por else '',
+            'registrado_por_id': at.registrado_por_id or '',
             'criado_em': timezone.localtime(at.criado_em).strftime('%d/%m/%Y às %H:%M') if at.criado_em else '',
         }
+
+    usuarios_sistema = User.objects.filter(is_active=True).order_by('first_name', 'username')
 
     # Motivos clínicos mais comuns para sugestão rápida
     motivos_comuns = [
@@ -181,6 +210,7 @@ def enfermaria_dashboard_view(request):
         'cards': cards_metrics,
         'turmas': turmas,
         'alunos': alunos_ativos,
+        'usuarios_sistema': usuarios_sistema,
         'alunos_json': json.dumps(alunos_prontuario_map),
         'atendimentos_json': json.dumps(atendimentos_map),
         'motivos_comuns': motivos_comuns,
@@ -251,6 +281,11 @@ def enfermaria_novo_atendimento_view(request):
             data_retorno_prevista = None
 
     try:
+        reg_id_str = (request.POST.get('registrado_por_id') or '').strip()
+        user_fk = User.objects.filter(id=int(reg_id_str)).first() if reg_id_str.isdigit() else None
+        if not user_fk:
+            user_fk = request.user
+
         atendimento = registrar_atendimento_enfermaria(
             aluno=aluno,
             data_atendimento=data_atendimento,
@@ -263,7 +298,7 @@ def enfermaria_novo_atendimento_view(request):
             observacoes_medicas=observacoes_medicas,
             cid=cid,
             documento_anexo=documento_anexo,
-            registrado_por=request.user
+            registrado_por=user_fk
         )
         
         msg = f"Atendimento de {aluno.nome} registrado com sucesso na Enfermagem!"
@@ -343,10 +378,18 @@ def enfermaria_editar_atendimento_view(request, atendimento_id):
     if documento_anexo:
         atendimento.documento_anexo = documento_anexo
 
+    reg_id_str = (request.POST.get('registrado_por_id') or '').strip()
+    if reg_id_str.isdigit():
+        user_fk = User.objects.filter(id=int(reg_id_str)).first()
+        if user_fk:
+            atendimento.registrado_por = user_fk
+    elif not atendimento.registrado_por_id:
+        atendimento.registrado_por = request.user
+
     try:
         atendimento.save()
         from presencas.services import sincronizar_automacoes_enfermaria
-        sincronizar_automacoes_enfermaria(atendimento, user=request.user)
+        sincronizar_automacoes_enfermaria(atendimento, user=atendimento.registrado_por or request.user)
         messages.success(request, f"Atendimento de {atendimento.aluno.nome} atualizado com sucesso na Enfermagem!")
     except Exception as e:
         messages.error(request, f"Erro ao atualizar atendimento: {e}")

@@ -79,7 +79,7 @@ graph LR
 | **Cadastrar / Editar Alunos** | ✅ Sim | ✅ Sim | ✅ Sim | ❌ Não | 🔒 Visualizar | 🔒 Visualizar |
 | **Desligar Aluno** | ✅ Sim | ✅ Sim | ❌ Não | ❌ Não | ❌ Não | ❌ Não |
 | **Lançar Ocorrência no Caderno** | ✅ Sim | ✅ Sim | ✅ Sim | ✅ Sim | ✅ Suas Salas | ✅ Suas Salas |
-| **Atendimento de Enfermagem** | ✅ Sim | ✅ Sim | ❌ Não | ✅ Sim | ❌ Não | ❌ Não |
+| **Atendimento de Enfermagem** | ✅ Sim | ✅ Sim | ✅ Sim | ✅ Sim | ✅ Sim | ✅ Sim |
 | **Movimentar Estoque Papelaria** | ✅ Sim | ✅ Sim | ✅ Sim | ✅ Sim | ❌ Não | ❌ Não |
 | **Registrar Entrega de Kit aos Alunos** | ✅ Sim | ✅ Sim | ✅ Sim | ❌ Não | ✅ Suas Salas | ❌ Não |
 | **Gerenciar Usuários & Convites** | ✅ Sim | ✅ Sim | ❌ Não | ❌ Não | ❌ Não | ❌ Não |

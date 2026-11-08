@@ -16,52 +16,19 @@ def extrair_nome_usuario(user):
 
 def obter_responsavel_enfermaria(user_fallback=None, nome_fallback=''):
     """
-    Retorna a tupla (user_obj_ou_None, nome_em_texto) da pessoa responsável pela Enfermaria
-    pela role 'ENFERMEIRA'.
-    - Se existir usuário com role='ENFERMEIRA', retorna (user, nome_completo).
-    - Se o usuário não existir mais (ex: SET_NULL após exclusão), retorna (None, nome_em_texto)
-      mantendo apenas o nome como texto sem relação ao usuário.
+    Retorna a tupla (user_obj_ou_None, nome_em_texto) vinculada estritamente à FK
+    do usuário que realizou o registro na Enfermaria.
     """
-    from django.contrib.auth import get_user_model
-    User = get_user_model()
-
-    if user_fallback and getattr(user_fallback, 'pk', None) and getattr(user_fallback, 'role', None) == 'ENFERMEIRA':
+    if user_fallback and getattr(user_fallback, 'pk', None):
         return user_fallback, extrair_nome_usuario(user_fallback)
 
-    enf_user = User.objects.filter(role='ENFERMEIRA').order_by('-is_active', 'id').first()
-    if enf_user:
-        return enf_user, extrair_nome_usuario(enf_user)
-
-    if nome_fallback and str(nome_fallback).strip():
-        return None, str(nome_fallback).strip()
-
-    try:
-        ultimo_at = AtendimentoEnfermaria.objects.exclude(registrado_por_nome='').order_by('-id').first()
-        if ultimo_at and ultimo_at.registrado_por_nome:
-            return None, ultimo_at.registrado_por_nome
-    except Exception:
-        pass
-
-    try:
-        from accounts.models import ConviteUsuario
-        convite_enf = ConviteUsuario.objects.filter(role='ENFERMEIRA').order_by('-id').first()
-        if convite_enf and convite_enf.nome:
-            return None, convite_enf.nome.strip()
-    except Exception:
-        pass
-
-    if user_fallback:
-        return None, extrair_nome_usuario(user_fallback)
-
-    return None, 'Enfermeira'
+    return None, ''
 
 
 def is_ocorrencia_enfermaria(oc):
     """Verifica se uma OcorrenciaCaderno teve origem na Enfermaria."""
     if not oc:
         return False
-    if oc.registrado_por_id and getattr(oc.registrado_por, 'role', None) == 'ENFERMEIRA':
-        return True
     texto = f"{oc.motivo or ''} {oc.observacao or ''}".lower()
     return any(termo in texto for termo in ['enfermagem', 'enfermaria', 'afastamento médico'])
 
@@ -321,6 +288,9 @@ class Aluno(models.Model):
 
         super().save(*args, **kwargs)
 
+        if getattr(self, '_skip_auto_historico', False):
+            return
+
         # Registro automático de observabilidade de realocação de Turma (Sala) e Turno
         try:
             curr_turma_nome = self.turma.nome if self.turma_id else ''
@@ -508,6 +478,19 @@ class Aluno(models.Model):
                     'atual': True,
                     'observacao': 'Turno atual',
                 }],
+                'historico_raw': [{
+                    'id': '',
+                    'turma_id': self.turma_id or '',
+                    'turma_nome': curr_turma_nome,
+                    'turno': (self.turno or 'integral').lower(),
+                    'turno_display': curr_turno_display,
+                    'data_inicio': default_inicio.isoformat() if default_inicio else '',
+                    'data_inicio_br': default_inicio_br,
+                    'data_fim': self.data_desligamento.isoformat() if self.data_desligamento else '',
+                    'data_fim_br': default_fim_br,
+                    'observacao': 'Alocação inicial',
+                    'atual': True,
+                }],
             }
 
         # Ordena cronologicamente (do mais antigo para o mais recente)
@@ -515,6 +498,26 @@ class Aluno(models.Model):
             registros,
             key=lambda r: (r.data_inicio.isoformat() if r.data_inicio else '0000-00-00', r.id or 0)
         )
+
+        historico_raw = []
+        for idx, reg in enumerate(registros_sorted):
+            t_nome = reg.turma.nome if reg.turma_id and reg.turma else (reg.turma_nome or curr_turma_nome)
+            ini_br = reg.data_inicio.strftime('%d/%m/%Y') if reg.data_inicio else default_inicio_br
+            fim_br = reg.data_fim.strftime('%d/%m/%Y') if reg.data_fim else default_fim_br
+            is_last = (idx == len(registros_sorted) - 1)
+            historico_raw.append({
+                'id': reg.id,
+                'turma_id': reg.turma_id or self.turma_id or '',
+                'turma_nome': t_nome,
+                'turno': (reg.turno or self.turno or 'integral').lower(),
+                'turno_display': reg.get_turno_display() if reg.turno else curr_turno_display,
+                'data_inicio': reg.data_inicio.isoformat() if reg.data_inicio else (default_inicio.isoformat() if default_inicio else ''),
+                'data_inicio_br': ini_br,
+                'data_fim': reg.data_fim.isoformat() if reg.data_fim else '',
+                'data_fim_br': fim_br,
+                'observacao': reg.observacao or '',
+                'atual': is_last or (reg.data_fim is None),
+            })
 
         # 1. Consolida períodos consecutivos na mesma Turma (Sala)
         periodos_turma = []
@@ -582,6 +585,7 @@ class Aluno(models.Model):
         return {
             'periodos_turma': periodos_turma,
             'periodos_turno': periodos_turno,
+            'historico_raw': historico_raw,
         }
 
 
@@ -1125,12 +1129,7 @@ class OcorrenciaCaderno(models.Model):
         return self.registrado_por_nome or ''
 
     def save(self, *args, **kwargs):
-        if is_ocorrencia_enfermaria(self):
-            self.registrado_por, self.registrado_por_nome = obter_responsavel_enfermaria(
-                self.registrado_por,
-                self.registrado_por_nome
-            )
-        elif self.registrado_por_id and self.registrado_por:
+        if self.registrado_por_id and self.registrado_por:
             self.registrado_por_nome = extrair_nome_usuario(self.registrado_por)
         super().save(*args, **kwargs)
 
@@ -1452,12 +1451,6 @@ class AtendimentoEnfermaria(models.Model):
         related_name='atendimentos_registrados',
         verbose_name='Registrado por'
     )
-    registrado_por_nome = models.CharField(
-        max_length=150,
-        blank=True,
-        default='',
-        verbose_name='Registrado por (Nome)'
-    )
 
     # Soft Delete exclusivo da Enfermaria
     ativo = models.BooleanField(default=True, verbose_name='Registro Ativo')
@@ -1491,24 +1484,8 @@ class AtendimentoEnfermaria(models.Model):
     @property
     def registrado_por_display(self):
         if self.registrado_por_id and self.registrado_por:
-            return extrair_nome_usuario(self.registrado_por) or self.registrado_por_nome
-        return self.registrado_por_nome or ''
-
-    def save(self, *args, **kwargs):
-        update_fields = kwargs.get('update_fields')
-        if update_fields is None or 'registrado_por' in update_fields or 'registrado_por_nome' in update_fields:
-            self.registrado_por, self.registrado_por_nome = obter_responsavel_enfermaria(
-                self.registrado_por,
-                self.registrado_por_nome
-            )
-            if update_fields is not None:
-                uf = list(update_fields)
-                if 'registrado_por' not in uf:
-                    uf.append('registrado_por')
-                if 'registrado_por_nome' not in uf:
-                    uf.append('registrado_por_nome')
-                kwargs['update_fields'] = uf
-        super().save(*args, **kwargs)
+            return extrair_nome_usuario(self.registrado_por)
+        return ''
 
     def soft_delete(self, user=None):
         self.ativo = False
@@ -1580,12 +1557,7 @@ def recalcular_presenca_para_data(aluno, target_date):
         reg.status = StatusPresenca.JUSTIFICADO
         st_turno = StatusTurnoPresenca.JUSTIFICADO
         obs_extra = oc_just.motivo or oc_just.observacao or ''
-        if is_ocorrencia_enfermaria(oc_just):
-            reg.registrado_por, reg.registrado_por_nome = obter_responsavel_enfermaria(
-                oc_just.registrado_por,
-                oc_just.registrado_por_nome
-            )
-        elif not reg.registrado_por_id and not reg.registrado_por_nome:
+        if not reg.registrado_por_id and not reg.registrado_por_nome:
             reg.registrado_por = oc_just.registrado_por
             reg.registrado_por_nome = oc_just.registrado_por_display
     elif tem_falta_comum:
@@ -1593,12 +1565,7 @@ def recalcular_presenca_para_data(aluno, target_date):
         reg.status = StatusPresenca.AUSENTE
         st_turno = StatusTurnoPresenca.AUSENTE
         obs_extra = oc_falta.motivo or oc_falta.observacao or ''
-        if is_ocorrencia_enfermaria(oc_falta):
-            reg.registrado_por, reg.registrado_por_nome = obter_responsavel_enfermaria(
-                oc_falta.registrado_por,
-                oc_falta.registrado_por_nome
-            )
-        elif not reg.registrado_por_id and not reg.registrado_por_nome:
+        if not reg.registrado_por_id and not reg.registrado_por_nome:
             reg.registrado_por = oc_falta.registrado_por
             reg.registrado_por_nome = oc_falta.registrado_por_display
     else:
@@ -1747,7 +1714,6 @@ def preservar_nome_ao_excluir_usuario(sender, instance, **kwargs):
         RegistroAmamentacao,
         RegistroExtracao,
         DiaNaoLetivo,
-        AtendimentoEnfermaria,
     ):
         model_cls.objects.filter(registrado_por=instance).update(registrado_por_nome=nome_texto)
 

@@ -239,10 +239,17 @@
                 <button type="submit" class="secondary-btn" style="padding: 9px 16px; font-size: 13px; font-weight: 700;">Filtrar</button>
             </form>
 
-            <button type="button" onclick="abrirModalOrgao()" class="primary-btn" style="padding: 9px 20px; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; background-color: #2563eb; color: #ffffff; border: none; border-radius: var(--radius-sm); cursor: pointer; box-shadow: 0 4px 12px rgba(37,99,235,0.25);">
-                <i data-lucide="plus" style="width: 16px; height: 16px;"></i>
-                <span>Novo Órgão Conveniado</span>
-            </button>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <button type="button" onclick="exportarRelatorioConveniosPDF()" class="secondary-btn" style="padding: 9px 16px; border-radius: var(--radius-sm); border: 1.5px solid #bfdbfe; background-color: #eff6ff; color: #1d4ed8; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 7px; cursor: pointer; transition: all 0.2s;">
+                    <i data-lucide="file-text" style="width: 16px; height: 16px;"></i>
+                    <span>Exportar Relatório PDF</span>
+                </button>
+
+                <button type="button" onclick="abrirModalOrgao()" class="primary-btn" style="padding: 9px 20px; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; background-color: #2563eb; color: #ffffff; border: none; border-radius: var(--radius-sm); cursor: pointer; box-shadow: 0 4px 12px rgba(37,99,235,0.25);">
+                    <i data-lucide="plus" style="width: 16px; height: 16px;"></i>
+                    <span>Novo Órgão Conveniado</span>
+                </button>
+            </div>
         </div>
 
         <!-- Tabela de Órgãos Conveniados -->
@@ -856,6 +863,10 @@
     }
 </style>
 
+<!-- BIBLIOTECAS PARA EXPORTAÇÃO PDF PERSONALIZADA -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
 <script>
     function showAdminToast(msg, isSuccess = true) {
         const toast = document.getElementById('admin-toast');
@@ -1046,6 +1057,8 @@
         }
     }
 
+    const ORGAOS_REPORT_DATA = JSON.parse('{{ orgaos_report_json|default:"[]"|escapejs }}' || '[]');
+
     async function alterarStatusItemAcordoOrgao(itemId, novoStatus, selectEl) {
         atualizarCorSelectStatusAcordo(selectEl);
         try {
@@ -1065,12 +1078,298 @@
                     if (badge) {
                         badge.innerText = `${data.counts.recebidos}/${data.counts.total} recebido(s)`;
                     }
+                    // Sincroniza dados locais para exportação PDF em tempo real
+                    const orgRef = ORGAOS_REPORT_DATA.find(o => Number(o.id) === Number(data.item.orgao_id));
+                    if (orgRef && Array.isArray(orgRef.itens_acordo)) {
+                        const itRef = orgRef.itens_acordo.find(i => Number(i.id) === Number(itemId));
+                        if (itRef) {
+                            itRef.status = data.item.status;
+                            itRef.status_display = data.item.status_display;
+                            itRef.data_recebimento = data.item.data_recebimento || '';
+                        }
+                        orgRef.total_acordo_recebidos = data.counts.recebidos;
+                        orgRef.total_acordo_aguardando = data.counts.aguardando;
+                        orgRef.total_itens_acordo = data.counts.total;
+                    }
                 }
             } else {
                 alert('Erro: ' + (data.error || 'Falha ao atualizar status do item.'));
             }
         } catch (err) {
             alert('Falha na comunicação ao atualizar status de recebimento.');
+        }
+    }
+
+    function exportarRelatorioConveniosPDF() {
+        try {
+            if (!Array.isArray(ORGAOS_REPORT_DATA) || ORGAOS_REPORT_DATA.length === 0) {
+                alert('Não há órgãos conveniados listados para exportar no momento.');
+                return;
+            }
+            if (typeof window.jspdf === 'undefined') {
+                alert('Biblioteca jsPDF ainda está carregando. Tente novamente em instantes.');
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const dataEmissao = new Date().toLocaleDateString('pt-BR') + ' às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+            // Consolidados Gerais
+            const totalOrgaos = ORGAOS_REPORT_DATA.length;
+            const totalAtivos = ORGAOS_REPORT_DATA.filter(o => o.ativo).length;
+            const totalAlunosConv = ORGAOS_REPORT_DATA.reduce((acc, o) => acc + (Number(o.count_alunos) || 0), 0);
+            const totalItensGeral = ORGAOS_REPORT_DATA.reduce((acc, o) => acc + (Number(o.total_itens_acordo) || 0), 0);
+            const totalRecebidosGeral = ORGAOS_REPORT_DATA.reduce((acc, o) => acc + (Number(o.total_acordo_recebidos) || 0), 0);
+            const totalAguardandoGeral = Math.max(0, totalItensGeral - totalRecebidosGeral);
+            const pctCumprimentoGeral = totalItensGeral > 0 ? Math.round((totalRecebidosGeral / totalItensGeral) * 100) : 0;
+
+            // 1. BANNER INSTITUCIONAL PERSONALIZADO
+            doc.setFillColor(30, 58, 138); // Azul Institucional Escuro (#1e3a8a)
+            doc.roundedRect(14, 12, pageWidth - 28, 25, 3, 3, 'F');
+
+            // Faixa decorativa superior
+            doc.setFillColor(59, 130, 246); // Azul Real (#3b82f6)
+            doc.roundedRect(14, 12, 5, 25, 2, 2, 'F');
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(13);
+            doc.setTextColor(255, 255, 255);
+            doc.text('EDUCAGESTAO  |  SEAMI - CENTRAL ADMINISTRATIVA', 23, 21);
+
+            doc.setFontSize(10);
+            doc.setTextColor(191, 219, 254);
+            doc.text('Relatorio Oficial de Orgaos Conveniados & Controle de Itens de Acordo', 23, 27.5);
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8);
+            doc.setTextColor(224, 242, 254);
+            doc.text(`Emitido em: ${dataEmissao}  •  Emitido por: {{ request.user.get_full_name|default:request.user.username|escapejs }}`, 23, 33.5);
+
+            // 2. CARDS DE INDICADORES EXECUTIVOS (4 KPIS)
+            const cardY = 42;
+            const cardW = (pageWidth - 28 - 9) / 4;
+            const cardH = 18;
+
+            const kpis = [
+                { title: 'ORGAOS CONVENIADOS', value: `${totalOrgaos}`, sub: `${totalAtivos} ativo(s)`, bg: [239, 246, 255], border: [191, 219, 254], color: [30, 64, 175] },
+                { title: 'ALUNOS VINCULADOS', value: `${totalAlunosConv}`, sub: 'Contratos ativos', bg: [245, 243, 255], border: [221, 214, 254], color: [109, 40, 217] },
+                { title: 'ITENS DE ACORDO', value: `${totalItensGeral}`, sub: `${pctCumprimentoGeral}% cumprido`, bg: [248, 250, 252], border: [203, 213, 225], color: [51, 65, 85] },
+                { title: 'SITUACAO DOS ITENS', value: `${totalRecebidosGeral} Rec.`, sub: `${totalAguardandoGeral} Aguardando`, bg: [236, 253, 245], border: [167, 243, 208], color: [4, 120, 87] }
+            ];
+
+            kpis.forEach((k, idx) => {
+                const x = 14 + idx * (cardW + 3);
+                doc.setFillColor(...k.bg);
+                doc.setDrawColor(...k.border);
+                doc.setLineWidth(0.35);
+                doc.roundedRect(x, cardY, cardW, cardH, 2, 2, 'FD');
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(6.8);
+                doc.setTextColor(100, 116, 139);
+                doc.text(k.title, x + 3, cardY + 5);
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(11);
+                doc.setTextColor(...k.color);
+                doc.text(k.value, x + 3, cardY + 11.5);
+
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(7);
+                doc.setTextColor(71, 85, 105);
+                doc.text(k.sub, x + 3, cardY + 15.8);
+            });
+
+            // 3. TABELA RESUMO GERAL DE ÓRGÃOS CONVENIADOS
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(9.5);
+            doc.setTextColor(30, 41, 59);
+            doc.text('1. Quadro Geral de Orgaos Conveniados', 14, 67);
+
+            const resumoBody = ORGAOS_REPORT_DATA.map((org, idx) => {
+                const tot = Number(org.total_itens_acordo) || 0;
+                const rec = Number(org.total_acordo_recebidos) || 0;
+                const ag = Math.max(0, tot - rec);
+                const resumoItens = tot > 0
+                    ? `${tot} item(ns)  •  ${rec} Recebido(s) / ${ag} Aguardando`
+                    : 'Sem itens vinculados';
+                return [
+                    String(idx + 1),
+                    org.nome || '-',
+                    org.sigla || '-',
+                    org.ativo ? 'Ativo' : 'Inativo',
+                    `${org.count_alunos || 0} (${org.pct_alunos || 0}%)`,
+                    String(org.count_pais || 0),
+                    resumoItens
+                ];
+            });
+
+            doc.autoTable({
+                startY: 70,
+                head: [['#', 'Orgao Conveniado', 'Sigla', 'Status', 'Alunos', 'Pais', 'Resumo de Itens do Acordo']],
+                body: resumoBody,
+                theme: 'grid',
+                headStyles: {
+                    fillColor: [30, 58, 138],
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold',
+                    fontSize: 7.8,
+                    halign: 'left'
+                },
+                bodyStyles: {
+                    fontSize: 7.5,
+                    textColor: [30, 41, 59],
+                    cellPadding: 2.3
+                },
+                alternateRowStyles: {
+                    fillColor: [248, 250, 252]
+                },
+                columnStyles: {
+                    0: { cellWidth: 8, halign: 'center' },
+                    1: { cellWidth: 58, fontStyle: 'bold' },
+                    2: { cellWidth: 20, halign: 'center', fontStyle: 'bold' },
+                    3: { cellWidth: 16, halign: 'center' },
+                    4: { cellWidth: 20, halign: 'center' },
+                    5: { cellWidth: 14, halign: 'center' },
+                    6: { cellWidth: 46 }
+                },
+                didParseCell: function(data) {
+                    if (data.section === 'body' && data.column.index === 3) {
+                        const val = String(data.cell.raw || '');
+                        if (val === 'Ativo') {
+                            data.cell.styles.textColor = [4, 120, 87];
+                            data.cell.styles.fontStyle = 'bold';
+                        } else {
+                            data.cell.styles.textColor = [185, 28, 28];
+                            data.cell.styles.fontStyle = 'bold';
+                        }
+                    }
+                },
+                margin: { left: 14, right: 14 }
+            });
+
+            // 4. DETALHAMENTO DE ITENS EM CUMPRIMENTO DE ACORDO POR ÓRGÃO
+            let currentY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 95) + 8;
+
+            if (currentY + 25 > pageHeight - 18) {
+                doc.addPage();
+                currentY = 18;
+            }
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(9.5);
+            doc.setTextColor(30, 41, 59);
+            doc.text('2. Detalhamento de Itens em Cumprimento de Acordo por Orgao', 14, currentY);
+            currentY += 4;
+
+            ORGAOS_REPORT_DATA.forEach((org, orgIdx) => {
+                const itens = Array.isArray(org.itens_acordo) ? org.itens_acordo : [];
+                const tot = itens.length;
+                const rec = itens.filter(i => i.status === 'recebido').length;
+                const ag = Math.max(0, tot - rec);
+
+                if (currentY + 28 > pageHeight - 16) {
+                    doc.addPage();
+                    currentY = 16;
+                }
+
+                // Cabeçalho estilizado do Órgão
+                doc.setFillColor(239, 246, 255);
+                doc.setDrawColor(191, 219, 254);
+                doc.setLineWidth(0.35);
+                doc.roundedRect(14, currentY, pageWidth - 28, 9.5, 1.5, 1.5, 'FD');
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(8.5);
+                doc.setTextColor(30, 64, 175);
+                const tituloOrgao = `${orgIdx + 1}. [${org.sigla || org.nome}] ${org.nome}`;
+                doc.text(tituloOrgao, 17, currentY + 6.2);
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(7.5);
+                doc.setTextColor(71, 85, 105);
+                const badgeDireita = `Alunos: ${org.count_alunos || 0}  |  Itens: ${rec}/${tot} Recebido(s) (${ag} Aguardando)`;
+                doc.text(badgeDireita, pageWidth - 17, currentY + 6.2, { align: 'right' });
+
+                currentY += 10.5;
+
+                const itensBody = itens.length > 0
+                    ? itens.map((it, idx) => [
+                        String(idx + 1),
+                        it.descricao || '-',
+                        it.quantidade || '-',
+                        it.status === 'recebido' ? 'RECEBIDO' : 'AGUARDANDO RECEBIMENTO',
+                        it.status === 'recebido' ? (it.data_recebimento || 'Recebido') : 'Pendente'
+                    ])
+                    : [['-', 'Nenhum item em cumprimento de acordo cadastrado para este orgao.', '-', '-', '-']];
+
+                doc.autoTable({
+                    startY: currentY,
+                    head: [['Item', 'Descricao do Item em Cumprimento de Acordo', 'Quantidade / Espec.', 'Situacao do Item', 'Data Recebimento']],
+                    body: itensBody,
+                    theme: 'grid',
+                    headStyles: {
+                        fillColor: [71, 85, 105],
+                        textColor: [255, 255, 255],
+                        fontStyle: 'bold',
+                        fontSize: 7.4,
+                        halign: 'left'
+                    },
+                    bodyStyles: {
+                        fontSize: 7.5,
+                        textColor: [30, 41, 59],
+                        cellPadding: 2.2
+                    },
+                    columnStyles: {
+                        0: { cellWidth: 12, halign: 'center' },
+                        1: { cellWidth: 84, fontStyle: itens.length > 0 ? 'bold' : 'italic' },
+                        2: { cellWidth: 32, halign: 'center' },
+                        3: { cellWidth: 34, halign: 'center' },
+                        4: { cellWidth: 20, halign: 'center' }
+                    },
+                    didParseCell: function(data) {
+                        if (data.section === 'body' && data.column.index === 3 && itens.length > 0) {
+                            const txt = String(data.cell.raw || '').toUpperCase();
+                            if (txt === 'RECEBIDO') {
+                                data.cell.styles.fillColor = [220, 252, 231]; // Verde suave (#dcfce7)
+                                data.cell.styles.textColor = [22, 101, 52];   // Verde escuro (#166534)
+                                data.cell.styles.fontStyle = 'bold';
+                            } else if (txt.includes('AGUARDANDO')) {
+                                data.cell.styles.fillColor = [254, 243, 199]; // Âmbar suave (#fef3c7)
+                                data.cell.styles.textColor = [180, 83, 9];    // Âmbar escuro (#b45309)
+                                data.cell.styles.fontStyle = 'bold';
+                            }
+                        }
+                    },
+                    margin: { left: 14, right: 14 }
+                });
+
+                currentY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : currentY + 12) + 6;
+            });
+
+            // 5. RODAPÉ INSTITUCIONAL EM TODAS AS PÁGINAS
+            const totalPages = doc.internal.getNumberOfPages();
+            for (let p = 1; p <= totalPages; p++) {
+                doc.setPage(p);
+                doc.setDrawColor(226, 232, 240);
+                doc.setLineWidth(0.3);
+                doc.line(14, pageHeight - 12, pageWidth - 14, pageHeight - 12);
+
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(7.5);
+                doc.setTextColor(100, 116, 139);
+                doc.text(`SEAMI - Central Administrativa • Relatorio de Convenios e Acordos`, 14, pageHeight - 7.5);
+                doc.text(`Pagina ${p} de ${totalPages}  •  Gerado em ${dataEmissao}`, pageWidth - 14, pageHeight - 7.5, { align: 'right' });
+            }
+
+            const todayIso = new Date().toISOString().split('T')[0];
+            doc.save(`Relatorio_Orgaos_Conveniados_Acordos_${todayIso}.pdf`);
+        } catch (err) {
+            console.error('Erro ao gerar PDF de convênios:', err);
+            alert('Erro ao gerar o relatório PDF: ' + (err.message || err));
         }
     }
 

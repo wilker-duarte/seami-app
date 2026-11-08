@@ -45,37 +45,6 @@ def backfill_registrado_por_nome(apps, schema_editor):
             if nome and obj.registrado_por_nome != nome:
                 model_cls.objects.filter(pk=obj.pk).update(registrado_por_nome=nome)
 
-    # 2. Ajusta AtendimentoEnfermaria para responsável pela role ENFERMEIRA (ou texto se não existir usuário)
-    AtendimentoEnfermaria.objects.all().update(
-        registrado_por=enf_user,
-        registrado_por_nome=enf_nome,
-    )
-
-    # 3. Ajusta OcorrenciaCaderno geradas pela Enfermaria
-    ocorrs_enf = OcorrenciaCaderno.objects.filter(
-        Q(registrado_por__role='ENFERMEIRA') |
-        Q(motivo__icontains='Enfermagem') |
-        Q(motivo__icontains='Enfermaria') |
-        Q(motivo__icontains='Afastamento Médico') |
-        Q(observacao__icontains='Enfermagem') |
-        Q(observacao__icontains='Enfermaria')
-    )
-    ocorrs_enf.update(
-        registrado_por=enf_user,
-        registrado_por_nome=enf_nome,
-    )
-
-    # 4. Ajusta RegistroPresenca oriundos de afastamentos/ocorrências da Enfermaria
-    RegistroPresenca.objects.filter(
-        Q(registrado_por__role='ENFERMEIRA') |
-        Q(observacao__icontains='Enfermagem') |
-        Q(observacao__icontains='Enfermaria') |
-        Q(observacao__icontains='Afastamento Médico')
-    ).update(
-        registrado_por=enf_user,
-        registrado_por_nome=enf_nome,
-    )
-
 
 class Migration(migrations.Migration):
 

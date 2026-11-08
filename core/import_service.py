@@ -699,8 +699,7 @@ def import_enfermaria(rows, user=None):
                     saida_imediata=saida_imed,
                     retornara_dia_seguinte=retornara,
                     data_retorno_prevista=data_retorno,
-                    registrado_por=reg_user,
-                    registrado_por_nome=reg_nome,
+                    registrado_por=reg_user or user,
                     ativo=True
                 )
                 created += 1
@@ -713,8 +712,7 @@ def import_enfermaria(rows, user=None):
                 existing.retornara_dia_seguinte = retornara
                 existing.data_retorno_prevista = data_retorno
                 if h_obj: existing.horario = h_obj
-                existing.registrado_por = reg_user
-                existing.registrado_por_nome = reg_nome
+                existing.registrado_por = reg_user or user
                 existing.ativo = True
                 existing.save()
                 updated += 1

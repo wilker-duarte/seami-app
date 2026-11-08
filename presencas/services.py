@@ -463,7 +463,7 @@ def sincronizar_automacoes_enfermaria(atendimento, user=None):
     from .models import (
         AtendimentoEnfermaria, OcorrenciaCaderno, TipoOcorrencia,
         RegistroPresenca, StatusPresenca, StatusTurnoPresenca,
-        obter_responsavel_enfermaria
+        extrair_nome_usuario
     )
 
     aluno = atendimento.aluno
@@ -476,10 +476,9 @@ def sincronizar_automacoes_enfermaria(atendimento, user=None):
     saida_imediata = atendimento.saida_imediata
     retornara_dia_seguinte = atendimento.retornara_dia_seguinte
     data_retorno_prevista = atendimento.data_retorno_prevista
-    registrado_por, registrado_por_nome = obter_responsavel_enfermaria(
-        user or atendimento.registrado_por,
-        getattr(atendimento, 'registrado_por_nome', '')
-    )
+    reg_user = user or atendimento.registrado_por
+    registrado_por = reg_user if (reg_user and getattr(reg_user, 'pk', None)) else None
+    registrado_por_nome = extrair_nome_usuario(registrado_por)
 
     # 1. Automação de Saída Antecipada do dia (NÃO gera falta para a data de saída)
     if saida_imediata:
@@ -618,13 +617,13 @@ def registrar_atendimento_enfermaria(
     3. Se não retorna amanhã e tem data de retorno -> Cria OcorrenciaCaderno (tipo='falta', justificado=True)
        e RegistroPresenca (status=JUSTIFICADO) para cada dia útil até a véspera da data de retorno.
     """
-    from .models import AtendimentoEnfermaria, obter_responsavel_enfermaria
+    from .models import AtendimentoEnfermaria, extrair_nome_usuario
 
     from datetime import datetime
     if not horario:
         horario = datetime.now().time()
 
-    enf_user, enf_nome = obter_responsavel_enfermaria(registrado_por)
+    user_obj = registrado_por if (registrado_por and getattr(registrado_por, 'pk', None)) else None
 
     atendimento = AtendimentoEnfermaria.objects.create(
         aluno=aluno,
@@ -638,10 +637,9 @@ def registrar_atendimento_enfermaria(
         observacoes_medicas=observacoes_medicas,
         cid=cid,
         documento_anexo=documento_anexo,
-        registrado_por=enf_user,
-        registrado_por_nome=enf_nome,
+        registrado_por=user_obj,
         ativo=True
     )
 
-    sincronizar_automacoes_enfermaria(atendimento, user=enf_user)
+    sincronizar_automacoes_enfermaria(atendimento, user=user_obj)
     return atendimento

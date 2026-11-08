@@ -377,6 +377,18 @@
                 </div>
             </div>
 
+            <!-- Botão de acesso rápido para edição manual do histórico completo (visível ao editar aluno) -->
+            <div id="box-btn-editar-historico-manual" style="display: none; justify-content: space-between; align-items: center; background: var(--bg-body); border: 1px dashed var(--border-color); border-radius: 9px; padding: 9px 12px;">
+                <span style="font-size: 12px; color: var(--text-secondary); font-weight: 600;">
+                    🔄 Deseja corrigir ou lançar períodos retroativos de Turma e Turno?
+                </span>
+                <button type="button" onclick="openHistoricoAlocacaoModal(document.getElementById('form-aluno-id').value)"
+                        style="padding: 6px 12px; border-radius: 7px; border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
+                    <i data-lucide="history" style="width: 13px; height: 13px;"></i>
+                    <span>Editar Histórico de Movimentação</span>
+                </button>
+            </div>
+
             <!-- Bloco dinâmico exibido ao realocar Sala ou Turno de um aluno existente -->
             <div id="box-realocacao-aluno" style="display: none; background: #eff6ff; border: 1.5px solid #93c5fd; border-radius: 10px; padding: 12px 14px; flex-direction: column; gap: 10px;">
                 <div style="font-size: 12.5px; font-weight: 800; color: #1e40af; display: flex; align-items: center; gap: 6px;">
@@ -783,6 +795,80 @@
     </div>
 </div>
 
+<!-- ========================================================================= -->
+<!-- MODAL DE EDIÇÃO MANUAL DO HISTÓRICO DE MOVIMENTAÇÃO (TURMA E TURNO)       -->
+<!-- ========================================================================= -->
+<div id="modal-historico-alocacao" class="modal-overlay" style="display: none;">
+    <div class="modal-card" style="max-width: 760px; width: 95%;" onclick="event.stopPropagation()">
+        <div class="modal-header" style="border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 18px 24px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 38px; height: 38px; border-radius: 10px; background-color: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center;">
+                    <i data-lucide="history" style="width: 20px; height: 20px;"></i>
+                </div>
+                <div>
+                    <h3 id="hist-alocacao-title" style="margin: 0; font-size: 17px; font-weight: 800; color: var(--text-primary);">
+                        Editar Histórico de Movimentação (Turma e Turno)
+                    </h3>
+                    <div id="hist-alocacao-subtitle" style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                        Adicione, edite ou remova manualmente os períodos em cada Sala e em cada Turno
+                    </div>
+                </div>
+            </div>
+            <button type="button" onclick="closeHistoricoAlocacaoModal()" style="border: none; background: none; cursor: pointer; color: var(--text-light); font-size: 18px;">✕</button>
+        </div>
+
+        <form method="post" id="form-historico-alocacao" onsubmit="return prepararSubmitHistoricoAlocacao();" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 14px;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_historico_alocacao">
+            <input type="hidden" name="aluno_id" id="hist-alocacao-aluno-id" value="">
+            <input type="hidden" name="historico_alocacao_json" id="hist-alocacao-json-input" value="[]">
+
+            <div style="background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 14px; font-size: 12px; color: var(--text-secondary); line-height: 1.45;">
+                💡 <strong>Como funciona:</strong> Cada linha representa um período em que a criança esteve em determinada <strong>Sala / Turma</strong> e <strong>Turno</strong>. Deixe a <strong>Data Final</strong> em branco para indicar a alocação <strong>Atual</strong>.
+            </div>
+
+            <!-- Cabeçalho das colunas -->
+            <div style="display: grid; grid-template-columns: 1.3fr 1fr 130px 130px 1.4fr 36px; gap: 8px; padding: 0 6px; font-size: 11px; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.4px;">
+                <span>Sala / Turma</span>
+                <span>Turno</span>
+                <span>Data Início</span>
+                <span>Data Fim (Vazio=Atual)</span>
+                <span>Observação / Motivo</span>
+                <span></span>
+            </div>
+
+            <!-- Lista dinâmica de períodos -->
+            <div id="hist-alocacao-rows-container" style="display: flex; flex-direction: column; gap: 8px; max-height: 45vh; overflow-y: auto; padding-right: 2px;">
+                <!-- Preenchido via JS -->
+            </div>
+
+            <!-- Botão para adicionar novo período abaixo do último item -->
+            <div>
+                <button type="button" onclick="adicionarLinhaHistoricoAlocacao({}, true)"
+                        style="padding: 8px 14px; border-radius: 8px; border: 1.5px dashed #3b82f6; background: #eff6ff; color: #1d4ed8; font-size: 12.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                    <i data-lucide="plus-circle" style="width: 15px; height: 15px;"></i>
+                    <span>Adicionar Período de Movimentação</span>
+                </button>
+            </div>
+
+            <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12.5px; font-weight: 700; color: var(--text-primary); padding-top: 4px; border-top: 1px dashed var(--border-color);">
+                <input type="checkbox" name="sync_aluno_atual" value="1" checked style="width: 16px; height: 16px; cursor: pointer;">
+                <span>Sincronizar automaticamente a "Sala atual" e o "Turno atual" da criança com o período mais recente</span>
+            </label>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px;">
+                <button type="button" onclick="closeHistoricoAlocacaoModal()" class="secondary-btn" style="padding: 9px 18px; border-radius: 8px; font-size: 13px;">
+                    Cancelar
+                </button>
+                <button type="submit" class="primary-btn" style="padding: 9px 20px; border-radius: 8px; background-color: #2563eb; color: white; border: none; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                    <i data-lucide="check" style="width: 15px; height: 15px;"></i>
+                    <span>Salvar Histórico de Movimentação</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
     const STUDENTS_MAP = JSON.parse('{{ alunos_json|escapejs }}' || '{}');
 
@@ -868,6 +954,8 @@
         document.getElementById('field-data-desligamento').value = '';
         const boxRealoc = document.getElementById('box-realocacao-aluno');
         if (boxRealoc) boxRealoc.style.display = 'none';
+        const boxBtnHist = document.getElementById('box-btn-editar-historico-manual');
+        if (boxBtnHist) boxBtnHist.style.display = 'none';
         const dtRealoc = document.getElementById('field-data-realocacao');
         if (dtRealoc) dtRealoc.value = '{{ today }}';
         const obsRealoc = document.getElementById('field-obs-realocacao');
@@ -931,6 +1019,8 @@
         document.getElementById('field-turno').value = (st.turno_raw || 'integral').toLowerCase();
         const boxRealoc = document.getElementById('box-realocacao-aluno');
         if (boxRealoc) boxRealoc.style.display = 'none';
+        const boxBtnHist = document.getElementById('box-btn-editar-historico-manual');
+        if (boxBtnHist) boxBtnHist.style.display = 'flex';
         const dtRealoc = document.getElementById('field-data-realocacao');
         if (dtRealoc) dtRealoc.value = '{{ today }}';
         const obsRealoc = document.getElementById('field-obs-realocacao');
@@ -1248,7 +1338,10 @@
                         <span>🔄</span>
                         <span>Histórico e Períodos de Alocação (Turma e Turno)</span>
                     </div>
-                    <span style="font-size: 11px; font-weight: 600; color: var(--text-light);">Observabilidade de Realocação</span>
+                    <button type="button" onclick="openHistoricoAlocacaoModal('${st.id}')" style="padding: 5px 10px; border-radius: 7px; border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8; font-size: 11.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
+                        <i data-lucide="edit-3" style="width: 12px; height: 12px;"></i>
+                        <span>Editar Histórico de Movimentação</span>
+                    </button>
                 </div>
 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
@@ -1364,6 +1457,142 @@
     function closeStudentModal() {
         document.getElementById('modal-student-form').style.display = 'none';
         document.body.style.overflow = 'auto';
+    }
+
+    const TURMAS_OPTIONS_HTML = `
+        {% for t in turmas %}
+            <option value="{{ t.id }}">Sala {{ t.nome }}</option>
+        {% endfor %}
+    `;
+
+    function openHistoricoAlocacaoModal(alunoId) {
+        const st = STUDENTS_MAP[String(alunoId)];
+        if (!st) {
+            alert('Não foi possível localizar os dados da criança para editar o histórico.');
+            return;
+        }
+
+        closeViewStudentModal();
+        closeStudentModal();
+
+        document.getElementById('hist-alocacao-aluno-id').value = st.id;
+        document.getElementById('hist-alocacao-title').innerText = `Histórico de Movimentação — ${st.nome}`;
+        document.getElementById('hist-alocacao-subtitle').innerText = `Sala atual: Sala ${st.turma_nome} • Turno atual: ${st.turno}`;
+
+        const container = document.getElementById('hist-alocacao-rows-container');
+        container.innerHTML = '';
+
+        const histRaw = Array.isArray(st.historico_alocacoes) && st.historico_alocacoes.length > 0
+            ? st.historico_alocacoes
+            : [{
+                id: '',
+                turma_id: st.turma_id || '',
+                turno: (st.turno_raw || 'integral').toLowerCase(),
+                data_inicio: st.data_entrada || '{{ today }}',
+                data_fim: st.data_desligamento || '',
+                observacao: 'Alocação inicial'
+            }];
+
+        histRaw.forEach(item => adicionarLinhaHistoricoAlocacao(item, false));
+
+        document.getElementById('modal-historico-alocacao').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        lucide.createIcons();
+    }
+
+    function closeHistoricoAlocacaoModal() {
+        document.getElementById('modal-historico-alocacao').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    function adicionarLinhaHistoricoAlocacao(dados = {}, focusNew = false) {
+        const container = document.getElementById('hist-alocacao-rows-container');
+        if (!container) return;
+
+        const alunoId = document.getElementById('hist-alocacao-aluno-id').value;
+        const st = STUDENTS_MAP[String(alunoId)] || {};
+
+        const idVal = dados.id || '';
+        const turmaIdVal = String(dados.turma_id || st.turma_id || '');
+        const turnoVal = String(dados.turno || st.turno_raw || 'integral').toLowerCase();
+        const dtIniVal = dados.data_inicio || '{{ today }}';
+        const dtFimVal = dados.data_fim || '';
+        const obsVal = (dados.observacao || '').replace(/"/g, '&quot;');
+
+        const row = document.createElement('div');
+        row.className = 'hist-alocacao-row';
+        row.dataset.id = idVal;
+        row.style.cssText = 'display: grid; grid-template-columns: 1.3fr 1fr 130px 130px 1.4fr 36px; gap: 8px; align-items: center; padding: 8px; background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 8px;';
+
+        row.innerHTML = `
+            <select class="hist-row-turma" style="width: 100%; padding: 7px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); font-size: 12.5px; font-weight: 700; color: var(--text-primary);">
+                ${TURMAS_OPTIONS_HTML}
+            </select>
+            <select class="hist-row-turno" style="width: 100%; padding: 7px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); font-size: 12.5px; font-weight: 700; color: var(--text-primary);">
+                <option value="integral">Integral</option>
+                <option value="matutino">Matutino</option>
+                <option value="vespertino">Vespertino</option>
+            </select>
+            <input type="date" class="hist-row-inicio" value="${dtIniVal}"
+                   style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); font-size: 12px; color: var(--text-primary); box-sizing: border-box;">
+            <input type="date" class="hist-row-fim" value="${dtFimVal}" title="Deixe vazio se for o período atual"
+                   style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); font-size: 12px; color: var(--text-primary); box-sizing: border-box;">
+            <input type="text" class="hist-row-obs" value="${obsVal}" placeholder="Motivo / observação..."
+                   style="width: 100%; padding: 7px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); font-size: 12px; color: var(--text-primary); box-sizing: border-box;">
+            <button type="button" onclick="removerLinhaHistoricoAlocacao(this)" title="Remover período"
+                    style="padding: 6px; border-radius: 6px; border: 1px solid #fecaca; background: #fff1f2; color: #e11d48; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;">
+                <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+            </button>
+        `;
+
+        container.appendChild(row);
+
+        const selTurma = row.querySelector('.hist-row-turma');
+        if (selTurma && turmaIdVal) selTurma.value = turmaIdVal;
+
+        const selTurno = row.querySelector('.hist-row-turno');
+        if (selTurno && turnoVal) selTurno.value = turnoVal;
+
+        lucide.createIcons();
+
+        if (focusNew) {
+            const inpObs = row.querySelector('.hist-row-obs');
+            if (inpObs) inpObs.focus();
+        }
+    }
+
+    function removerLinhaHistoricoAlocacao(btnEl) {
+        const container = document.getElementById('hist-alocacao-rows-container');
+        if (!container) return;
+        const rows = container.querySelectorAll('.hist-alocacao-row');
+        if (rows.length <= 1) {
+            alert('O aluno deve possuir pelo menos 1 período de alocação registrado.');
+            return;
+        }
+        const row = btnEl.closest('.hist-alocacao-row');
+        if (row) row.remove();
+    }
+
+    function prepararSubmitHistoricoAlocacao() {
+        const container = document.getElementById('hist-alocacao-rows-container');
+        const rows = container ? container.querySelectorAll('.hist-alocacao-row') : [];
+        if (rows.length === 0) {
+            alert('Adicione pelo menos um período de alocação.');
+            return false;
+        }
+        const lista = [];
+        rows.forEach(r => {
+            lista.push({
+                id: r.dataset.id || '',
+                turma_id: r.querySelector('.hist-row-turma')?.value || '',
+                turno: r.querySelector('.hist-row-turno')?.value || 'integral',
+                data_inicio: r.querySelector('.hist-row-inicio')?.value || '',
+                data_fim: r.querySelector('.hist-row-fim')?.value || '',
+                observacao: (r.querySelector('.hist-row-obs')?.value || '').trim()
+            });
+        });
+        document.getElementById('hist-alocacao-json-input').value = JSON.stringify(lista);
+        return true;
     }
 
     function toggleAcompObs(checked) {

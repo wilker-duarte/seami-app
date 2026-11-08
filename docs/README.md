@@ -13,7 +13,7 @@ Bem-vindo à documentação técnica e operacional do **SEAMI (Sistema Educacion
 | **[02. Ciclo de Vida do Aluno](02_ciclo_de_vida_aluno.md)** | `02_ciclo_de_vida_aluno.md` | Da matrícula inicial, alocação em salas (Amizade, União, Felicidade, Carinho, Alegria), observabilidade de realocação de turma/turno, desligamento e reativação. |
 | **[03. Módulo I: Controle de Frequência](03_modulo_frequencia_e_chamada.md)** | `03_modulo_frequencia_e_chamada.md` | Lançamento diário de chamada por turnos (Integral, Matutino, Vespertino), validação de status (P, F, FJ), consulta e relatórios analíticos. |
 | **[04. Módulo II: Caderno de Registros](04_caderno_de_registros_seami.md)** | `04_caderno_de_registros_seami.md` | Registro de faltas, atestados médicos com CID, controle de atrasos (minutos), saídas antecipadas, Espaço Materno (Sala de Amamentação e Sala de Extração) e sincronização com a chamada. |
-| **[05. Módulo III: Enfermagem](05_modulo_enfermaria.md)** | `05_modulo_enfermaria.md` | Atendimento clínico infantil, atribuição automática à Enfermeira responsável (com preservação histórica do nome), controle de saída imediata, afastamentos e automações de prontuário. |
+| **[05. Módulo III: Enfermagem](05_modulo_enfermaria.md)** | `05_modulo_enfermaria.md` | Atendimento clínico infantil (acessível a qualquer usuário autenticado com vínculo direto ao autor do registro), controle de saída imediata, afastamentos e automações de prontuário. |
 | **[06. Módulo IV: Papelaria & Materiais](06_modulo_papelaria_e_materiais.md)** | `06_modulo_papelaria_e_materiais.md` | Gestão de estoque pedagógico, kits de materiais por sala, entregas individuais por aluno, auditoria de estoque e relatório oficial aos pais. |
 
 ---
@@ -50,7 +50,7 @@ graph TD
 | **Consulta & Relatórios de Chamada** | `/presencas/chamada/consulta/` | Professor (suas salas) / Admin (todas) |
 | **Alunos & Matrículas** | `/presencas/alunos/` | Professor (suas salas) / Admin (todas) |
 | **Caderno de Registros (Atrasos, Faltas, Atestados)** | `/caderno/` | Qualquer autenticado |
-| **Módulo de Enfermagem** | `/enfermaria/` | Enfermeira / Direção / Master |
+| **Módulo de Enfermagem** | `/enfermaria/` | Qualquer autenticado |
 | **Estoque de Papelaria** | `/papelaria/estoque/` | Qualquer autenticado |
 | **Entregas de Material por Aluno** | `/papelaria/entregas/` | Qualquer autenticado |
 | **Lista de Material para os Pais** | `/papelaria/relatorio-pais/` | Qualquer autenticado |

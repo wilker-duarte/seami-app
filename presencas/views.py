@@ -663,9 +663,12 @@ def salvar_chamada_lote_view(request):
                 reg.save()
                 salvos += 1
 
+        msg_sucesso = f'Chamada lançada com sucesso! ({salvos} criança(s) registrada(s))'
+        messages.success(request, msg_sucesso)
+
         return JsonResponse({
             'success': True,
-            'message': f'Chamada salva com sucesso para {salvos} crianças!',
+            'message': msg_sucesso,
             'saved_count': salvos
         })
     except Exception as e:
@@ -778,6 +781,8 @@ def salvar_feriado_recesso_view(request):
         if total_afetados > 0:
             msg += f' ({total_afetados} registro(s) prévios de presenças/justificativas/atrasos foram anulados).'
 
+        messages.success(request, msg)
+
         return JsonResponse({
             'success': True,
             'message': msg,
@@ -808,9 +813,12 @@ def excluir_feriado_recesso_view(request):
         periodo = feriado.periodo_formatado
         feriado.delete()
 
+        msg_del = f'Feriado/Recesso "{desc}" ({periodo}) excluído com sucesso. Os dias voltaram a ser dias letivos normais.'
+        messages.success(request, msg_del)
+
         return JsonResponse({
             'success': True,
-            'message': f'Feriado/Recesso "{desc}" ({periodo}) excluído com sucesso. Os dias voltaram a ser dias letivos normais.'
+            'message': msg_del
         })
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
@@ -1058,6 +1066,104 @@ def consulta_chamada_view(request):
     return render(request, 'presencas/consulta_chamada.html', context)
 
 
+def _salvar_historico_manual_aluno(aluno, historico_json_str, sync_aluno_atual=False):
+    """
+    Salva manualmente a lista de períodos de movimentação do aluno por Turma (Sala) e Turno.
+    Se sync_aluno_atual=True, sincroniza a turma e o turno atuais do aluno com o último período.
+    """
+    from .models import HistoricoAlocacaoAluno
+    if not aluno or not historico_json_str:
+        return
+
+    try:
+        items = json.loads(historico_json_str)
+    except Exception:
+        return
+
+    if not isinstance(items, list):
+        return
+
+    turmas_dict = {t.id: t for t in Turma.objects.all()}
+    keep_ids = []
+    registros_processados = []
+
+    for row in items:
+        if not isinstance(row, dict):
+            continue
+        t_id_raw = str(row.get('turma_id') or '').strip()
+        turma_obj = turmas_dict.get(int(t_id_raw)) if t_id_raw.isdigit() else None
+        if not turma_obj:
+            turma_obj = aluno.turma
+        t_nome = turma_obj.nome if turma_obj else (row.get('turma_nome') or '')
+
+        turno_val = str(row.get('turno') or aluno.turno or 'integral').strip().lower()
+        if turno_val not in ['integral', 'matutino', 'vespertino']:
+            turno_val = 'integral'
+
+        dt_ini_str = str(row.get('data_inicio') or '').strip()
+        dt_fim_str = str(row.get('data_fim') or '').strip()
+        obs_val = str(row.get('observacao') or '').strip()
+
+        dt_ini = None
+        if dt_ini_str:
+            try:
+                dt_ini = datetime.strptime(dt_ini_str, '%Y-%m-%d').date()
+            except ValueError:
+                dt_ini = None
+
+        dt_fim = None
+        if dt_fim_str:
+            try:
+                dt_fim = datetime.strptime(dt_fim_str, '%Y-%m-%d').date()
+            except ValueError:
+                dt_fim = None
+
+        row_id = str(row.get('id') or '').strip()
+        reg_obj = None
+        if row_id.isdigit():
+            reg_obj = HistoricoAlocacaoAluno.objects.filter(id=int(row_id), aluno=aluno).first()
+
+        if reg_obj:
+            reg_obj.turma = turma_obj
+            reg_obj.turma_nome = t_nome
+            reg_obj.turno = turno_val
+            reg_obj.data_inicio = dt_ini
+            reg_obj.data_fim = dt_fim
+            reg_obj.observacao = obs_val
+            reg_obj.save()
+        else:
+            reg_obj = HistoricoAlocacaoAluno.objects.create(
+                aluno=aluno,
+                turma=turma_obj,
+                turma_nome=t_nome,
+                turno=turno_val,
+                data_inicio=dt_ini,
+                data_fim=dt_fim,
+                observacao=obs_val
+            )
+        keep_ids.append(reg_obj.id)
+        registros_processados.append(reg_obj)
+
+    if keep_ids:
+        HistoricoAlocacaoAluno.objects.filter(aluno=aluno).exclude(id__in=keep_ids).delete()
+        if sync_aluno_atual and registros_processados:
+            ordenados = sorted(
+                registros_processados,
+                key=lambda r: (r.data_inicio.isoformat() if r.data_inicio else '0000-00-00', r.id or 0)
+            )
+            ultimo = ordenados[-1]
+            mudou = False
+            if ultimo.turma_id and aluno.turma_id != ultimo.turma_id:
+                aluno.turma_id = ultimo.turma_id
+                mudou = True
+            if ultimo.turno and aluno.turno != ultimo.turno:
+                aluno.turno = ultimo.turno
+                mudou = True
+            if mudou:
+                aluno._skip_auto_historico = True
+                aluno.save()
+
+
 @login_required
 def lista_alunos_view(request):
     """
@@ -1195,17 +1301,24 @@ def lista_alunos_view(request):
                     orgao_responsavel_2=orgao_resp2_obj,
                     ativo=ativo
                 )
+                messages.success(request, f"Registro realizado com sucesso! Criança '{nome}' matriculada na Sala {turma.nome}.")
             elif action == 'update' and aluno_id:
                 aluno = get_object_or_404(Aluno, id=aluno_id)
                 data_realoc_str = request.POST.get('data_realocacao', '').strip()
                 obs_realoc_str = request.POST.get('observacao_realocacao', '').strip()
-                if data_realoc_str:
-                    try:
-                        aluno._data_realocacao = datetime.strptime(data_realoc_str, '%Y-%m-%d').date()
-                    except ValueError:
-                        aluno._data_realocacao = today
-                if obs_realoc_str:
-                    aluno._obs_realocacao = obs_realoc_str
+                hist_manual_editado = request.POST.get('historico_manual_editado') == '1'
+                hist_json_str = request.POST.get('historico_alocacao_json', '').strip()
+
+                if hist_manual_editado and hist_json_str:
+                    aluno._skip_auto_historico = True
+                else:
+                    if data_realoc_str:
+                        try:
+                            aluno._data_realocacao = datetime.strptime(data_realoc_str, '%Y-%m-%d').date()
+                        except ValueError:
+                            aluno._data_realocacao = today
+                    if obs_realoc_str:
+                        aluno._obs_realocacao = obs_realoc_str
 
                 aluno.nome = nome
                 aluno.turma = turma
@@ -1231,6 +1344,19 @@ def lista_alunos_view(request):
                 aluno.ativo = ativo
                 aluno.save()
 
+                if hist_manual_editado and hist_json_str:
+                    _salvar_historico_manual_aluno(aluno, hist_json_str, sync_aluno_atual=False)
+
+                messages.success(request, f"Registro atualizado com sucesso! Dados da criança '{aluno.nome}' foram salvos.")
+
+            return redirect(request.get_full_path())
+
+        elif action == 'save_historico_alocacao' and aluno_id:
+            aluno = get_object_or_404(Aluno, id=aluno_id)
+            hist_json_str = request.POST.get('historico_alocacao_json', '').strip()
+            sync_atual = request.POST.get('sync_aluno_atual', '1') == '1'
+            _salvar_historico_manual_aluno(aluno, hist_json_str, sync_aluno_atual=sync_atual)
+            messages.success(request, f"Histórico de movimentação (Turma e Turno) de '{aluno.nome}' salvo com sucesso!")
             return redirect(request.get_full_path())
 
         elif action == 'toggle_active' and aluno_id:
@@ -1242,10 +1368,13 @@ def lista_alunos_view(request):
                     aluno.data_desligamento = datetime.strptime(deactivation_date_str, '%Y-%m-%d').date()
                 else:
                     aluno.data_desligamento = today
+                msg_status = f"Desligamento de '{aluno.nome}' registrado com sucesso!"
             else:
                 aluno.ativo = True
                 aluno.data_desligamento = None
+                msg_status = f"Matrícula de '{aluno.nome}' reativada com sucesso!"
             aluno.save()
+            messages.success(request, msg_status)
             return redirect(request.get_full_path())
 
     alunos_qs = Aluno.objects.all().select_related('turma', 'orgao', 'orgao_responsavel', 'orgao_responsavel_2')
@@ -1349,6 +1478,7 @@ def lista_alunos_view(request):
             'turno_raw': aluno.turno,
             'periodos_turma': periodos_aloc['periodos_turma'],
             'periodos_turno': periodos_aloc['periodos_turno'],
+            'historico_alocacoes': periodos_aloc.get('historico_raw', []),
             'orgao': aluno.orgao,
             'orgao_display': aluno.orgao_display,
             'orgao_responsavel': aluno.orgao_responsavel,
@@ -1389,6 +1519,7 @@ def lista_alunos_view(request):
             'turno_raw': a['turno_raw'],
             'periodos_turma': a['periodos_turma'],
             'periodos_turno': a['periodos_turno'],
+            'historico_alocacoes': a['historico_alocacoes'],
             'orgao_id': a['orgao'].id if a['orgao'] else (a['orgao_responsavel'].id if a['orgao_responsavel'] else ''),
             'orgao_nome': a['orgao'].nome if a['orgao'] else '',
             'orgao_sigla': a['orgao'].sigla if a['orgao'] else '',
@@ -1918,7 +2049,7 @@ def caderno_seami_view(request, aba='faltas'):
                     registrado_por=request.user
                 )
                 nome_aluno = aluno.nome if aluno else "Geral"
-                messages.success(request, f"Registro de {tipo_display} para {nome_aluno} realizado com sucesso!")
+                messages.success(request, f"Registro realizado com sucesso! ({tipo_display} — {nome_aluno})")
             elif action == 'update' and ocorrencia_id:
                 oc = get_object_or_404(OcorrenciaCaderno, id=ocorrencia_id)
                 oc.tipo = tipo_form

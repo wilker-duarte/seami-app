@@ -25,7 +25,7 @@
     </script>
 
     <!-- Folha de Estilos Exata do SEAMI -->
-    <link rel="stylesheet" href="{% static 'css/index.css' %}?v=2.1">
+    <link rel="stylesheet" href="{% static 'css/index.css' %}?v=2.2">
 
     <style>
         /* Ajustes finos para compatibilidade com Django Forms & Dropdowns */
@@ -49,6 +49,138 @@
         }
         .user-dropdown-menu.show {
             display: block;
+        }
+
+        /* =================================================================
+           BLOCO CENTRALIZADO DE MENSAGENS DE STATUS (SISTEMA GLOBAL)
+           ================================================================= */
+        .system-messages-wrapper {
+            position: sticky;
+            top: 12px;
+            z-index: 1080;
+            width: 100%;
+            max-width: 760px;
+            margin: 0 auto 18px auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+        .system-messages-wrapper:empty {
+            display: none;
+            margin: 0;
+        }
+        .system-message-banner {
+            pointer-events: auto;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 14px 18px;
+            border-radius: 14px;
+            font-size: 13.5px;
+            font-weight: 600;
+            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.14), 0 4px 10px -4px rgba(15, 23, 42, 0.08);
+            backdrop-filter: blur(8px);
+            animation: sysMsgSlideDown 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+        .system-message-banner.hiding {
+            opacity: 0;
+            transform: translateY(-10px) scale(0.98);
+        }
+        .system-message-banner.msg-success {
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            color: #065f46;
+            border: 1.5px solid #6ee7b7;
+        }
+        .system-message-banner.msg-error {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            color: #991b1b;
+            border: 1.5px solid #fca5a5;
+        }
+        .system-message-banner.msg-warning {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            color: #92400e;
+            border: 1.5px solid #fcd34d;
+        }
+        .system-message-banner.msg-info {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            color: #1e40af;
+            border: 1.5px solid #93c5fd;
+        }
+        .system-message-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .msg-success .system-message-icon {
+            background-color: #10b981;
+            color: #ffffff;
+            box-shadow: 0 3px 8px rgba(16, 185, 129, 0.3);
+        }
+        .msg-error .system-message-icon {
+            background-color: #ef4444;
+            color: #ffffff;
+            box-shadow: 0 3px 8px rgba(239, 68, 68, 0.3);
+        }
+        .msg-warning .system-message-icon {
+            background-color: #f59e0b;
+            color: #ffffff;
+            box-shadow: 0 3px 8px rgba(245, 158, 11, 0.3);
+        }
+        .msg-info .system-message-icon {
+            background-color: #3b82f6;
+            color: #ffffff;
+            box-shadow: 0 3px 8px rgba(59, 130, 246, 0.3);
+        }
+        .system-message-close {
+            background: rgba(0, 0, 0, 0.06);
+            border: none;
+            color: inherit;
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 800;
+            line-height: 1;
+            flex-shrink: 0;
+            transition: background 0.15s ease;
+        }
+        .system-message-close:hover {
+            background: rgba(0, 0, 0, 0.14);
+        }
+        .system-message-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            width: 100%;
+            background: currentColor;
+            opacity: 0.25;
+            transform-origin: left;
+            animation: sysMsgProgress 6s linear forwards;
+        }
+        .system-message-banner:hover .system-message-progress {
+            animation-play-state: paused;
+        }
+        @keyframes sysMsgSlideDown {
+            from { opacity: 0; transform: translateY(-14px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes sysMsgProgress {
+            from { transform: scaleX(1); }
+            to { transform: scaleX(0); }
         }
     </style>
     {% block extra_head %}{% endblock %}
@@ -309,6 +441,31 @@
 
             <!-- Conteúdo Dinâmico da Página -->
             <main>
+                <!-- ================================================================= -->
+                <!-- CENTRAL DE AVISOS E MENSAGENS DE STATUS DO SISTEMA (GLOBAL)       -->
+                <!-- ================================================================= -->
+                <div id="system-messages-wrapper" class="system-messages-wrapper" role="status" aria-live="polite">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="system-message-banner {% if 'error' in message.tags or 'danger' in message.tags %}msg-error{% elif 'warning' in message.tags %}msg-warning{% elif 'info' in message.tags %}msg-info{% else %}msg-success{% endif %}" data-auto-dismiss="6000">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div class="system-message-icon">
+                                        <i data-lucide="{% if 'error' in message.tags or 'danger' in message.tags %}alert-octagon{% elif 'warning' in message.tags %}alert-triangle{% elif 'info' in message.tags %}info{% else %}check-circle-2{% endif %}" style="width: 19px; height: 19px;"></i>
+                                    </div>
+                                    <div style="display: flex; flex-direction: column; gap: 1px;">
+                                        <span style="font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; opacity: 0.78;">
+                                            {% if 'error' in message.tags or 'danger' in message.tags %}Erro no Sistema{% elif 'warning' in message.tags %}Aviso Importante{% elif 'info' in message.tags %}Informação{% else %}Operação Concluída{% endif %}
+                                        </span>
+                                        <span style="font-size: 13.5px; font-weight: 700; line-height: 1.35;">{{ message }}</span>
+                                    </div>
+                                </div>
+                                <button type="button" class="system-message-close" onclick="dismissSystemMessage(this)" title="Fechar aviso" aria-label="Fechar aviso">&times;</button>
+                                <div class="system-message-progress"></div>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
                 {% block content %}{% endblock %}
             </main>
         </div>
@@ -387,7 +544,80 @@
                 document.body.classList.add('sidebar-collapsed');
                 updateCollapseIcon(true);
             }
+
+            // Inicializa temporizador de fechamento automático das mensagens de status
+            document.querySelectorAll('.system-message-banner[data-auto-dismiss]').forEach(banner => {
+                bindSystemMessageTimer(banner);
+            });
         });
+
+        function dismissSystemMessage(btnOrBanner) {
+            const banner = btnOrBanner.classList && btnOrBanner.classList.contains('system-message-banner')
+                ? btnOrBanner
+                : btnOrBanner.closest('.system-message-banner');
+            if (!banner) return;
+            banner.classList.add('hiding');
+            setTimeout(() => {
+                if (banner.parentNode) banner.remove();
+            }, 260);
+        }
+
+        function bindSystemMessageTimer(banner) {
+            const duration = parseInt(banner.getAttribute('data-auto-dismiss') || '6000', 10);
+            if (!duration || duration <= 0) return;
+            let timerId = setTimeout(() => dismissSystemMessage(banner), duration);
+            banner.addEventListener('mouseenter', () => {
+                if (timerId) clearTimeout(timerId);
+            });
+            banner.addEventListener('mouseleave', () => {
+                timerId = setTimeout(() => dismissSystemMessage(banner), 2800);
+            });
+        }
+
+        window.showSystemMessage = function(text, level = 'success') {
+            const wrapper = document.getElementById('system-messages-wrapper');
+            if (!wrapper) return;
+
+            const normalized = (level || 'success').toLowerCase();
+            let cssClass = 'msg-success';
+            let iconName = 'check-circle-2';
+            let labelText = 'Operação Concluída';
+
+            if (normalized === 'error' || normalized === 'danger') {
+                cssClass = 'msg-error';
+                iconName = 'alert-octagon';
+                labelText = 'Erro no Sistema';
+            } else if (normalized === 'warning') {
+                cssClass = 'msg-warning';
+                iconName = 'alert-triangle';
+                labelText = 'Aviso Importante';
+            } else if (normalized === 'info') {
+                cssClass = 'msg-info';
+                iconName = 'info';
+                labelText = 'Informação';
+            }
+
+            const banner = document.createElement('div');
+            banner.className = `system-message-banner ${cssClass}`;
+            banner.setAttribute('data-auto-dismiss', '6000');
+            banner.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="system-message-icon">
+                        <i data-lucide="${iconName}" style="width: 19px; height: 19px;"></i>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 1px;">
+                        <span style="font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; opacity: 0.78;">${labelText}</span>
+                        <span style="font-size: 13.5px; font-weight: 700; line-height: 1.35;"></span>
+                    </div>
+                </div>
+                <button type="button" class="system-message-close" onclick="dismissSystemMessage(this)" title="Fechar aviso" aria-label="Fechar aviso">&times;</button>
+                <div class="system-message-progress"></div>
+            `;
+            banner.querySelector('span:last-child').textContent = text;
+            wrapper.prepend(banner);
+            if (window.lucide) lucide.createIcons();
+            bindSystemMessageTimer(banner);
+        };
     </script>
     {% block extra_js %}{% endblock %}
 </body>

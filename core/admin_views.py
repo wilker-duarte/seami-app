@@ -2,6 +2,7 @@ import json
 from datetime import datetime, date
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
@@ -109,6 +110,24 @@ def central_administrativa_view(request):
             'total_acordo_aguardando': total_acordo_aguardando,
         })
 
+    orgaos_report_data = [
+        {
+            'id': c['id'],
+            'nome': c['nome'],
+            'sigla': c['sigla'],
+            'descricao': c['descricao'],
+            'ativo': c['ativo'],
+            'count_alunos': c['count_alunos'],
+            'count_pais': c['count_pais'],
+            'pct_alunos': c['pct_alunos'],
+            'itens_acordo': c['itens_acordo'],
+            'total_itens_acordo': c['total_itens_acordo'],
+            'total_acordo_recebidos': c['total_acordo_recebidos'],
+            'total_acordo_aguardando': c['total_acordo_aguardando'],
+        }
+        for c in orgaos_cards
+    ]
+
     # =========================================================================
     # 3. GESTÃO DO CALENDÁRIO ESCOLAR & DIAS NÃO LETIVOS / FERIADOS / RECESSOS
     # =========================================================================
@@ -186,6 +205,7 @@ def central_administrativa_view(request):
             'usuarios_por_role': usuarios_por_role,
         },
         'orgaos_cards': orgaos_cards,
+        'orgaos_report_json': json.dumps(orgaos_report_data),
         'orgaos_busca': orgaos_busca,
         'orgaos_status': orgaos_status,
         'feriados_lista': feriados_lista,
@@ -290,6 +310,8 @@ def salvar_orgao_api(request):
 
             # Remove itens que foram excluídos da lista dinâmica do órgão
             ItemAcordoOrgao.objects.filter(orgao=orgao).exclude(id__in=keep_ids).delete()
+
+        messages.success(request, msg)
 
         return JsonResponse({
             'success': True,

@@ -635,25 +635,30 @@
             });
 
             const result = await response.json();
-            const toast = document.getElementById('toast-message');
-            toast.style.display = 'flex';
 
             if (result.success) {
-                toast.style.backgroundColor = '#ecfdf5';
-                toast.style.color = '#065f46';
-                toast.style.border = '1px solid #a7f3d0';
-                toast.innerHTML = `<i data-lucide="check-circle" style="width: 18px; height: 18px;"></i> ${result.message}`;
+                if (window.showSystemMessage) {
+                    window.showSystemMessage(result.message || 'Chamada lançada com sucesso!', 'success');
+                }
                 setTimeout(() => {
                     window.location.reload();
-                }, 800);
+                }, 400);
             } else {
-                toast.style.backgroundColor = '#fef2f2';
-                toast.style.color = '#991b1b';
-                toast.style.border = '1px solid #fecaca';
-                toast.innerHTML = `<i data-lucide="alert-circle" style="width: 18px; height: 18px;"></i> Erro: ${result.error}`;
+                if (window.showSystemMessage) {
+                    window.showSystemMessage(`Erro: ${result.error}`, 'error');
+                } else {
+                    const toast = document.getElementById('toast-message');
+                    if (toast) {
+                        toast.style.display = 'flex';
+                        toast.style.backgroundColor = '#fef2f2';
+                        toast.style.color = '#991b1b';
+                        toast.style.border = '1px solid #fecaca';
+                        toast.innerHTML = `<i data-lucide="alert-circle" style="width: 18px; height: 18px;"></i> Erro: ${result.error}`;
+                        setTimeout(() => { toast.style.display = 'none'; }, 4000);
+                    }
+                }
             }
             lucide.createIcons();
-            setTimeout(() => { toast.style.display = 'none'; }, 4000);
         } catch (err) {
             alert('Falha na comunicação com o servidor ao salvar chamada.');
         } finally {

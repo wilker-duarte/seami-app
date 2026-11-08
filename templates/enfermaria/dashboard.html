@@ -217,7 +217,19 @@
                             {% endif %}
                         </td>
                         <td style="padding: 12px 16px; font-size: 12px; color: var(--text-secondary);">
-                            {{ at.registrado_por_display|default:'Enfermeira' }}
+                            {% if at.registrado_por %}
+                                <div style="display: flex; flex-direction: column; gap: 2px;">
+                                    <span style="font-weight: 700; color: var(--text-primary); display: inline-flex; align-items: center; gap: 5px;">
+                                        <i data-lucide="user-check" style="width: 13px; height: 13px; color: #10b981;"></i>
+                                        {{ at.registrado_por.get_full_name|default:at.registrado_por.username }}
+                                    </span>
+                                    <span style="font-size: 10.5px; color: var(--text-secondary);">
+                                        {{ at.registrado_por.get_role_display }}
+                                    </span>
+                                </div>
+                            {% else %}
+                                <span style="color: var(--text-light); font-style: italic;">Não vinculado</span>
+                            {% endif %}
                         </td>
                         <td style="padding: 12px 16px; text-align: right;">
                             <div style="display: flex; justify-content: flex-end; gap: 6px;">
@@ -463,6 +475,21 @@
                     <textarea id="textarea_observacoes_medicas" name="observacoes_medicas" rows="3" placeholder="Descreva os sintomas apresentados, temperatura aferida, medicação administrada com autorização ou orientações passadas aos responsáveis..." style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-input); color: var(--text-primary); font-size: 13px; resize: vertical;"></textarea>
                 </div>
 
+                <!-- Vínculo FK de Usuário Responsável pelo Lançamento (registrado_por) -->
+                <div style="background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px;">
+                    <label for="select_registrado_por_id" style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 12.5px; color: var(--text-primary);">
+                        <span>👤</span>
+                        <span>Registrado por (Usuário do Sistema) <span style="color: #ef4444;">*</span></span>
+                    </label>
+                    <select name="registrado_por_id" id="select_registrado_por_id" required style="width: 100%; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-input); color: var(--text-primary); font-size: 13px; font-weight: 600;">
+                        {% for usr in usuarios_sistema %}
+                            <option value="{{ usr.id }}" {% if usr.id == request.user.id %}selected{% endif %}>
+                                {{ usr.get_full_name|default:usr.username }} ({{ usr.get_role_display }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
             </div>
 
             <div class="modal-footer" style="padding: 16px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px; background: var(--bg-body);">
@@ -577,6 +604,11 @@
         document.getElementById('existing-enfermaria-attachment-card').style.display = 'none';
         document.getElementById('textarea_observacoes_medicas').value = '';
 
+        const selRegPor = document.getElementById('select_registrado_por_id');
+        if (selRegPor) {
+            selRegPor.value = '{{ request.user.id }}';
+        }
+
         deselectModalStudentEnfermaria();
         openModalById('modal-novo-atendimento');
         lucide.createIcons();
@@ -655,6 +687,11 @@
         // CID e Observações
         document.getElementById('input_cid').value = at.cid || '';
         document.getElementById('textarea_observacoes_medicas').value = at.observacoes_medicas || '';
+
+        const selRegPor = document.getElementById('select_registrado_por_id');
+        if (selRegPor) {
+            selRegPor.value = at.registrado_por_id ? String(at.registrado_por_id) : '{{ request.user.id }}';
+        }
 
         // Anexo existente
         document.getElementById('input_documento_anexo').value = '';

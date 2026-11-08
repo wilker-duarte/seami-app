@@ -13,24 +13,6 @@
 <section class="panel-section active" style="display: flex; flex-direction: column; gap: 20px;">
 
     <!-- ================================================================= -->
-    <!-- MENSAGENS E ALERTAS DO CADERNO SEAMI                              -->
-    <!-- ================================================================= -->
-    {% if messages %}
-    <div style="display: flex; flex-direction: column; gap: 10px;">
-        {% for message in messages %}
-        <div class="alert {% if message.tags == 'warning' %}alert-warning{% elif message.tags == 'success' %}alert-success{% elif message.tags == 'error' %}alert-danger{% else %}alert-info{% endif %}"
-            style="padding: 14px 18px; border-radius: 12px; font-size: 13.5px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; {% if message.tags == 'warning' %}background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a;{% elif message.tags == 'success' %}background-color: #f0fdf4; color: #166534; border: 1px solid #bbf7d0;{% elif message.tags == 'error' %}background-color: #fef2f2; color: #b91c1c; border: 1px solid #fecaca;{% else %}background-color: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe;{% endif %}">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <i data-lucide="{% if message.tags == 'warning' %}alert-triangle{% elif message.tags == 'success' %}check-circle-2{% elif message.tags == 'error' %}alert-octagon{% else %}info{% endif %}" style="width: 20px; height: 20px; flex-shrink: 0;"></i>
-                <span>{{ message }}</span>
-            </div>
-            <button type="button" onclick="this.parentElement.remove()" style="background: none; border: none; cursor: pointer; color: inherit; font-size: 18px; font-weight: bold; line-height: 1; padding: 4px 8px; border-radius: 6px;">&times;</button>
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-
-    <!-- ================================================================= -->
     <!-- NAVEGADOR DE ABAS DO CADERNO SEAMI                                -->
     <!-- ================================================================= -->
     <div

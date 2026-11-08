@@ -7,21 +7,6 @@
 {% block content %}
 <section class="panel-section active" style="display: flex; flex-direction: column; gap: 24px;">
 
-    <!-- Alertas do Sistema -->
-    {% if messages %}
-        <div style="display: flex; flex-direction: column; gap: 10px;">
-            {% for message in messages %}
-                <div style="padding: 14px 18px; border-radius: var(--radius-sm); font-size: 13.5px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; {% if message.tags == 'error' %}background-color: #fef2f2; color: #b91c1c; border: 1px solid #fecaca;{% else %}background-color: #f0fdf4; color: #166534; border: 1px solid #bbf7d0;{% endif %}">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <i data-lucide="{% if message.tags == 'error' %}alert-circle{% else %}check-circle-2{% endif %}" style="width: 18px; height: 18px;"></i>
-                        <span>{{ message }}</span>
-                    </div>
-                    <button type="button" onclick="this.parentElement.remove()" style="background: none; border: none; cursor: pointer; color: inherit; font-size: 16px;">&times;</button>
-                </div>
-            {% endfor %}
-        </div>
-    {% endif %}
-
     <!-- Topo da Gestão de Turmas -->
     <div style="display: flex; justify-content: space-between; align-items: center; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px 24px; box-shadow: var(--shadow-sm); flex-wrap: wrap; gap: 16px;">
         <div style="display: flex; align-items: center; gap: 14px;">

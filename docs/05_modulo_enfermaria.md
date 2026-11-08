@@ -21,7 +21,7 @@ Ao acolher uma criança na enfermaria, o profissional de saúde registra o atend
 * **Temperatura e Sinais Vitais**: Aferição da temperatura corporal (°C).
 * **Conduta / Procedimento Realizado**: Higienização, compressa, repouso, medicação ministrada e dosagem.
 * **Anexo de Receita / Laudo**: Upload do receituário médico fornecido pelos pais.
-* **Responsável pelo Registro (`registrado_por` / `registrado_por_nome`)**: Todo atendimento e seus desfechos (saídas e afastamentos gerados pela enfermaria) são automaticamente atribuídos à pessoa responsável pela enfermaria com perfil **`ENFERMEIRA`**, preservando seu nome completo em texto (`registrado_por_nome`) mesmo se o vínculo de usuário for removido futuramente (`SET_NULL`).
+* **Responsável pelo Registro (`registrado_por` — FK de `User`)**: Qualquer usuário autenticado no sistema (auxiliar, enfermeira, professor, coordenador, diretor ou administrador) pode lançar registros na enfermaria. O campo `registrado_por` é uma `ForeignKey` vinculada diretamente ao usuário (`User`) que realizou o lançamento.
 
 ---
 
