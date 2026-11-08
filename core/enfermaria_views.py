@@ -281,10 +281,13 @@ def enfermaria_novo_atendimento_view(request):
             data_retorno_prevista = None
 
     try:
-        reg_id_str = (request.POST.get('registrado_por_id') or '').strip()
-        user_fk = User.objects.filter(id=int(reg_id_str)).first() if reg_id_str.isdigit() else None
-        if not user_fk:
-            user_fk = request.user
+        user_fk = request.user
+        if getattr(request.user, 'is_master_admin', False) or request.user.is_superuser:
+            reg_id_str = (request.POST.get('registrado_por_id') or '').strip()
+            if reg_id_str.isdigit():
+                selected_user = User.objects.filter(id=int(reg_id_str)).first()
+                if selected_user:
+                    user_fk = selected_user
 
         atendimento = registrar_atendimento_enfermaria(
             aluno=aluno,
@@ -378,11 +381,14 @@ def enfermaria_editar_atendimento_view(request, atendimento_id):
     if documento_anexo:
         atendimento.documento_anexo = documento_anexo
 
-    reg_id_str = (request.POST.get('registrado_por_id') or '').strip()
-    if reg_id_str.isdigit():
-        user_fk = User.objects.filter(id=int(reg_id_str)).first()
-        if user_fk:
-            atendimento.registrado_por = user_fk
+    if getattr(request.user, 'is_master_admin', False) or request.user.is_superuser:
+        reg_id_str = (request.POST.get('registrado_por_id') or '').strip()
+        if reg_id_str.isdigit():
+            user_fk = User.objects.filter(id=int(reg_id_str)).first()
+            if user_fk:
+                atendimento.registrado_por = user_fk
+        elif not atendimento.registrado_por_id:
+            atendimento.registrado_por = request.user
     elif not atendimento.registrado_por_id:
         atendimento.registrado_por = request.user
 
