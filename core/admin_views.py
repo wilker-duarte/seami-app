@@ -54,12 +54,12 @@ def central_administrativa_view(request):
     }
 
     # =========================================================================
-    # 2. LISTAGEM COMPLETA E DETALHADA DOS ÓRGÃOS CONVENIADOS
+    # 2. LISTAGEM COMPLETA E DETALHADA DOS ÓRGÃOS (CENTRAL & CONVENIADOS)
     # =========================================================================
     orgaos_busca = request.GET.get('q_orgao', '').strip()
     orgaos_status = request.GET.get('status_orgao', 'all').strip()
 
-    orgaos_qs = Orgao.objects.all().prefetch_related('itens_acordo').order_by('nome')
+    orgaos_qs = Orgao.objects.all().prefetch_related('itens_acordo').order_by('-is_central', 'nome')
     if orgaos_busca:
         orgaos_qs = orgaos_qs.filter(Q(nome__icontains=orgaos_busca) | Q(sigla__icontains=orgaos_busca) | Q(descricao__icontains=orgaos_busca))
     if orgaos_status == 'ativos':
@@ -96,7 +96,10 @@ def central_administrativa_view(request):
             'id': org.id,
             'nome': org.nome,
             'sigla': org.sigla or org.nome,
+            'sigla_raw': org.sigla or '',
             'descricao': org.descricao or '',
+            'is_central': org.is_central,
+            'tipo_vinculo': org.tipo_vinculo_label,
             'ativo': org.ativo,
             'criado_em': org.criado_em,
             'atualizado_em': org.atualizado_em,
@@ -116,6 +119,8 @@ def central_administrativa_view(request):
             'nome': c['nome'],
             'sigla': c['sigla'],
             'descricao': c['descricao'],
+            'is_central': c['is_central'],
+            'tipo_vinculo': c['tipo_vinculo'],
             'ativo': c['ativo'],
             'count_alunos': c['count_alunos'],
             'count_pais': c['count_pais'],
@@ -237,6 +242,30 @@ def salvar_orgao_api(request):
         ativo = data.get('ativo', True)
         if isinstance(ativo, str):
             ativo = ativo.lower() in ['true', '1', 'on', 'yes']
+        is_central = data.get('is_central', False)
+        if isinstance(is_central, str):
+            is_central = is_central.lower() in ['true', '1', 'on', 'yes', 'central']
+        else:
+            is_central = bool(is_central)
+
+        if data.get('apenas_tipo_vinculo') and orgao_id and str(orgao_id).isdigit():
+            orgao = get_object_or_404(Orgao, id=int(orgao_id))
+            orgao.is_central = is_central
+            orgao.save()
+            tipo_txt = "Órgão Central" if orgao.is_central else "Órgão Conveniado"
+            msg = f'"{orgao.sigla or orgao.nome}" definido como {tipo_txt}!'
+            messages.success(request, msg)
+            return JsonResponse({
+                'success': True,
+                'message': msg,
+                'orgao': {
+                    'id': orgao.id,
+                    'nome': orgao.nome,
+                    'sigla': orgao.sigla,
+                    'is_central': orgao.is_central,
+                    'ativo': orgao.ativo,
+                }
+            })
 
         if not nome:
             return JsonResponse({'success': False, 'error': 'O nome do órgão é obrigatório.'}, status=400)
@@ -247,6 +276,7 @@ def salvar_orgao_api(request):
             orgao.sigla = sigla
             orgao.descricao = descricao
             orgao.ativo = ativo
+            orgao.is_central = is_central
             orgao.save()
             msg = f'Órgão "{orgao.sigla or orgao.nome}" atualizado com sucesso!'
         else:
@@ -259,7 +289,8 @@ def salvar_orgao_api(request):
                 nome=nome,
                 sigla=sigla,
                 descricao=descricao,
-                ativo=ativo
+                ativo=ativo,
+                is_central=is_central
             )
             msg = f'Órgão "{orgao.sigla or orgao.nome}" cadastrado com sucesso!'
 

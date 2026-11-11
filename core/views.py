@@ -794,9 +794,9 @@ def build_dashboard_context(request):
         }
 
     # =========================================================================
-    # 8. ESTATÍSTICAS E DISTRIBUIÇÃO POR ÓRGÃO CONVENIADO & RESPONSÁVEIS
+    # 8. ESTATÍSTICAS E DISTRIBUIÇÃO POR ÓRGÃO (CENTRAL & CONVENIADOS) & RESPONSÁVEIS
     # =========================================================================
-    all_orgaos = list(Orgao.objects.filter(ativo=True).order_by('nome'))
+    all_orgaos = list(Orgao.objects.filter(ativo=True).order_by('-is_central', 'nome'))
     
     # Base de alunos ativos para estatísticas de órgãos (respeitando filtro de sala, se houver)
     alunos_orgao_qs = all_active_students
@@ -867,6 +867,7 @@ def build_dashboard_context(request):
             'nome': org.nome,
             'sigla': org.sigla or org.nome,
             'descricao': org.descricao or '',
+            'is_central': org.is_central,
             'count_alunos': c_alunos,
             'pct_alunos': pct,
             'count_pais': c_pais,

@@ -224,7 +224,18 @@
                                 <div style="display: flex; align-items: center; gap: 10px;">
                                     <div style="width: 10px; height: 10px; border-radius: 50%; background-color: {{ org.color }}; flex-shrink: 0;"></div>
                                     <div>
-                                        <div>{{ org.nome }}</div>
+                                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                            <span>{{ org.nome }}</span>
+                                            {% if org.is_central %}
+                                            <span style="font-size: 10px; font-weight: 800; background: #ecfdf5; color: #047857; border: 1px solid #6ee7b7; padding: 1px 7px; border-radius: 999px;">
+                                                🏛️ Órgão Central
+                                            </span>
+                                            {% elif org.id %}
+                                            <span style="font-size: 10px; font-weight: 700; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 1px 7px; border-radius: 999px;">
+                                                Conveniado
+                                            </span>
+                                            {% endif %}
+                                        </div>
                                         {% if org.descricao %}
                                         <div style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">{{ org.descricao }}</div>
                                         {% endif %}

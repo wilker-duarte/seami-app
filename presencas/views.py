@@ -1480,6 +1480,7 @@ def lista_alunos_view(request):
             'periodos_turno': periodos_aloc['periodos_turno'],
             'historico_alocacoes': periodos_aloc.get('historico_raw', []),
             'orgao': aluno.orgao,
+            'is_orgao_central': aluno.is_orgao_central,
             'orgao_display': aluno.orgao_display,
             'orgao_responsavel': aluno.orgao_responsavel,
             'orgao_responsavel_display': aluno.orgao_responsavel_display,
@@ -1523,6 +1524,7 @@ def lista_alunos_view(request):
             'orgao_id': a['orgao'].id if a['orgao'] else (a['orgao_responsavel'].id if a['orgao_responsavel'] else ''),
             'orgao_nome': a['orgao'].nome if a['orgao'] else '',
             'orgao_sigla': a['orgao'].sigla if a['orgao'] else '',
+            'is_orgao_central': a['is_orgao_central'],
             'orgao_display': a['orgao_display'],
             'orgao_responsavel_id': a['orgao_responsavel'].id if a['orgao_responsavel'] else '',
             'orgao_responsavel_nome': a['orgao_responsavel'].nome if a['orgao_responsavel'] else '',
@@ -1557,7 +1559,7 @@ def lista_alunos_view(request):
         }
 
     aniversariantes_count = sum(1 for a in alunos_list if a['is_aniversariante_hoje'])
-    orgaos_qs = Orgao.objects.filter(ativo=True).order_by('nome')
+    orgaos_qs = Orgao.objects.filter(ativo=True).order_by('-is_central', 'nome')
 
     context = {
         'today': today.isoformat(),

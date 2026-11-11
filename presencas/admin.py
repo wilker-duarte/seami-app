@@ -23,10 +23,10 @@ class ItemAcordoOrgaoInline(admin.TabularInline):
 
 @admin.register(Orgao)
 class OrgaoAdmin(ExportActionMixin, admin.ModelAdmin):
-    list_display = ('nome', 'sigla', 'get_total_alunos', 'get_total_pais', 'ativo', 'criado_em')
-    list_filter = ('ativo',)
+    list_display = ('nome', 'sigla', 'is_central', 'get_total_alunos', 'get_total_pais', 'ativo', 'criado_em')
+    list_filter = ('is_central', 'ativo')
     search_fields = ('nome', 'sigla', 'descricao')
-    list_editable = ('ativo',)
+    list_editable = ('is_central', 'ativo')
     inlines = [ItemAcordoOrgaoInline]
 
     def get_total_alunos(self, obj):

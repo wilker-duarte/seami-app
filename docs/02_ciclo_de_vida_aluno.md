@@ -39,7 +39,7 @@ Para registrar uma nova matrícula no sistema:
    - **Data de Entrada / Matrícula**: Data oficial de início das atividades no SEAMI.
    - **Turno**: `Integral`, `Matutino` ou `Vespertino`.
    - **Turma / Sala de Aula**: Seleção da sala inicial.
-   - **Responsáveis e Contato**: Nome dos pais, telefones de emergência e e-mails.
+   - **Responsáveis, Contato e Vínculo Institucional (`Orgao`)**: Nome dos pais, telefones de emergência, e-mails e lotação institucional — diferenciando o **Órgão Central (`is_central = True`, ex: MS - Ministério da Saúde, ao qual a creche pertence)** dos **Órgãos Conveniados**.
    - **Observações Médicas / Restrições**: Alergias, intolerâncias alimentares ou recomendações.
 
 ---

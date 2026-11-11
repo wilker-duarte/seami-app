@@ -101,25 +101,43 @@ class Turma(models.Model):
 
 class Orgao(models.Model):
     """
-    Representa os órgãos públicos e instituições conveniadas por contrato
+    Representa o Órgão Central mantenedor ao qual a creche pertence (MS - Ministério da Saúde)
+    e os demais órgãos públicos e instituições conveniadas por contrato
     através dos quais as crianças e seus responsáveis são atendidos no SEAMI.
     """
     nome = models.CharField(max_length=150, unique=True, verbose_name='Nome do Órgão / Instituição')
     sigla = models.CharField(max_length=30, blank=True, default='', verbose_name='Sigla')
     descricao = models.TextField(blank=True, default='', verbose_name='Descrição / Contrato')
+    is_central = models.BooleanField(default=False, verbose_name='Órgão Central (Mantenedor)')
     ativo = models.BooleanField(default=True, verbose_name='Ativo')
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = 'Órgão Conveniado'
-        verbose_name_plural = 'Órgãos Conveniados'
-        ordering = ['nome']
+        verbose_name = 'Órgão (Central / Conveniado)'
+        verbose_name_plural = 'Órgãos (Central e Conveniados)'
+        ordering = ['-is_central', 'nome']
+
+    @property
+    def tipo_vinculo_label(self):
+        return 'Órgão Central' if self.is_central else 'Órgão Conveniado'
+
+    def save(self, *args, **kwargs):
+        sigla_upper = (self.sigla or '').strip().upper()
+        nome_lower = (self.nome or '').strip().lower()
+        if self.pk is None and (sigla_upper == 'MS' or 'ministério da saúde' in nome_lower or 'ministerio da saude' in nome_lower):
+            self.is_central = True
+
+        super().save(*args, **kwargs)
+
+        if self.is_central:
+            Orgao.objects.exclude(pk=self.pk).filter(is_central=True).update(is_central=False)
 
     def __str__(self):
+        sufixo = " (Órgão Central)" if self.is_central else ""
         if self.sigla:
-            return f"{self.sigla} - {self.nome}"
-        return self.nome
+            return f"{self.sigla} - {self.nome}{sufixo}"
+        return f"{self.nome}{sufixo}"
 
 
 class StatusRecebimentoAcordo(models.TextChoices):
@@ -367,8 +385,14 @@ class Aluno(models.Model):
         return True
 
     @property
+    def is_orgao_central(self):
+        """Retorna True se o órgão da criança/contrato for o Órgão Central (MS)."""
+        org = self.orgao or self.orgao_responsavel
+        return bool(org and getattr(org, 'is_central', False))
+
+    @property
     def orgao_display(self):
-        """Retorna o nome ou sigla do órgão conveniado da criança/contrato."""
+        """Retorna o nome ou sigla do órgão da criança (Central ou Conveniado)."""
         if self.orgao:
             return self.orgao.sigla or self.orgao.nome
         if self.orgao_responsavel:

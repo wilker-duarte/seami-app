@@ -55,5 +55,5 @@ graph TD
 | **Entregas de Material por Aluno** | `/papelaria/entregas/` | Qualquer autenticado |
 | **Lista de Material para os Pais** | `/papelaria/relatorio-pais/` | Qualquer autenticado |
 | **Gestão de Usuários & Convites** | `/accounts/usuarios/` | Diretor / Master Admin |
-| **Central Administrativa (Órgãos, Acordos e Gestão)** | `/central-administrativa/` | Diretor / Master Admin |
+| **Central Administrativa (Órgão Central, Convênios, Acordos e Gestão)** | `/central-administrativa/` | Diretor / Master Admin |
 | **Central de Exportação Geral** | `/central-exportacao/` | Diretor / Master Admin |

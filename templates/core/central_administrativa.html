@@ -269,9 +269,17 @@
                     </thead>
                     <tbody>
                         {% for org in orgaos_cards %}
-                        <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.15s;" onmouseenter="this.style.backgroundColor='var(--bg-input)'" onmouseleave="this.style.backgroundColor='transparent'">
+                        <tr style="border-bottom: 1px solid var(--border-color); transition: background-color 0.15s; {% if org.is_central %}background-color: rgba(16, 185, 129, 0.04);{% endif %}" onmouseenter="this.style.backgroundColor='var(--bg-input)'" onmouseleave="this.style.backgroundColor='{% if org.is_central %}rgba(16, 185, 129, 0.04){% else %}transparent{% endif %}'">
                             <td style="padding: 14px 18px; vertical-align: top;">
-                                <div style="font-weight: 700; color: var(--text-primary); font-size: 14px;">{{ org.nome }}</div>
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    <span style="font-weight: 700; color: var(--text-primary); font-size: 14px;">{{ org.nome }}</span>
+                                    <select onchange="alterarTipoVinculoOrgao({{ org.id }}, this.value === 'central', this)"
+                                        title="Alterar classificação do órgão (Órgão Central vs Conveniado)"
+                                        style="padding: 2px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 800; cursor: pointer; outline: none; {% if org.is_central %}background: #ecfdf5; color: #047857; border: 1px solid #6ee7b7;{% else %}background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;{% endif %}">
+                                        <option value="conveniado" {% if not org.is_central %}selected{% endif %}>🤝 Conveniado</option>
+                                        <option value="central" {% if org.is_central %}selected{% endif %}>🏛️ Órgão Central</option>
+                                    </select>
+                                </div>
                                 {% if org.descricao %}
                                 <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 2px;">{{ org.descricao }}</div>
                                 {% endif %}
@@ -318,7 +326,7 @@
                                     {% endfor %}
                                     <!-- Botão de adicionar item abaixo do último item da lista -->
                                     <button type="button"
-                                        onclick='editarOrgao({{ org.id }}, "{{ org.nome|escapejs }}", "{{ org.sigla|escapejs }}", "{{ org.descricao|escapejs }}", {{ org.ativo|yesno:"true,false" }}, {{ org.itens_acordo_json|safe }}, true)'
+                                        onclick='editarOrgao({{ org.id }}, "{{ org.nome|escapejs }}", "{{ org.sigla_raw|escapejs }}", "{{ org.descricao|escapejs }}", {{ org.ativo|yesno:"true,false" }}, {{ org.itens_acordo_json|safe }}, true, {{ org.is_central|yesno:"true,false" }})'
                                         style="margin-top: 2px; padding: 5px 10px; border-radius: 6px; border: 1px dashed #6366f1; background-color: #eef2ff; color: #4338ca; font-size: 11.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: fit-content;">
                                         <i data-lucide="plus" style="width: 13px; height: 13px;"></i>
                                         <span>Adicionar Item</span>
@@ -326,9 +334,13 @@
                                 </div>
                                 {% else %}
                                 <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 6px;">
+                                    {% if org.is_central %}
+                                    <span style="font-size: 12px; color: #047857; font-weight: 700;">🏛️ Órgão Central Mantenedor (Creche pertence ao {{ org.sigla|default:org.nome }})</span>
+                                    {% else %}
                                     <span style="font-size: 12px; color: var(--text-secondary); font-style: italic;">Nenhum item de acordo vinculado</span>
+                                    {% endif %}
                                     <button type="button"
-                                        onclick='editarOrgao({{ org.id }}, "{{ org.nome|escapejs }}", "{{ org.sigla|escapejs }}", "{{ org.descricao|escapejs }}", {{ org.ativo|yesno:"true,false" }}, [], true)'
+                                        onclick='editarOrgao({{ org.id }}, "{{ org.nome|escapejs }}", "{{ org.sigla_raw|escapejs }}", "{{ org.descricao|escapejs }}", {{ org.ativo|yesno:"true,false" }}, [], true, {{ org.is_central|yesno:"true,false" }})'
                                         style="padding: 5px 10px; border-radius: 6px; border: 1px dashed #6366f1; background-color: #eef2ff; color: #4338ca; font-size: 11.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
                                         <i data-lucide="plus" style="width: 13px; height: 13px;"></i>
                                         <span>Adicionar Item de Acordo</span>
@@ -350,7 +362,7 @@
                             </td>
                             <td style="padding: 14px 18px; text-align: right; vertical-align: top;">
                                 <div style="display: inline-flex; align-items: center; gap: 6px;">
-                                    <button type="button" onclick='editarOrgao({{ org.id }}, "{{ org.nome|escapejs }}", "{{ org.sigla|escapejs }}", "{{ org.descricao|escapejs }}", {{ org.ativo|yesno:"true,false" }}, {{ org.itens_acordo_json|safe }})' style="padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Editar informações e itens de acordo do órgão">
+                                    <button type="button" onclick='editarOrgao({{ org.id }}, "{{ org.nome|escapejs }}", "{{ org.sigla_raw|escapejs }}", "{{ org.descricao|escapejs }}", {{ org.ativo|yesno:"true,false" }}, {{ org.itens_acordo_json|safe }}, false, {{ org.is_central|yesno:"true,false" }})' style="padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Editar informações e itens de acordo do órgão">
                                         <i data-lucide="edit" style="width: 13px; height: 13px;"></i> Editar
                                     </button>
 
@@ -617,17 +629,25 @@
                     <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
                         Sigla / Identificador
                     </label>
-                    <input type="text" id="orgao-sigla" placeholder="Ex: TJ, MP, DPE" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none; box-sizing: border-box; text-transform: uppercase;">
+                    <input type="text" id="orgao-sigla" placeholder="Ex: MS, TJ, MP, DPE" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none; box-sizing: border-box; text-transform: uppercase;">
                 </div>
-                <div style="display: flex; flex-direction: column; justify-content: center;">
+                <div>
                     <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
-                        Status do Convênio
+                        Tipo de Vínculo Institucional *
                     </label>
-                    <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; padding: 10px 0;">
-                        <input type="checkbox" id="orgao-ativo" checked style="width: 17px; height: 17px; accent-color: #2563eb; cursor: pointer;">
-                        <span style="font-size: 13px; font-weight: 700; color: var(--text-primary);">Órgão Ativo / Convênio Vigente</span>
-                    </label>
+                    <select id="orgao-tipo-vinculo" onchange="document.getElementById('orgao-is-central').checked = (this.value === 'central')" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); font-size: 13.5px; font-weight: 700; color: var(--text-primary); outline: none; box-sizing: border-box;">
+                        <option value="conveniado">🤝 Órgão Conveniado (Parceiro por Acordo)</option>
+                        <option value="central">🏛️ Órgão Central (Mantenedor da Creche — Ex: MS)</option>
+                    </select>
+                    <input type="checkbox" id="orgao-is-central" style="display: none;">
                 </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="orgao-ativo" checked style="width: 16px; height: 16px; accent-color: #2563eb; cursor: pointer;">
+                    <span style="font-size: 12.5px; font-weight: 700; color: var(--text-primary);">Órgão Ativo / Vigente</span>
+                </label>
             </div>
 
             <div>
@@ -959,13 +979,17 @@
     }
 
     function abrirModalOrgao() {
-        document.getElementById('modal-orgao-title').innerText = 'Novo Órgão Conveniado';
+        document.getElementById('modal-orgao-title').innerText = 'Novo Órgão';
         document.getElementById('btn-submit-orgao-text').innerText = 'Salvar Órgão';
         document.getElementById('orgao-id').value = '';
         document.getElementById('orgao-nome').value = '';
         document.getElementById('orgao-sigla').value = '';
         document.getElementById('orgao-descricao').value = '';
         document.getElementById('orgao-ativo').checked = true;
+        const cbCentral = document.getElementById('orgao-is-central');
+        if (cbCentral) cbCentral.checked = false;
+        const selVinculo = document.getElementById('orgao-tipo-vinculo');
+        if (selVinculo) selVinculo.value = 'conveniado';
 
         const container = document.getElementById('orgao-itens-acordo-lista');
         if (container) {
@@ -977,14 +1001,18 @@
         if (window.lucide) lucide.createIcons();
     }
 
-    function editarOrgao(id, nome, sigla, descricao, ativo, itensAcordo = [], adicionarNovaLinha = false) {
-        document.getElementById('modal-orgao-title').innerText = 'Editar Órgão Conveniado';
+    function editarOrgao(id, nome, sigla, descricao, ativo, itensAcordo = [], adicionarNovaLinha = false, isCentral = false) {
+        document.getElementById('modal-orgao-title').innerText = isCentral ? 'Editar Órgão Central' : 'Editar Órgão Conveniado';
         document.getElementById('btn-submit-orgao-text').innerText = 'Atualizar Órgão';
         document.getElementById('orgao-id').value = id;
         document.getElementById('orgao-nome').value = nome;
         document.getElementById('orgao-sigla').value = sigla;
         document.getElementById('orgao-descricao').value = descricao;
         document.getElementById('orgao-ativo').checked = ativo;
+        const cbCentral = document.getElementById('orgao-is-central');
+        if (cbCentral) cbCentral.checked = Boolean(isCentral);
+        const selVinculo = document.getElementById('orgao-tipo-vinculo');
+        if (selVinculo) selVinculo.value = isCentral ? 'central' : 'conveniado';
 
         const container = document.getElementById('orgao-itens-acordo-lista');
         if (container) {
@@ -1003,6 +1031,43 @@
         if (window.lucide) lucide.createIcons();
     }
 
+    async function alterarTipoVinculoOrgao(orgId, isCentral, selectEl) {
+        if (selectEl) {
+            if (isCentral) {
+                selectEl.style.background = '#ecfdf5';
+                selectEl.style.color = '#047857';
+                selectEl.style.border = '1px solid #6ee7b7';
+            } else {
+                selectEl.style.background = '#eff6ff';
+                selectEl.style.color = '#1d4ed8';
+                selectEl.style.border = '1px solid #bfdbfe';
+            }
+        }
+        try {
+            const resp = await fetch("{% url 'core:salvar_orgao_api' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify({
+                    orgao_id: orgId,
+                    is_central: isCentral,
+                    apenas_tipo_vinculo: true
+                })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                showAdminToast(data.message, true);
+                setTimeout(() => { window.location.reload(); }, 450);
+            } else {
+                alert('Erro: ' + (data.error || 'Falha ao alterar vínculo do órgão.'));
+            }
+        } catch (err) {
+            alert('Falha na comunicação ao alterar vínculo do órgão.');
+        }
+    }
+
     function fecharModalOrgao() {
         document.getElementById('modal-orgao-form').style.display = 'none';
     }
@@ -1013,6 +1078,8 @@
         const sigla = document.getElementById('orgao-sigla').value.trim();
         const descricao = document.getElementById('orgao-descricao').value.trim();
         const ativo = document.getElementById('orgao-ativo').checked;
+        const selVinculo = document.getElementById('orgao-tipo-vinculo');
+        const isCentral = selVinculo ? (selVinculo.value === 'central') : Boolean(document.getElementById('orgao-is-central')?.checked);
         const itensAcordo = coletarItensAcordoModal();
 
         if (!nome) {
@@ -1038,6 +1105,7 @@
                     sigla: sigla,
                     descricao: descricao,
                     ativo: ativo,
+                    is_central: isCentral,
                     itens_acordo: itensAcordo
                 })
             });
@@ -1117,9 +1185,11 @@
             const pageHeight = doc.internal.pageSize.getHeight();
             const dataEmissao = new Date().toLocaleDateString('pt-BR') + ' às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-            // Consolidados Gerais
-            const totalOrgaos = ORGAOS_REPORT_DATA.length;
-            const totalAtivos = ORGAOS_REPORT_DATA.filter(o => o.ativo).length;
+            // Consolidados Gerais separando Órgão Central e Órgãos Conveniados
+            const orgaoCentralObj = ORGAOS_REPORT_DATA.find(o => o.is_central);
+            const orgaosConveniadosList = ORGAOS_REPORT_DATA.filter(o => !o.is_central);
+            const totalConveniados = orgaosConveniadosList.length;
+            const totalConveniadosAtivos = orgaosConveniadosList.filter(o => o.ativo).length;
             const totalAlunosConv = ORGAOS_REPORT_DATA.reduce((acc, o) => acc + (Number(o.count_alunos) || 0), 0);
             const totalItensGeral = ORGAOS_REPORT_DATA.reduce((acc, o) => acc + (Number(o.total_itens_acordo) || 0), 0);
             const totalRecebidosGeral = ORGAOS_REPORT_DATA.reduce((acc, o) => acc + (Number(o.total_acordo_recebidos) || 0), 0);
@@ -1131,7 +1201,7 @@
             doc.roundedRect(14, 12, pageWidth - 28, 25, 3, 3, 'F');
 
             // Faixa decorativa superior
-            doc.setFillColor(59, 130, 246); // Azul Real (#3b82f6)
+            doc.setFillColor(16, 185, 129); // Esmeralda Institucional (#10b981)
             doc.roundedRect(14, 12, 5, 25, 2, 2, 'F');
 
             doc.setFont('helvetica', 'bold');
@@ -1139,14 +1209,15 @@
             doc.setTextColor(255, 255, 255);
             doc.text('EDUCAGESTAO  |  SEAMI - CENTRAL ADMINISTRATIVA', 23, 21);
 
-            doc.setFontSize(10);
+            doc.setFontSize(9.8);
             doc.setTextColor(191, 219, 254);
-            doc.text('Relatorio Oficial de Orgaos Conveniados & Controle de Itens de Acordo', 23, 27.5);
+            doc.text('Relatorio Oficial: Orgao Central Mantenedor, Convenios & Controle de Itens de Acordo', 23, 27.5);
 
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(8);
             doc.setTextColor(224, 242, 254);
-            doc.text(`Emitido em: ${dataEmissao}  •  Emitido por: {{ request.user.get_full_name|default:request.user.username|escapejs }}`, 23, 33.5);
+            const txtCentralHeader = orgaoCentralObj ? `Orgao Central: ${orgaoCentralObj.sigla || orgaoCentralObj.nome} - ${orgaoCentralObj.nome}` : 'SEAMI';
+            doc.text(`${txtCentralHeader}  •  Emitido em: ${dataEmissao}`, 23, 33.5);
 
             // 2. CARDS DE INDICADORES EXECUTIVOS (4 KPIS)
             const cardY = 42;
@@ -1154,10 +1225,38 @@
             const cardH = 18;
 
             const kpis = [
-                { title: 'ORGAOS CONVENIADOS', value: `${totalOrgaos}`, sub: `${totalAtivos} ativo(s)`, bg: [239, 246, 255], border: [191, 219, 254], color: [30, 64, 175] },
-                { title: 'ALUNOS VINCULADOS', value: `${totalAlunosConv}`, sub: 'Contratos ativos', bg: [245, 243, 255], border: [221, 214, 254], color: [109, 40, 217] },
-                { title: 'ITENS DE ACORDO', value: `${totalItensGeral}`, sub: `${pctCumprimentoGeral}% cumprido`, bg: [248, 250, 252], border: [203, 213, 225], color: [51, 65, 85] },
-                { title: 'SITUACAO DOS ITENS', value: `${totalRecebidosGeral} Rec.`, sub: `${totalAguardandoGeral} Aguardando`, bg: [236, 253, 245], border: [167, 243, 208], color: [4, 120, 87] }
+                {
+                    title: 'ORGAO CENTRAL (CRECHE)',
+                    value: orgaoCentralObj ? `${orgaoCentralObj.sigla || orgaoCentralObj.nome}` : 'MS',
+                    sub: orgaoCentralObj ? `${orgaoCentralObj.count_alunos || 0} aluno(s) • ${orgaoCentralObj.count_pais || 0} pais` : 'Mantenedor SEAMI',
+                    bg: [236, 253, 245],
+                    border: [110, 231, 183],
+                    color: [4, 120, 87]
+                },
+                {
+                    title: 'ORGAOS CONVENIADOS',
+                    value: `${totalConveniados}`,
+                    sub: `${totalConveniadosAtivos} conveniado(s) ativo(s)`,
+                    bg: [239, 246, 255],
+                    border: [191, 219, 254],
+                    color: [30, 64, 175]
+                },
+                {
+                    title: 'ALUNOS VINCULADOS',
+                    value: `${totalAlunosConv}`,
+                    sub: 'Central + Conveniados',
+                    bg: [245, 243, 255],
+                    border: [221, 214, 254],
+                    color: [109, 40, 217]
+                },
+                {
+                    title: 'ITENS DE ACORDO',
+                    value: `${totalRecebidosGeral}/${totalItensGeral} Rec.`,
+                    sub: `${totalAguardandoGeral} Aguardando (${pctCumprimentoGeral}%)`,
+                    bg: [248, 250, 252],
+                    border: [203, 213, 225],
+                    color: [51, 65, 85]
+                }
             ];
 
             kpis.forEach((k, idx) => {
@@ -1168,38 +1267,39 @@
                 doc.roundedRect(x, cardY, cardW, cardH, 2, 2, 'FD');
 
                 doc.setFont('helvetica', 'bold');
-                doc.setFontSize(6.8);
+                doc.setFontSize(6.6);
                 doc.setTextColor(100, 116, 139);
                 doc.text(k.title, x + 3, cardY + 5);
 
                 doc.setFont('helvetica', 'bold');
-                doc.setFontSize(11);
+                doc.setFontSize(10.5);
                 doc.setTextColor(...k.color);
                 doc.text(k.value, x + 3, cardY + 11.5);
 
                 doc.setFont('helvetica', 'normal');
-                doc.setFontSize(7);
+                doc.setFontSize(6.8);
                 doc.setTextColor(71, 85, 105);
                 doc.text(k.sub, x + 3, cardY + 15.8);
             });
 
-            // 3. TABELA RESUMO GERAL DE ÓRGÃOS CONVENIADOS
+            // 3. TABELA RESUMO GERAL: ÓRGÃO CENTRAL E ÓRGÃOS CONVENIADOS
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(9.5);
             doc.setTextColor(30, 41, 59);
-            doc.text('1. Quadro Geral de Orgaos Conveniados', 14, 67);
+            doc.text('1. Quadro Geral Institucional: Orgao Central & Orgaos Conveniados', 14, 67);
 
             const resumoBody = ORGAOS_REPORT_DATA.map((org, idx) => {
                 const tot = Number(org.total_itens_acordo) || 0;
                 const rec = Number(org.total_acordo_recebidos) || 0;
                 const ag = Math.max(0, tot - rec);
                 const resumoItens = tot > 0
-                    ? `${tot} item(ns)  •  ${rec} Recebido(s) / ${ag} Aguardando`
-                    : 'Sem itens vinculados';
+                    ? `${tot} item(ns)  •  ${rec} Rec. / ${ag} Aguard.`
+                    : (org.is_central ? 'Orgao Central Mantenedor' : 'Sem itens vinculados');
                 return [
                     String(idx + 1),
                     org.nome || '-',
                     org.sigla || '-',
+                    org.is_central ? 'ORGAO CENTRAL' : 'Conveniado',
                     org.ativo ? 'Ativo' : 'Inativo',
                     `${org.count_alunos || 0} (${org.pct_alunos || 0}%)`,
                     String(org.count_pais || 0),
@@ -1209,35 +1309,46 @@
 
             doc.autoTable({
                 startY: 70,
-                head: [['#', 'Orgao Conveniado', 'Sigla', 'Status', 'Alunos', 'Pais', 'Resumo de Itens do Acordo']],
+                head: [['#', 'Orgao / Instituicao', 'Sigla', 'Vinculo', 'Status', 'Alunos', 'Pais', 'Resumo de Itens do Acordo']],
                 body: resumoBody,
                 theme: 'grid',
                 headStyles: {
                     fillColor: [30, 58, 138],
                     textColor: [255, 255, 255],
                     fontStyle: 'bold',
-                    fontSize: 7.8,
+                    fontSize: 7.4,
                     halign: 'left'
                 },
                 bodyStyles: {
-                    fontSize: 7.5,
+                    fontSize: 7.2,
                     textColor: [30, 41, 59],
-                    cellPadding: 2.3
+                    cellPadding: 2.1
                 },
                 alternateRowStyles: {
                     fillColor: [248, 250, 252]
                 },
                 columnStyles: {
-                    0: { cellWidth: 8, halign: 'center' },
-                    1: { cellWidth: 58, fontStyle: 'bold' },
-                    2: { cellWidth: 20, halign: 'center', fontStyle: 'bold' },
-                    3: { cellWidth: 16, halign: 'center' },
-                    4: { cellWidth: 20, halign: 'center' },
-                    5: { cellWidth: 14, halign: 'center' },
-                    6: { cellWidth: 46 }
+                    0: { cellWidth: 7, halign: 'center' },
+                    1: { cellWidth: 46, fontStyle: 'bold' },
+                    2: { cellWidth: 16, halign: 'center', fontStyle: 'bold' },
+                    3: { cellWidth: 25, halign: 'center', fontStyle: 'bold' },
+                    4: { cellWidth: 14, halign: 'center' },
+                    5: { cellWidth: 18, halign: 'center' },
+                    6: { cellWidth: 12, halign: 'center' },
+                    7: { cellWidth: 44 }
                 },
                 didParseCell: function(data) {
                     if (data.section === 'body' && data.column.index === 3) {
+                        const val = String(data.cell.raw || '');
+                        if (val === 'ORGAO CENTRAL') {
+                            data.cell.styles.fillColor = [220, 252, 231];
+                            data.cell.styles.textColor = [4, 120, 87];
+                            data.cell.styles.fontStyle = 'bold';
+                        } else {
+                            data.cell.styles.textColor = [29, 78, 216];
+                        }
+                    }
+                    if (data.section === 'body' && data.column.index === 4) {
                         const val = String(data.cell.raw || '');
                         if (val === 'Ativo') {
                             data.cell.styles.textColor = [4, 120, 87];
@@ -1262,7 +1373,7 @@
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(9.5);
             doc.setTextColor(30, 41, 59);
-            doc.text('2. Detalhamento de Itens em Cumprimento de Acordo por Orgao', 14, currentY);
+            doc.text('2. Detalhamento por Orgao (Orgao Central & Acordos de Convenio)', 14, currentY);
             currentY += 4;
 
             ORGAOS_REPORT_DATA.forEach((org, orgIdx) => {
@@ -1276,22 +1387,34 @@
                     currentY = 16;
                 }
 
-                // Cabeçalho estilizado do Órgão
-                doc.setFillColor(239, 246, 255);
-                doc.setDrawColor(191, 219, 254);
+                // Cabeçalho estilizado do Órgão (Verde para Órgão Central, Azul para Conveniado)
+                if (org.is_central) {
+                    doc.setFillColor(236, 253, 245);
+                    doc.setDrawColor(110, 231, 183);
+                } else {
+                    doc.setFillColor(239, 246, 255);
+                    doc.setDrawColor(191, 219, 254);
+                }
                 doc.setLineWidth(0.35);
                 doc.roundedRect(14, currentY, pageWidth - 28, 9.5, 1.5, 1.5, 'FD');
 
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(8.5);
-                doc.setTextColor(30, 64, 175);
-                const tituloOrgao = `${orgIdx + 1}. [${org.sigla || org.nome}] ${org.nome}`;
+                if (org.is_central) {
+                    doc.setTextColor(4, 120, 87);
+                } else {
+                    doc.setTextColor(30, 64, 175);
+                }
+                const sufixoCentral = org.is_central ? '  [ORGAO CENTRAL - MANTENEDOR]' : '  [ORGAO CONVENIADO]';
+                const tituloOrgao = `${orgIdx + 1}. [${org.sigla || org.nome}] ${org.nome}${sufixoCentral}`;
                 doc.text(tituloOrgao, 17, currentY + 6.2);
 
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(7.5);
                 doc.setTextColor(71, 85, 105);
-                const badgeDireita = `Alunos: ${org.count_alunos || 0}  |  Itens: ${rec}/${tot} Recebido(s) (${ag} Aguardando)`;
+                const badgeDireita = (org.is_central && tot === 0)
+                    ? `Alunos: ${org.count_alunos || 0}  |  Pais: ${org.count_pais || 0}  |  Orgao Central da Creche`
+                    : `Alunos: ${org.count_alunos || 0}  |  Itens: ${rec}/${tot} Recebido(s) (${ag} Aguardando)`;
                 doc.text(badgeDireita, pageWidth - 17, currentY + 6.2, { align: 'right' });
 
                 currentY += 10.5;
@@ -1304,7 +1427,15 @@
                         it.status === 'recebido' ? 'RECEBIDO' : 'AGUARDANDO RECEBIMENTO',
                         it.status === 'recebido' ? (it.data_recebimento || 'Recebido') : 'Pendente'
                     ])
-                    : [['-', 'Nenhum item em cumprimento de acordo cadastrado para este orgao.', '-', '-', '-']];
+                    : [[
+                        '-',
+                        org.is_central
+                            ? 'Orgao Central Mantenedor ao qual a creche pertence (nao sujeito a acordo de convenio).'
+                            : 'Nenhum item em cumprimento de acordo cadastrado para este orgao conveniado.',
+                        '-',
+                        org.is_central ? 'ORGAO CENTRAL' : '-',
+                        '-'
+                    ]];
 
                 doc.autoTable({
                     startY: currentY,

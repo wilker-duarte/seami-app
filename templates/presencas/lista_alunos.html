@@ -220,13 +220,20 @@
                             </div>
                         </td>
 
-                        <!-- Coluna 2: Órgão / Convênio (Contrato e Lotação dos Pais) -->
+                        <!-- Coluna 2: Órgão (Central / Convênio e Lotação dos Pais) -->
                         <td style="padding: 16px 20px;">
                             <div style="display: flex; flex-direction: column; gap: 4px;">
-                                <span style="background-color: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; padding: 4px 10px; border-radius: 8px; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; width: fit-content;" title="Órgão do Contrato / Criança">
+                                {% if item.is_orgao_central %}
+                                <span style="background-color: #ecfdf5; color: #047857; border: 1px solid #6ee7b7; padding: 4px 10px; border-radius: 8px; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; width: fit-content;" title="Órgão Central ao qual a creche pertence">
+                                    <span>🏛️</span>
+                                    <span>{{ item.orgao_display }} (Órgão Central)</span>
+                                </span>
+                                {% else %}
+                                <span style="background-color: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; padding: 4px 10px; border-radius: 8px; font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; width: fit-content;" title="Órgão Conveniado (Contrato)">
                                     <span>🏛️</span>
                                     <span>{{ item.orgao_display }}</span>
                                 </span>
+                                {% endif %}
                                 {% if item.obj.orgao_responsavel %}
                                     <span style="font-size: 11px; color: var(--text-secondary); font-weight: 500;" title="Órgão de Vínculo do Responsável">
                                         Lotação Pais: <strong style="color: var(--text-primary);">{{ item.orgao_responsavel_display }}</strong>
@@ -632,7 +639,7 @@
                             <select name="orgao_responsavel" id="field-orgao-responsavel" onchange="document.getElementById('field-orgao').value=this.value;" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1.5px solid #bfdbfe; background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none; box-sizing: border-box;">
                                 <option value="">Selecione o Órgão do Responsável...</option>
                                 {% for org in orgaos %}
-                                    <option value="{{ org.id }}">{{ org.sigla|default:org.nome }} - {{ org.nome }}</option>
+                                    <option value="{{ org.id }}">{{ org.sigla|default:org.nome }} - {{ org.nome }}{% if org.is_central %} (Órgão Central){% endif %}</option>
                                 {% endfor %}
                             </select>
                             <span style="font-size: 11px; color: var(--text-secondary); margin-top: 4px; display: block;">
@@ -680,7 +687,7 @@
                             <select name="orgao_responsavel_2" id="field-orgao-responsavel-2" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-input); font-size: 13.5px; color: var(--text-primary); outline: none; box-sizing: border-box;">
                                 <option value="">Selecione o Órgão...</option>
                                 {% for org in orgaos %}
-                                    <option value="{{ org.id }}">{{ org.sigla|default:org.nome }} - {{ org.nome }}</option>
+                                    <option value="{{ org.id }}">{{ org.sigla|default:org.nome }} - {{ org.nome }}{% if org.is_central %} (Órgão Central){% endif %}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -1307,7 +1314,7 @@
                             ${st.is_aniversariante_hoje ? `<span style="font-size: 11.5px; font-weight: 800; background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e; border: 1px solid #fcd34d; padding: 2px 9px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 3px rgba(245, 158, 11, 0.25);">🎉 Aniversário Hoje! 🎂</span>` : ''}
                         </h4>
                         <div style="display: flex; gap: 6px; margin-top: 6px; align-items: center; flex-wrap: wrap;">
-                            <span style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 12px;">🏛️ Órgão: ${st.orgao_display || 'Não informado'}</span>
+                            <span style="${st.is_orgao_central ? 'background: #ecfdf5; color: #047857; border: 1px solid #6ee7b7;' : 'background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe;'} padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 12px;">🏛️ ${st.is_orgao_central ? 'Órgão Central' : 'Órgão'}: ${st.orgao_display || 'Não informado'}</span>
                             <span style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 12px;">🏫 Sala atual: ${st.turma_nome}</span>
                             <span style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 12px;">🕒 Turno atual: ${st.turno}</span>
                         </div>
