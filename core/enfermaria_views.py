@@ -263,6 +263,15 @@ def enfermaria_novo_atendimento_view(request):
     except ValueError:
         data_atendimento = timezone.localdate()
 
+    from presencas.models import get_dia_nao_letivo
+    fer_enf = get_dia_nao_letivo(data_atendimento, turma=aluno.turma)
+    if fer_enf:
+        messages.warning(
+            request,
+            f"Indisponibilidade de funcionamento da creche: {data_atendimento.strftime('%d/%m/%Y')} está classificado como {fer_enf.get_tipo_display()} ({fer_enf.descricao}). Não é possível registrar atendimento presencial na enfermaria em feriados/recessos."
+        )
+        return redirect('core:enfermaria')
+
     if horario_str:
         try:
             from datetime import time
@@ -352,7 +361,16 @@ def enfermaria_editar_atendimento_view(request, atendimento_id):
 
     if data_atendimento_str:
         try:
-            atendimento.data_atendimento = date.fromisoformat(data_atendimento_str)
+            nova_dt = date.fromisoformat(data_atendimento_str)
+            from presencas.models import get_dia_nao_letivo
+            fer_enf = get_dia_nao_letivo(nova_dt, turma=atendimento.aluno.turma if atendimento.aluno else None)
+            if fer_enf:
+                messages.warning(
+                    request,
+                    f"Indisponibilidade de funcionamento da creche: {nova_dt.strftime('%d/%m/%Y')} está classificado como {fer_enf.get_tipo_display()} ({fer_enf.descricao}). Não é possível registrar atendimento presencial na enfermaria em feriados/recessos."
+                )
+                return redirect('core:enfermaria')
+            atendimento.data_atendimento = nova_dt
         except ValueError:
             pass
 

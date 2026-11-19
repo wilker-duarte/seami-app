@@ -173,6 +173,12 @@ class ItemAcordoOrgao(models.Model):
         default=StatusRecebimentoAcordo.AGUARDANDO,
         verbose_name='Status de Recebimento'
     )
+    numero_patrimonio = models.CharField(
+        max_length=120,
+        blank=True,
+        default='',
+        verbose_name='Número de Patrimônio / Tombamento'
+    )
     data_recebimento = models.DateField(
         null=True,
         blank=True,
@@ -188,7 +194,8 @@ class ItemAcordoOrgao(models.Model):
 
     def __str__(self):
         qtd_str = f" ({self.quantidade})" if self.quantidade else ""
-        return f"{self.orgao} — {self.descricao}{qtd_str} [{self.get_status_display()}]"
+        pat_str = f" | Patrimônio: {self.numero_patrimonio}" if self.numero_patrimonio else ""
+        return f"{self.orgao} — {self.descricao}{qtd_str}{pat_str} [{self.get_status_display()}]"
 
 
 class AlunoQuerySet(models.QuerySet):
@@ -963,8 +970,12 @@ def auto_popular_presencas_diario(sender, instance, created, **kwargs):
     """
     Ao criar uma nova sessão de diário de classe, gera em lote os registros de
     presença pré-preenchidos com 'PRESENTE' para todos os alunos ativos da turma.
+    Em dias de feriado/recesso (indisponibilidade de funcionamento da creche),
+    não gera registros de presença ou ausência para nenhuma criança.
     """
     if created:
+        if is_dia_nao_letivo(instance.data, turma=instance.turma_id):
+            return
         alunos_qs = instance.turma.alunos.filter(ativo=True)
         if instance.turno != TurnoFiltro.TODOS:
             if instance.turno == TurnoAluno.MATUTINO:
@@ -1395,6 +1406,35 @@ class DiaNaoLetivo(models.Model):
         return f"{self.data_inicio.strftime('%d/%m/%Y')} a {self.data_fim.strftime('%d/%m/%Y')}"
 
 
+def get_dia_nao_letivo(target_date, turma=None):
+    """
+    Retorna o objeto DiaNaoLetivo caso a data seja um feriado/recesso
+    (indisponibilidade de funcionamento da creche) para a turma informada ou geral.
+    """
+    if not target_date:
+        return None
+    qs = DiaNaoLetivo.objects.filter(
+        data_inicio__lte=target_date,
+        data_fim__gte=target_date
+    )
+    if turma is not None:
+        turma_id = getattr(turma, 'id', turma)
+        if turma_id and str(turma_id).isdigit():
+            qs = qs.filter(Q(turma__isnull=True) | Q(turma_id=int(turma_id)))
+        else:
+            qs = qs.filter(turma__isnull=True)
+    else:
+        qs = qs.filter(turma__isnull=True)
+    return qs.first()
+
+
+def is_dia_nao_letivo(target_date, turma=None):
+    """
+    Verifica se target_date é um feriado ou dia de indisponibilidade de funcionamento da creche.
+    """
+    return get_dia_nao_letivo(target_date, turma=turma) is not None
+
+
 class HistoricoFrequenciaMensal(models.Model):
     """
     Série Histórica Multiano de Frequência vs Alunos Matriculados (2019 até 2026+).
@@ -1542,8 +1582,17 @@ def recalcular_presenca_para_data(aluno, target_date):
     """
     Recalcula e sincroniza o status de RegistroPresenca para um aluno em uma data específica,
     levando em consideração as ocorrências ativas do Caderno SEAMI e o status_chamada original.
+    Em dias de feriado/recesso (DiaNaoLetivo — indisponibilidade de funcionamento da creche)
+    ou finais de semana, garante que NÃO exista nenhum registro de presença, falta ou falta
+    justificada (mesmo quando houver atestado médico vigente cobrindo o período).
     """
     if not aluno or not target_date:
+        return None
+
+    # Feriados / Dias Não Letivos e Finais de Semana não possuem funcionamento da creche:
+    # não interrompem o atestado médico no Caderno, mas não geram nem mantêm RegistroPresenca na data.
+    if target_date.weekday() >= 5 or is_dia_nao_letivo(target_date, turma=aluno.turma_id):
+        RegistroPresenca.objects.filter(aluno=aluno, data=target_date).delete()
         return None
 
     # Busca ocorrências ativas do Caderno SEAMI (Falta ou Atestado) cobrindo esta data
@@ -1719,6 +1768,61 @@ def reverter_ao_excluir_atendimento_enfermaria(sender, instance, **kwargs):
         reverter_automacoes_enfermaria(instance)
     except Exception:
         pass
+
+
+@receiver(post_save, sender=DiaNaoLetivo)
+def limpar_presencas_em_dia_nao_letivo(sender, instance, **kwargs):
+    """
+    Garante que ao cadastrar ou editar um Feriado / Dia Não Letivo (indisponibilidade da creche),
+    nenhum registro de presença, falta ou falta justificada (nem diário de classe) exista no período,
+    sem interromper nem excluir Atestados Médicos ou afastamentos de período que atravessem o feriado.
+    """
+    regs_qs = RegistroPresenca.objects.filter(
+        data__gte=instance.data_inicio,
+        data__lte=instance.data_fim
+    )
+    diarios_qs = DiarioDeClasse.objects.filter(
+        data__gte=instance.data_inicio,
+        data__lte=instance.data_fim
+    )
+    if instance.turma_id:
+        regs_qs = regs_qs.filter(turma_id=instance.turma_id)
+        diarios_qs = diarios_qs.filter(turma_id=instance.turma_id)
+
+    regs_qs.delete()
+    diarios_qs.delete()
+
+
+@receiver(post_delete, sender=DiaNaoLetivo)
+def restaurar_atestados_ao_excluir_feriado(sender, instance, **kwargs):
+    """
+    Quando um Feriado / Dia Não Letivo é removido e a data volta a ser dia útil normal,
+    recalcula a presença para crianças que possuam Atestado Médico ou Falta de período
+    abrangendo aquela(s) data(s).
+    """
+    ocorrs_ativas = OcorrenciaCaderno.objects.filter(
+        tipo__in=[TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO],
+        data__lte=instance.data_fim
+    ).filter(
+        Q(data_fim__gte=instance.data_inicio) |
+        (Q(data_fim__isnull=True) & Q(data__gte=instance.data_inicio))
+    ).select_related('aluno')
+
+    if instance.turma_id:
+        ocorrs_ativas = ocorrs_ativas.filter(
+            Q(turma_id=instance.turma_id) | Q(aluno__turma_id=instance.turma_id)
+        )
+
+    alunos_afetados = {oc.aluno for oc in ocorrs_ativas if oc.aluno_id and oc.aluno}
+    if not alunos_afetados:
+        return
+
+    cur_d = instance.data_inicio
+    while cur_d <= instance.data_fim:
+        if cur_d.weekday() < 5:
+            for al in alunos_afetados:
+                recalcular_presenca_para_data(al, cur_d)
+        cur_d += timedelta(days=1)
 
 
 @receiver(pre_delete, sender=settings.AUTH_USER_MODEL)

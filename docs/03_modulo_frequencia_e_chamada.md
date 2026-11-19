@@ -39,7 +39,7 @@ Cada aluno recebe uma classificação:
 | **Falta Não Justificada** | `AUSENTE` (F) | Criança não compareceu e a família não informou o motivo. | Conta negativamente na taxa de assiduidade geral. |
 | **Falta Justificada** | `JUSTIFICADO` (FJ) | Falta comunicada previamente, atestado médico ou afastamento de enfermagem. | Requer preenchimento de justificativa/motivo. |
 | **Presença Parcial** | `PARCIAL` | Presente em apenas um período (ex: matutino presente, vespertino ausente). | Para alunos de turno integral. |
-| **Recesso / Feriado** | `RECESSO` / `FERIADO` | Dia letivo suspenso. | Não penaliza a assiduidade dos alunos. |
+| **Feriado / Recesso (`DiaNaoLetivo`)** | — | Dia de indisponibilidade de funcionamento da creche. | Não gera nem mantém registros de presença, falta ou falta justificada para nenhuma criança. Atestados médicos em curso não são interrompidos, mas não colocam falta justificada no feriado. |
 
 ### 2.3. Ações Rápidas em Massa
 * **Marcar Todos como Presentes (P)**: Botão no topo da tabela para preencher todos os alunos da sala com 1 clique.

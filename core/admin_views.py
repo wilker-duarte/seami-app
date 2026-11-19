@@ -83,6 +83,7 @@ def central_administrativa_view(request):
                 'quantidade': item.quantidade or '',
                 'status': item.status,
                 'status_display': item.get_status_display(),
+                'numero_patrimonio': item.numero_patrimonio or '',
                 'data_recebimento': item.data_recebimento.strftime('%d/%m/%Y') if item.data_recebimento else '',
             }
             for item in itens_acordo_objs
@@ -306,6 +307,7 @@ def salvar_orgao_api(request):
                 if not desc_item:
                     continue
                 qtd_item = (item_data.get('quantidade') or '').strip()
+                patrimonio_item = (item_data.get('numero_patrimonio') or '').strip()
                 status_item = (item_data.get('status') or StatusRecebimentoAcordo.AGUARDANDO).strip()
                 if status_item not in [StatusRecebimentoAcordo.AGUARDANDO, StatusRecebimentoAcordo.RECEBIDO]:
                     status_item = StatusRecebimentoAcordo.AGUARDANDO
@@ -320,6 +322,7 @@ def salvar_orgao_api(request):
                         )
                         obj_item.descricao = desc_item
                         obj_item.quantidade = qtd_item
+                        obj_item.numero_patrimonio = patrimonio_item
                         obj_item.status = status_item
                         if status_item == StatusRecebimentoAcordo.RECEBIDO:
                             if not obj_item.data_recebimento or mudou_para_recebido:
@@ -334,6 +337,7 @@ def salvar_orgao_api(request):
                     orgao=orgao,
                     descricao=desc_item,
                     quantidade=qtd_item,
+                    numero_patrimonio=patrimonio_item,
                     status=status_item,
                     data_recebimento=today_date if status_item == StatusRecebimentoAcordo.RECEBIDO else None
                 )
@@ -365,7 +369,8 @@ def salvar_orgao_api(request):
 def atualizar_status_item_acordo_api(request, item_id):
     """
     Atualiza o status de controle de recebimento ('aguardando' <-> 'recebido')
-    de um ItemAcordoOrgao diretamente na aba Órgãos Conveniados da Central Administrativa.
+    e/ou o número de patrimônio de um ItemAcordoOrgao diretamente na aba Órgãos Conveniados
+    da Central Administrativa.
     """
     try:
         item = get_object_or_404(ItemAcordoOrgao, id=item_id)
@@ -374,19 +379,27 @@ def atualizar_status_item_acordo_api(request, item_id):
         else:
             data = request.POST
 
-        novo_status = (data.get('status') or '').strip()
-        if novo_status not in [StatusRecebimentoAcordo.AGUARDANDO, StatusRecebimentoAcordo.RECEBIDO]:
-            novo_status = (
-                StatusRecebimentoAcordo.RECEBIDO
-                if item.status == StatusRecebimentoAcordo.AGUARDANDO
-                else StatusRecebimentoAcordo.AGUARDANDO
-            )
+        apenas_patrimonio = bool(data.get('apenas_patrimonio'))
 
-        item.status = novo_status
-        if novo_status == StatusRecebimentoAcordo.RECEBIDO:
-            item.data_recebimento = timezone.localdate()
-        else:
-            item.data_recebimento = None
+        if 'numero_patrimonio' in data:
+            item.numero_patrimonio = (data.get('numero_patrimonio') or '').strip()
+
+        if not apenas_patrimonio:
+            novo_status = (data.get('status') or '').strip()
+            if novo_status not in [StatusRecebimentoAcordo.AGUARDANDO, StatusRecebimentoAcordo.RECEBIDO]:
+                novo_status = (
+                    StatusRecebimentoAcordo.RECEBIDO
+                    if item.status == StatusRecebimentoAcordo.AGUARDANDO
+                    else StatusRecebimentoAcordo.AGUARDANDO
+                )
+
+            item.status = novo_status
+            if novo_status == StatusRecebimentoAcordo.RECEBIDO:
+                if not item.data_recebimento:
+                    item.data_recebimento = timezone.localdate()
+            else:
+                item.data_recebimento = None
+
         item.save()
 
         itens_orgao = ItemAcordoOrgao.objects.filter(orgao_id=item.orgao_id)
@@ -394,14 +407,23 @@ def atualizar_status_item_acordo_api(request, item_id):
         rec = itens_orgao.filter(status=StatusRecebimentoAcordo.RECEBIDO).count()
         ag = tot - rec
 
+        if apenas_patrimonio:
+            if item.numero_patrimonio:
+                msg_feedback = f'Nº de Patrimônio "{item.numero_patrimonio}" vinculado ao item "{item.descricao}".'
+            else:
+                msg_feedback = f'Nº de Patrimônio atualizado para o item "{item.descricao}".'
+        else:
+            msg_feedback = f'Status do item "{item.descricao}" alterado para "{item.get_status_display()}".'
+
         return JsonResponse({
             'success': True,
-            'message': f'Status do item "{item.descricao}" alterado para "{item.get_status_display()}".',
+            'message': msg_feedback,
             'item': {
                 'id': item.id,
                 'orgao_id': item.orgao_id,
                 'status': item.status,
                 'status_display': item.get_status_display(),
+                'numero_patrimonio': item.numero_patrimonio or '',
                 'data_recebimento': item.data_recebimento.strftime('%d/%m/%Y') if item.data_recebimento else '',
             },
             'counts': {
@@ -411,7 +433,7 @@ def atualizar_status_item_acordo_api(request, item_id):
             }
         })
     except Exception as e:
-        return JsonResponse({'success': False, 'error': f'Falha ao atualizar status do item: {str(e)}'}, status=500)
+        return JsonResponse({'success': False, 'error': f'Falha ao atualizar item: {str(e)}'}, status=500)
 
 
 

@@ -117,7 +117,7 @@ def build_dashboard_context(request):
     if is_professor:
         turmas_qs = request.user.turmas_como_professor.filter(ativo=True).prefetch_related('professores', 'auxiliares').order_by('nome')
         sem_turma_vinculada = not turmas_qs.exists()
-        all_active_students = Aluno.objects.ativos().filter(turma__in=turmas_qs).select_related('turma', 'orgao', 'orgao_responsavel', 'orgao_responsavel_2').order_by('nome')
+        all_active_students_dropdown = Aluno.objects.ativos().filter(turma__in=turmas_qs).select_related('turma', 'orgao', 'orgao_responsavel', 'orgao_responsavel_2').order_by('nome')
         # Sanitiza classroom_filter para o professor
         valid_salas = [t.nome.lower() for t in turmas_qs]
         valid_ids = [str(t.id) for t in turmas_qs]
@@ -126,9 +126,65 @@ def build_dashboard_context(request):
     else:
         turmas_qs = Turma.objects.filter(ativo=True).prefetch_related('professores', 'auxiliares').order_by('nome')
         sem_turma_vinculada = False
-        all_active_students = Aluno.objects.ativos().select_related('turma', 'orgao', 'orgao_responsavel', 'orgao_responsavel_2').order_by('nome')
+        all_active_students_dropdown = Aluno.objects.ativos().select_related('turma', 'orgao', 'orgao_responsavel', 'orgao_responsavel_2').order_by('nome')
 
-    total_alunos_ativos = all_active_students.count()
+    # Base de alunos matriculados ativos DENTRO DO PERÍODO FILTRADO (date_start a date_end):
+    # - Data de entrada anterior ou igual ao fim do período (exclui matrículas de meses posteriores, ex: Novembro ao filtrar Outubro)
+    # - Sem desligamento ou com desligamento posterior ao início do período
+    filtro_periodo_alunos = (
+        (Q(data_entrada__isnull=True) | Q(data_entrada__lte=date_end)) &
+        (
+            (Q(ativo=True) & (Q(data_desligamento__isnull=True) | Q(data_desligamento__gt=date_start))) |
+            (Q(data_desligamento__isnull=False) & Q(data_desligamento__gt=date_start))
+        )
+    )
+    alunos_periodo_qs = Aluno.objects.filter(filtro_periodo_alunos).select_related(
+        'turma', 'orgao', 'orgao_responsavel', 'orgao_responsavel_2'
+    ).order_by('nome')
+    if is_professor:
+        if sem_turma_vinculada:
+            alunos_periodo_qs = alunos_periodo_qs.none()
+        else:
+            alunos_periodo_qs = alunos_periodo_qs.filter(turma__in=turmas_qs)
+
+    all_active_students = alunos_periodo_qs
+
+    # Filtro adicional de sala e criança para o card "Total Geral de Alunos" (Quantidade máxima no período)
+    alunos_card_total_qs = alunos_periodo_qs
+    if classroom_filter:
+        c_clean_top = classroom_filter.replace('Sala', '').replace('sala', '').strip()
+        alunos_card_total_qs = alunos_card_total_qs.filter(
+            Q(turma__nome__iexact=classroom_filter) |
+            Q(turma__nome__iexact=c_clean_top) |
+            Q(turma_id=classroom_filter if classroom_filter.isdigit() else None)
+        )
+    if student_id_filter and str(student_id_filter).isdigit():
+        alunos_card_total_qs = alunos_card_total_qs.filter(id=int(student_id_filter))
+
+    alunos_card_total_list = list(alunos_card_total_qs)
+    datas_candidatas_pico = {date_start, date_end}
+    for al_p in alunos_card_total_list:
+        if al_p.data_entrada and date_start <= al_p.data_entrada <= date_end:
+            datas_candidatas_pico.add(al_p.data_entrada)
+        if al_p.data_desligamento and date_start <= al_p.data_desligamento <= date_end:
+            datas_candidatas_pico.add(al_p.data_desligamento)
+            if al_p.data_desligamento > date_start:
+                datas_candidatas_pico.add(al_p.data_desligamento - timedelta(days=1))
+
+    max_alunos_matriculados_periodo = 0
+    for d_ref in sorted(datas_candidatas_pico):
+        c_simultaneo = sum(
+            1 for al_p in alunos_card_total_list
+            if (not al_p.data_entrada or al_p.data_entrada <= d_ref) and
+               ((al_p.ativo and not al_p.data_desligamento) or (al_p.data_desligamento and al_p.data_desligamento > d_ref))
+        )
+        if c_simultaneo > max_alunos_matriculados_periodo:
+            max_alunos_matriculados_periodo = c_simultaneo
+
+    if max_alunos_matriculados_periodo == 0 and alunos_card_total_list:
+        max_alunos_matriculados_periodo = len(alunos_card_total_list)
+
+    total_alunos_ativos = max_alunos_matriculados_periodo
 
     # =========================================================================
     # 1. RESUMO GERAL DO PERÍODO (NOVAS MATRÍCULAS E DESLIGAMENTOS)
@@ -173,8 +229,29 @@ def build_dashboard_context(request):
             'emoji': '🏫', 'age': t.faixa_etaria, 'bg_icon': '#f1f5f9',
             'color_val': '#334155', 'color_foot': '#64748b'
         })
-        alunos_turma = t.alunos.ativos()
-        count_turma = alunos_turma.count()
+        alunos_turma = t.alunos.filter(filtro_periodo_alunos)
+        alunos_turma_list = list(alunos_turma)
+        datas_pico_turma = {date_start, date_end}
+        for al_t in alunos_turma_list:
+            if al_t.data_entrada and date_start <= al_t.data_entrada <= date_end:
+                datas_pico_turma.add(al_t.data_entrada)
+            if al_t.data_desligamento and date_start <= al_t.data_desligamento <= date_end:
+                datas_pico_turma.add(al_t.data_desligamento)
+                if al_t.data_desligamento > date_start:
+                    datas_pico_turma.add(al_t.data_desligamento - timedelta(days=1))
+        count_turma = max(
+            (
+                sum(
+                    1 for al_t in alunos_turma_list
+                    if (not al_t.data_entrada or al_t.data_entrada <= d_t) and
+                       ((al_t.ativo and not al_t.data_desligamento) or (al_t.data_desligamento and al_t.data_desligamento > d_t))
+                )
+                for d_t in datas_pico_turma
+            ),
+            default=0
+        )
+        if count_turma == 0 and alunos_turma_list:
+            count_turma = len(alunos_turma_list)
         deslig_turma = desligamentos_qs.filter(turma=t).count()
 
         salas_cards_data.append({
@@ -937,7 +1014,7 @@ def build_dashboard_context(request):
         'turmas': turmas_qs,
         'available_years': sorted_years,
         'current_year': current_year,
-        'all_active_students': all_active_students,
+        'all_active_students': all_active_students_dropdown,
         'salas_cards_data': salas_cards_data,
         'turmas_equipe_json': json.dumps(turmas_equipe_data),
         'novas_matriculas': novas_matriculas_qs,

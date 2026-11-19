@@ -18,7 +18,7 @@ class RegistroPresencaInline(admin.TabularInline):
 class ItemAcordoOrgaoInline(admin.TabularInline):
     model = ItemAcordoOrgao
     extra = 1
-    fields = ('descricao', 'quantidade', 'status', 'data_recebimento')
+    fields = ('descricao', 'quantidade', 'status', 'numero_patrimonio', 'data_recebimento')
 
 
 @admin.register(Orgao)

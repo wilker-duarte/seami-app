@@ -248,7 +248,7 @@
                                 {{ feriado_atual.get_tipo_display }}: {{ feriado_atual.descricao }}
                             </h3>
                             <span style="background-color: #2563eb; color: #ffffff; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px;">
-                                Dia Não Letivo
+                                Indisponibilidade de Funcionamento da Creche
                             </span>
                             {% if feriado_atual.turma %}
                                 <span style="background-color: #ffffff; color: #1e40af; border: 1px solid #bfdbfe; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px;">
@@ -261,7 +261,7 @@
                             {% endif %}
                         </div>
                         <p style="margin: 4px 0 0 0; font-size: 13px; color: #1e40af; font-weight: 500;">
-                            📅 Período: <strong>{{ feriado_atual.periodo_formatado }}</strong> &bull; A chamada é <strong>dispensada</strong> nesta data e os alunos <strong>não recebem presença nem falta</strong>.
+                            📅 Período: <strong>{{ feriado_atual.periodo_formatado }}</strong> &bull; Dia de <strong>indisponibilidade de funcionamento da creche</strong>: nenhuma criança recebe registro de presença, falta ou falta justificada nesta data (atestados médicos em curso não são interrompidos).
                         </p>
                     </div>
                 </div>
@@ -491,7 +491,7 @@
                                 {% if is_feriado_atual %}
                                     <span style="padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; display: inline-flex; align-items: center; gap: 6px;">
                                         <span>🏖️</span>
-                                        <span>Dia Não Letivo (Dispensado)</span>
+                                        <span>Creche Indisponível (Sem Registro)</span>
                                     </span>
                                 {% else %}
                                     <div class="attendance-btn-group" style="display: inline-flex; background-color: var(--bg-input); padding: 4px; border-radius: 12px; border: 1px solid var(--border-color); gap: 4px;">

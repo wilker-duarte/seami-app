@@ -14,7 +14,8 @@ from .models import (
     TurnoAluno, LancamentoChamada, DiarioDeClasse, TurnoFiltro,
     TipoOcorrencia, OcorrenciaCaderno, RegistroAmamentacao, RegistroExtracao,
     DiaNaoLetivo, TipoDiaNaoLetivo, Orgao,
-    extrair_nome_usuario, obter_responsavel_enfermaria, is_ocorrencia_enfermaria
+    extrair_nome_usuario, obter_responsavel_enfermaria, is_ocorrencia_enfermaria,
+    get_dia_nao_letivo, is_dia_nao_letivo
 )
 
 MONTH_NAMES_PT = [
@@ -237,6 +238,36 @@ def lancar_chamada_view(request):
             
     alunos_qs = alunos_qs.order_by('nome')
 
+    # Verifica se a data atual selecionada é feriado / recesso (indisponibilidade da creche)
+    feriado_atual_qs = DiaNaoLetivo.objects.filter(
+        data_inicio__lte=current_date,
+        data_fim__gte=current_date
+    )
+    if is_prof and not sem_turma_vinculada:
+        feriado_atual_qs = feriado_atual_qs.filter(Q(turma__isnull=True) | Q(turma__in=turmas))
+    elif selected_turma:
+        feriado_atual_qs = feriado_atual_qs.filter(Q(turma__isnull=True) | Q(turma=selected_turma))
+    else:
+        feriado_atual_qs = feriado_atual_qs.filter(turma__isnull=True)
+
+    feriado_atual = feriado_atual_qs.first()
+    is_feriado_atual = feriado_atual is not None
+
+    # Se a data é feriado/recesso, garante que não existam registros de presença ou ausência na data
+    if is_feriado_atual:
+        regs_limpar = RegistroPresenca.objects.filter(data=current_date)
+        diarios_limpar = DiarioDeClasse.objects.filter(data=current_date)
+        if feriado_atual.turma_id:
+            regs_limpar = regs_limpar.filter(turma_id=feriado_atual.turma_id)
+            diarios_limpar = diarios_limpar.filter(turma_id=feriado_atual.turma_id)
+        elif selected_turma:
+            regs_limpar = regs_limpar.filter(turma=selected_turma)
+            diarios_limpar = diarios_limpar.filter(turma=selected_turma)
+        if regs_limpar.exists():
+            regs_limpar.delete()
+        if diarios_limpar.exists():
+            diarios_limpar.delete()
+
     # Busca Ocorrências do Caderno SEAMI ativas na data
     ocorrencias_data_qs = OcorrenciaCaderno.objects.filter(
         Q(data=current_date, data_fim__isnull=True) |
@@ -253,11 +284,14 @@ def lancar_chamada_view(request):
             elif oc.tipo in [TipoOcorrencia.ATESTADO, TipoOcorrencia.FALTA] and mapa_ocorrencias[oc.aluno_id].tipo not in [TipoOcorrencia.ATESTADO, TipoOcorrencia.FALTA]:
                 mapa_ocorrencias[oc.aluno_id] = oc
 
-    # Registros de presença existentes para a data
-    regs_query = RegistroPresenca.objects.filter(data=current_date)
-    if selected_turma:
-        regs_query = regs_query.filter(turma=selected_turma)
-    registros = {r.aluno_id: r for r in regs_query}
+    # Registros de presença existentes para a data (vazio se for feriado)
+    if is_feriado_atual:
+        registros = {}
+    else:
+        regs_query = RegistroPresenca.objects.filter(data=current_date)
+        if selected_turma:
+            regs_query = regs_query.filter(turma=selected_turma)
+        registros = {r.aluno_id: r for r in regs_query}
 
     students_list = []
     total_presentes = 0
@@ -265,7 +299,7 @@ def lancar_chamada_view(request):
     total_justificadas = 0
 
     for aluno in alunos_qs:
-        reg = registros.get(aluno.id)
+        reg = None if is_feriado_atual else registros.get(aluno.id)
         oc_aluno = mapa_ocorrencias.get(aluno.id)
 
         # Informações de Ocorrência do Caderno SEAMI (Ausência Programada ou Informativo de Atraso/Saída)
@@ -276,7 +310,21 @@ def lancar_chamada_view(request):
             periodo_str = f"({dt_inicio_str} a {dt_fim_str})" if (oc_aluno.data_fim and oc_aluno.data_fim != oc_aluno.data) else f"({dt_inicio_str})"
             horario_str = f" às {oc_aluno.horario.strftime('%H:%M')}" if oc_aluno.horario else ""
 
-            if oc_aluno.tipo == TipoOcorrencia.ATESTADO:
+            if is_feriado_atual:
+                # Em dias de feriado, atestados médicos em curso não são interrompidos,
+                # mas não geram falta justificada nem registro de ausência para o feriado
+                if oc_aluno.tipo == TipoOcorrencia.ATESTADO:
+                    ocorrencia_info = {
+                        'tipo': oc_aluno.tipo,
+                        'is_ausencia': False,
+                        'is_atestado': True,
+                        'is_falta': False,
+                        'is_atraso': False,
+                        'is_saida': False,
+                        'titulo': f"Atestado Médico Vigente {periodo_str} — Sem falta justificada no feriado",
+                        'motivo': oc_aluno.motivo or oc_aluno.observacao or oc_aluno.cid,
+                    }
+            elif oc_aluno.tipo == TipoOcorrencia.ATESTADO:
                 ocorrencia_info = {
                     'tipo': oc_aluno.tipo,
                     'is_ausencia': True,
@@ -326,7 +374,7 @@ def lancar_chamada_view(request):
                     'motivo': oc_aluno.motivo or oc_aluno.observacao,
                 }
 
-        # Status prévio ou valor default
+        # Status prévio ou valor default (em feriados, nenhuma criança possui registro de presença ou ausência)
         status_matutino = reg.status_matutino if reg else None
         status_vespertino = reg.status_vespertino if reg else None
         observacao = reg.observacao if reg else ''
@@ -336,7 +384,7 @@ def lancar_chamada_view(request):
         is_saved = False
         is_pendente = False
 
-        if reg:
+        if not is_feriado_atual and reg:
             if aluno_shift == 'matutino':
                 is_saved = reg.status_matutino in [StatusTurnoPresenca.PRESENTE, StatusTurnoPresenca.AUSENTE, StatusTurnoPresenca.JUSTIFICADO]
             elif aluno_shift == 'vespertino':
@@ -347,17 +395,20 @@ def lancar_chamada_view(request):
                     reg.status_vespertino in [StatusTurnoPresenca.PRESENTE, StatusTurnoPresenca.AUSENTE, StatusTurnoPresenca.JUSTIFICADO]
                 )
         
-        is_pendente = not is_saved
+        is_pendente = (not is_saved) and (not is_feriado_atual)
 
-        # Status geral da linha (usado para resumo)
-        status_geral = reg.status if reg else StatusPresenca.PRESENTE
-        if reg and is_saved:
-            if status_geral in [StatusPresenca.PRESENTE, StatusPresenca.PARCIAL]:
-                total_presentes += 1
-            elif status_geral == StatusPresenca.AUSENTE:
-                total_faltas += 1
-            elif status_geral == StatusPresenca.JUSTIFICADO:
-                total_justificadas += 1
+        # Status geral da linha (usado para resumo; vazio em feriados)
+        if is_feriado_atual:
+            status_geral = ''
+        else:
+            status_geral = reg.status if reg else StatusPresenca.PRESENTE
+            if reg and is_saved:
+                if status_geral in [StatusPresenca.PRESENTE, StatusPresenca.PARCIAL]:
+                    total_presentes += 1
+                elif status_geral == StatusPresenca.AUSENTE:
+                    total_faltas += 1
+                elif status_geral == StatusPresenca.JUSTIFICADO:
+                    total_justificadas += 1
 
         turma_aluno = aluno.turma
         turma_nome_str = turma_aluno.nome if turma_aluno else ''
@@ -447,20 +498,7 @@ def lancar_chamada_view(request):
         is_attendance_saved = (salas_lancadas_count == total_salas_count and total_salas_count > 0)
 
     total_alunos = len(students_list)
-    taxa_presenca = round((total_presentes / total_alunos) * 100) if total_alunos > 0 else 100
-
-    # Verifica se a data atual selecionada é feriado / recesso
-    feriado_atual_qs = DiaNaoLetivo.objects.filter(
-        data_inicio__lte=current_date,
-        data_fim__gte=current_date
-    )
-    if is_prof and not sem_turma_vinculada:
-        feriado_atual_qs = feriado_atual_qs.filter(Q(turma__isnull=True) | Q(turma__in=turmas))
-    elif selected_turma:
-        feriado_atual_qs = feriado_atual_qs.filter(Q(turma__isnull=True) | Q(turma=selected_turma))
-
-    feriado_atual = feriado_atual_qs.first()
-    is_feriado_atual = feriado_atual is not None
+    taxa_presenca = 0 if is_feriado_atual else (round((total_presentes / total_alunos) * 100) if total_alunos > 0 else 100)
 
     if is_feriado_atual:
         # Se o dia é feriado/recesso, não há pendências de chamada
@@ -530,6 +568,21 @@ def salvar_chamada_lote_view(request):
 
         data_chamada = datetime.strptime(data_chamada_str, '%Y-%m-%d').date()
 
+        # Bloqueia lançamento de chamada em feriado / dia de indisponibilidade de funcionamento da creche
+        feriado_bloqueio = get_dia_nao_letivo(
+            data_chamada,
+            turma=int(turma_id) if (turma_id and str(turma_id).isdigit()) else None
+        )
+        if feriado_bloqueio:
+            return JsonResponse({
+                'success': False,
+                'error': (
+                    f'Indisponibilidade de funcionamento da creche: {data_chamada.strftime("%d/%m/%Y")} '
+                    f'está classificado como {feriado_bloqueio.get_tipo_display()} ({feriado_bloqueio.descricao}). '
+                    f'Os feriados não devem ter registros de presença ou ausência de nenhuma criança.'
+                )
+            }, status=400)
+
         from django.db import transaction
         with transaction.atomic():
             salvos = 0
@@ -545,6 +598,11 @@ def salvar_chamada_lote_view(request):
                     continue
 
                 aluno_turma = aluno.turma
+
+                # Se a turma específica do aluno estiver em feriado/recesso nesta data, ignora e limpa qualquer registro
+                if is_dia_nao_letivo(data_chamada, turma=aluno_turma):
+                    RegistroPresenca.objects.filter(aluno=aluno, data=data_chamada).delete()
+                    continue
 
                 # Restrição de segurança: Professor só pode salvar chamada para suas turmas vinculadas
                 if request.user.is_authenticated and getattr(request.user, 'is_professor', False):
@@ -711,12 +769,19 @@ def salvar_feriado_recesso_view(request):
             else:
                 turma_obj = Turma.objects.filter(nome__iexact=str(turma_id).strip()).first()
 
-        # Localiza registros prévios que seriam afetados e anulados no período
+        # Localiza registros prévios que seriam afetados e anulados no período.
+        # IMPORTANTE: Atestados Médicos (TipoOcorrencia.ATESTADO) e afastamentos de período que
+        # atravessam o feriado NÃO são interrompidos nem deletados — apenas não geram
+        # registro de presença/falta justificada no(s) dia(s) de feriado.
         regs_qs = RegistroPresenca.objects.filter(data__gte=data_inicio, data__lte=data_fim)
         diarios_qs = DiarioDeClasse.objects.filter(data__gte=data_inicio, data__lte=data_fim)
-        ocorrs_qs = OcorrenciaCaderno.objects.filter(
-            Q(data__gte=data_inicio, data__lte=data_fim) |
-            Q(data_fim__isnull=False, data__lte=data_fim, data_fim__gte=data_inicio)
+        ocorrs_qs = OcorrenciaCaderno.objects.exclude(
+            tipo=TipoOcorrencia.ATESTADO
+        ).filter(
+            data__gte=data_inicio,
+            data__lte=data_fim
+        ).filter(
+            Q(data_fim__isnull=True) | Q(data_fim__lte=data_fim)
         )
         if turma_obj:
             regs_qs = regs_qs.filter(turma=turma_obj)
@@ -744,9 +809,10 @@ def salvar_feriado_recesso_view(request):
                 'periodo': periodo_txt,
                 'message': (
                     f'Existem {total_afetados} registro(s) realizados neste período '
-                    f'({count_presencas} presença(s)/chamada(s), {count_ocorrencias} ocorrência(s)/justificativa(s)/atraso(s) '
-                    f'e {count_diarios} diário(s) de classe). Ao confirmar este dia como {tipo_label}, '
-                    f'todos esses registros serão ANULADOS E DELETADOS permanentemente para não constarem nos relatórios.'
+                    f'({count_presencas} presença(s)/ausência(s) na chamada, {count_ocorrencias} ocorrência(s) avulsa(s) '
+                    f'e {count_diarios} diário(s) de classe). Ao confirmar este dia como {tipo_label} (indisponibilidade da creche), '
+                    f'esses registros do dia serão removidos para que o feriado não tenha presença nem ausência '
+                    f'(atestados médicos vigentes não são interrompidos, apenas não geram falta justificada no feriado).'
                 )
             })
 
@@ -1800,6 +1866,14 @@ def caderno_seami_view(request, aba='faltas'):
                 observacao = request.POST.get('observacao', '').strip()
                 documento = request.FILES.get('documento')
 
+                fer_materno = get_dia_nao_letivo(data)
+                if fer_materno:
+                    messages.warning(
+                        request,
+                        f"Indisponibilidade de funcionamento da creche: a data {data.strftime('%d/%m/%Y')} está classificada como {fer_materno.get_tipo_display()} ({fer_materno.descricao}). Não é permitido lançar registro de {target_label} em feriado/recesso."
+                    )
+                    return redirect(request.get_full_path())
+
                 if action == 'create':
                     existing_day = target_model.objects.filter(data=data).first()
                     if existing_day:
@@ -1927,6 +2001,44 @@ def caderno_seami_view(request, aba='faltas'):
 
             aluno = Aluno.objects.filter(id=aluno_id).first() if aluno_id else None
             turma = aluno.turma if aluno else (Turma.objects.filter(id=turma_id).first() if turma_id else None)
+            tipo_display = dict(TipoOcorrencia.choices).get(tipo_form, tipo_form.title())
+
+            # =================================================================
+            # VALIDAÇÃO DE FERIADOS / INDISPONIBILIDADE DE FUNCIONAMENTO DA CRECHE:
+            # - Atrasos e Saídas Antecipadas não podem ocorrer em dia de feriado/recesso.
+            # - Faltas cujo período inteiro caia apenas em feriado/recesso não devem ser lançadas.
+            # - Atestados Médicos (ATESTADO) e Faltas de múltiplos dias que atravessem feriado
+            #   NÃO são interrompidos, mas o sistema não coloca Falta Justificada no dia do feriado.
+            # =================================================================
+            if tipo_form in [TipoOcorrencia.ATRASO, TipoOcorrencia.SAIDA]:
+                fer_dia = get_dia_nao_letivo(data, turma=turma)
+                if fer_dia:
+                    messages.warning(
+                        request,
+                        f"Indisponibilidade de funcionamento da creche: o dia {data.strftime('%d/%m/%Y')} está classificado como {fer_dia.get_tipo_display()} ({fer_dia.descricao}). Não é permitido lançar {tipo_display} em feriados/recessos."
+                    )
+                    return redirect(request.get_full_path())
+            elif tipo_form == TipoOcorrencia.FALTA:
+                eff_fim = data_fim or data
+                tem_dia_letivo_util = False
+                d_cursor = data
+                fer_encontrado = None
+                while d_cursor <= eff_fim:
+                    if d_cursor.weekday() < 5:
+                        fer_c = get_dia_nao_letivo(d_cursor, turma=turma)
+                        if fer_c:
+                            fer_encontrado = fer_encontrado or fer_c
+                        else:
+                            tem_dia_letivo_util = True
+                            break
+                    d_cursor += timedelta(days=1)
+
+                if not tem_dia_letivo_util and fer_encontrado:
+                    messages.warning(
+                        request,
+                        f"Indisponibilidade de funcionamento da creche: a data informada ({data.strftime('%d/%m/%Y')}) está classificada como {fer_encontrado.get_tipo_display()} ({fer_encontrado.descricao}). Os feriados não devem ter registros de presença ou ausência."
+                    )
+                    return redirect(request.get_full_path())
 
             # =================================================================
             # VALIDAÇÃO DE DUPLICIDADE:
