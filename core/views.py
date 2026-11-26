@@ -1218,15 +1218,21 @@ def build_relatorios_context(request):
     # 1. ABA RELATÓRIO DE FALTAS (CHAMADA DIÁRIA / REGISTROPRESENCA + CADERNO)
     # =========================================================================
     # Mapeia ocorrências do Caderno para enriquecer com CID/Documento/Comprovante se houver
+    # (inclui ocorrências de múltiplos dias onde data <= reg.data <= data_fim)
     ocorrencias_caderno_map = {}
     for oc in OcorrenciaCaderno.objects.filter(
         tipo__in=[TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO],
-        data__gte=date_start,
         data__lte=date_end
+    ).filter(
+        Q(data_fim__gte=date_start) |
+        (Q(data_fim__isnull=True) & Q(data__gte=date_start))
     ).select_related('aluno'):
         if oc.aluno_id:
-            key = (oc.aluno_id, oc.data)
-            ocorrencias_caderno_map[key] = oc
+            d_cur = max(oc.data, date_start)
+            d_end_oc = min(oc.data_fim or oc.data, date_end)
+            while d_cur <= d_end_oc:
+                ocorrencias_caderno_map[(oc.aluno_id, d_cur)] = oc
+                d_cur += timedelta(days=1)
 
     registros_faltas_qs = RegistroPresenca.objects.filter(
         status__in=[StatusPresenca.AUSENTE, StatusPresenca.JUSTIFICADO],

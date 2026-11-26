@@ -311,8 +311,8 @@ def lancar_chamada_view(request):
             horario_str = f" às {oc_aluno.horario.strftime('%H:%M')}" if oc_aluno.horario else ""
 
             if is_feriado_atual:
-                # Em dias de feriado, atestados médicos em curso não são interrompidos,
-                # mas não geram falta justificada nem registro de ausência para o feriado
+                # Em dias de feriado, atestados médicos e justificativas/faltas de período em curso
+                # não são interrompidos nem excluídos, apenas não geram falta justificada no dia do feriado
                 if oc_aluno.tipo == TipoOcorrencia.ATESTADO:
                     ocorrencia_info = {
                         'tipo': oc_aluno.tipo,
@@ -323,6 +323,18 @@ def lancar_chamada_view(request):
                         'is_saida': False,
                         'titulo': f"Atestado Médico Vigente {periodo_str} — Sem falta justificada no feriado",
                         'motivo': oc_aluno.motivo or oc_aluno.observacao or oc_aluno.cid,
+                    }
+                elif oc_aluno.tipo == TipoOcorrencia.FALTA:
+                    titulo_tipo = "Justificativa de Ausência" if oc_aluno.justificado else "Ausência Registrada"
+                    ocorrencia_info = {
+                        'tipo': oc_aluno.tipo,
+                        'is_ausencia': False,
+                        'is_atestado': False,
+                        'is_falta': True,
+                        'is_atraso': False,
+                        'is_saida': False,
+                        'titulo': f"{titulo_tipo} Vigente {periodo_str} — Sem registro de falta no feriado",
+                        'motivo': oc_aluno.motivo or oc_aluno.observacao,
                     }
             elif oc_aluno.tipo == TipoOcorrencia.ATESTADO:
                 ocorrencia_info = {
@@ -769,19 +781,16 @@ def salvar_feriado_recesso_view(request):
             else:
                 turma_obj = Turma.objects.filter(nome__iexact=str(turma_id).strip()).first()
 
-        # Localiza registros prévios que seriam afetados e anulados no período.
-        # IMPORTANTE: Atestados Médicos (TipoOcorrencia.ATESTADO) e afastamentos de período que
-        # atravessam o feriado NÃO são interrompidos nem deletados — apenas não geram
-        # registro de presença/falta justificada no(s) dia(s) de feriado.
+        # Localiza registros prévios do(s) dia(s) do feriado que serão removidos na chamada.
+        # IMPORTANTE: Justificativas de falta e Atestados Médicos ( especialmente lançamentos de múltiplos dias,
+        # ex: 5 dias onde o 4º dia é feriado) NUNCA devem ter o registro do Caderno SEAMI excluído!
+        # Somente o RegistroPresenca do dia específico do feriado é removido, mantendo todos os outros dias intactos.
         regs_qs = RegistroPresenca.objects.filter(data__gte=data_inicio, data__lte=data_fim)
         diarios_qs = DiarioDeClasse.objects.filter(data__gte=data_inicio, data__lte=data_fim)
-        ocorrs_qs = OcorrenciaCaderno.objects.exclude(
-            tipo=TipoOcorrencia.ATESTADO
-        ).filter(
+        ocorrs_qs = OcorrenciaCaderno.objects.filter(
+            tipo__in=[TipoOcorrencia.ATRASO, TipoOcorrencia.SAIDA],
             data__gte=data_inicio,
             data__lte=data_fim
-        ).filter(
-            Q(data_fim__isnull=True) | Q(data_fim__lte=data_fim)
         )
         if turma_obj:
             regs_qs = regs_qs.filter(turma=turma_obj)
@@ -808,11 +817,11 @@ def salvar_feriado_recesso_view(request):
                 'tipo_nome': tipo_label,
                 'periodo': periodo_txt,
                 'message': (
-                    f'Existem {total_afetados} registro(s) realizados neste período '
-                    f'({count_presencas} presença(s)/ausência(s) na chamada, {count_ocorrencias} ocorrência(s) avulsa(s) '
+                    f'Existem {total_afetados} registro(s) realizados exatamente na data deste feriado '
+                    f'({count_presencas} presença(s)/ausência(s) na chamada, {count_ocorrencias} atraso(s)/saída(s) '
                     f'e {count_diarios} diário(s) de classe). Ao confirmar este dia como {tipo_label} (indisponibilidade da creche), '
-                    f'esses registros do dia serão removidos para que o feriado não tenha presença nem ausência '
-                    f'(atestados médicos vigentes não são interrompidos, apenas não geram falta justificada no feriado).'
+                    f'somente os registros do dia do feriado ({periodo_txt}) serão removidos. '
+                    f'Justificativas e atestados médicos de múltiplos dias não serão excluídos, permanecendo ativos nos demais dias do período.'
                 )
             })
 
@@ -838,7 +847,7 @@ def salvar_feriado_recesso_view(request):
                     registrado_por=request.user
                 )
 
-            # Anula completamente todos os registros de presença, diários e ocorrências/atrasos do intervalo
+            # Remove apenas os registros de presença, diários e atrasos/saídas pontuais do dia do feriado
             regs_qs.delete()
             diarios_qs.delete()
             ocorrs_qs.delete()
@@ -1966,11 +1975,31 @@ def caderno_seami_view(request, aba='faltas'):
                 else:
                     motivo = extra_txt
 
+            # Resolve data inicial e data final priorizando os campos específicos de Atestado ou Falta
+            if tipo_form == TipoOcorrencia.ATESTADO:
+                atestado_inicio_str = request.POST.get('atestado_inicio', '').strip()
+                if atestado_inicio_str:
+                    data_str = atestado_inicio_str
+            elif tipo_form == TipoOcorrencia.FALTA:
+                falta_inicio_str = request.POST.get('falta_inicio', '').strip()
+                falta_fim_str = request.POST.get('falta_fim', '').strip()
+                if falta_inicio_str:
+                    data_str = falta_inicio_str
+                if falta_fim_str:
+                    data_fim_str = falta_fim_str
+
             data = datetime.strptime(data_str, '%Y-%m-%d').date() if data_str else today
             data_fim = datetime.strptime(data_fim_str, '%Y-%m-%d').date() if data_fim_str else None
 
             dias_concedidos_str = request.POST.get('dias_concedidos', '').strip()
-            if dias_concedidos_str and data and not data_fim:
+            if tipo_form == TipoOcorrencia.ATESTADO and dias_concedidos_str and data:
+                try:
+                    dias_val = int(dias_concedidos_str)
+                    if dias_val >= 1:
+                        data_fim = data + timedelta(days=dias_val - 1)
+                except ValueError:
+                    pass
+            elif dias_concedidos_str and data and not data_fim:
                 try:
                     dias_val = int(dias_concedidos_str)
                     if dias_val > 1:

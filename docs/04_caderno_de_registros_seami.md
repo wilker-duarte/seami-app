@@ -93,7 +93,7 @@ O SEAMI possui sinais internos (`Django Signals`) que mantêm o Caderno e a Cham
    - Dispara `sincronizar_ocorrencia_com_presenca`.
    - Localiza ou projeta o `RegistroPresenca` para os dias letivos úteis do período.
    - Aplica `status = JUSTIFICADO` (ou `AUSENTE`) e inclui o motivo na observação.
-   - **Comportamento em Feriados (`DiaNaoLetivo`)**: Os feriados são classificados como dias de indisponibilidade de funcionamento da creche. Um **Atestado Médico** (ou afastamento de período) que atravesse um feriado **não é interrompido**, porém o sistema **não coloca falta justificada (`RegistroPresenca`)** no dia do feriado, garantindo que feriados nunca tenham registros de presença ou ausência de nenhuma criança.
+   - **Comportamento em Feriados (`DiaNaoLetivo`)**: Os feriados são classificados como dias de indisponibilidade de funcionamento da creche. Quando há um lançamento de **Justificativa (`FALTA`)** ou **Atestado Médico (`ATESTADO`)** para múltiplos dias (ex.: 5 dias) e um feriado é registrado no meio do período (ex.: no 4º dia), o sistema **jamais exclui o registro completo de 5 dias** — ele remove o registro de presença/falta justificada **exclusivamente no dia do feriado** e preserva os demais dias úteis do período ativos e sincronizados.
 2. **Ao Excluir ou Alterar Datas da Ocorrência**:
    - Dispara o recálculo automático (`recalcular_presenca_para_data`).
    - Se o dia já tiver chamada oficial lançada pelo professor, reverte o status para a marcação original de sala (`status_chamada`).

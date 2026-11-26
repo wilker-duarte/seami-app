@@ -911,7 +911,7 @@
                                 style="display: block; font-size: 12px; font-weight: 700; color: #b91c1c; margin-bottom: 6px;">
                                 Data de Início da Ausência
                             </label>
-                            <input type="date" id="field-falta-inicio"
+                            <input type="date" name="falta_inicio" id="field-falta-inicio"
                                 onchange="onFaltaInicioChange(this.value)"
                                 style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fca5a5; background: white; font-size: 13px; color: #991b1b; outline: none; box-sizing: border-box;">
                         </div>
@@ -920,7 +920,7 @@
                                 style="display: block; font-size: 12px; font-weight: 700; color: #b91c1c; margin-bottom: 6px;">
                                 Data de Fim da Ausência
                             </label>
-                            <input type="date" id="field-falta-fim"
+                            <input type="date" name="falta_fim" id="field-falta-fim"
                                 onchange="onFaltaFimChange(this.value)"
                                 style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fca5a5; background: white; font-size: 13px; color: #991b1b; outline: none; box-sizing: border-box;">
                         </div>
@@ -936,7 +936,7 @@
                                 style="display: block; font-size: 12px; font-weight: 700; color: #be185d; margin-bottom: 6px;">
                                 Início Afastamento
                             </label>
-                            <input type="date" id="field-atestado-inicio" onchange="calcAtestadoReturn()"
+                            <input type="date" name="atestado_inicio" id="field-atestado-inicio" onchange="calcAtestadoReturn()"
                                 style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #fbcfe8; background: white; font-size: 13px; color: #9d174d; outline: none; box-sizing: border-box;">
                         </div>
                         <div>
@@ -1530,11 +1530,18 @@
         const preview = document.getElementById('atestado-return-date');
         const hiddenFim = document.getElementById('field-data-fim-hidden');
         const faltaFim = document.getElementById('field-falta-fim');
+        const fieldData = document.getElementById('field-data');
+        const faltaInicio = document.getElementById('field-falta-inicio');
+
+        if (startVal) {
+            if (fieldData) fieldData.value = startVal;
+            if (faltaInicio) faltaInicio.value = startVal;
+        }
 
         if (!startVal || diasVal < 1) {
             preview.innerText = '-';
-            if (hiddenFim) hiddenFim.value = '';
-            if (faltaFim) faltaFim.value = '';
+            if (hiddenFim) hiddenFim.value = startVal || '';
+            if (faltaFim) faltaFim.value = startVal || '';
             return;
         }
 

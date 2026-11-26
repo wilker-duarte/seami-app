@@ -1770,12 +1770,30 @@ def reverter_ao_excluir_atendimento_enfermaria(sender, instance, **kwargs):
         pass
 
 
+@receiver(pre_save, sender=DiaNaoLetivo)
+def capturar_estado_anterior_feriado(sender, instance, **kwargs):
+    """
+    Captura as datas anteriores de um DiaNaoLetivo caso seja editado,
+    para que as datas que deixaram de ser feriado voltem a ter presença recalculada.
+    """
+    if instance.pk:
+        try:
+            instance._old_instance = DiaNaoLetivo.objects.get(pk=instance.pk)
+        except DiaNaoLetivo.DoesNotExist:
+            instance._old_instance = None
+    else:
+        instance._old_instance = None
+
+
 @receiver(post_save, sender=DiaNaoLetivo)
 def limpar_presencas_em_dia_nao_letivo(sender, instance, **kwargs):
     """
-    Garante que ao cadastrar ou editar um Feriado / Dia Não Letivo (indisponibilidade da creche),
-    nenhum registro de presença, falta ou falta justificada (nem diário de classe) exista no período,
-    sem interromper nem excluir Atestados Médicos ou afastamentos de período que atravessem o feriado.
+    Garante que ao cadastrar ou editar um Feriado / Dia Não Letivo (indisponibilidade da creche):
+    1. SOMENTE o(s) dia(s) do feriado registrado não possua(m) nenhum registro de presença,
+       ausência ou falta justificada (nem diário de classe).
+    2. Atestados Médicos e Justificativas/Faltas de múltiplos dias (ex: 5 dias onde o 4º dia é feriado)
+       NÃO sejam excluídos nem interrompidos: os demais dias úteis do período continuam com seus
+       registros de Falta Justificada / Ausência preservados e sincronizados normalmente.
     """
     regs_qs = RegistroPresenca.objects.filter(
         data__gte=instance.data_inicio,
@@ -1791,6 +1809,40 @@ def limpar_presencas_em_dia_nao_letivo(sender, instance, **kwargs):
 
     regs_qs.delete()
     diarios_qs.delete()
+
+    # Define janela abrangente (incluindo datas antigas caso o feriado tenha sido editado)
+    old_inst = getattr(instance, '_old_instance', None)
+    win_start = min(instance.data_inicio, old_inst.data_inicio) if old_inst else instance.data_inicio
+    win_end = max(instance.data_fim, old_inst.data_fim) if old_inst else instance.data_fim
+
+    # Re-sincroniza todos os dias úteis das ocorrências de período (Faltas / Justificativas / Atestados)
+    # que cruzam o feriado, garantindo que apenas o dia do feriado fique sem registro e os demais dias
+    # (ex: dias 1, 2, 3 e 5 de um período de 5 dias) permaneçam ativos e íntegros.
+    ocorrs_periodo = OcorrenciaCaderno.objects.filter(
+        tipo__in=[TipoOcorrencia.FALTA, TipoOcorrencia.ATESTADO],
+        data__lte=win_end
+    ).filter(
+        Q(data_fim__gte=win_start) |
+        (Q(data_fim__isnull=True) & Q(data__gte=win_start))
+    ).select_related('aluno')
+
+    if instance.turma_id and not (old_inst and old_inst.turma_id != instance.turma_id):
+        ocorrs_periodo = ocorrs_periodo.filter(
+            Q(turma_id=instance.turma_id) | Q(aluno__turma_id=instance.turma_id)
+        )
+
+    for oc in ocorrs_periodo:
+        if not oc.aluno:
+            continue
+        d_ini = oc.data
+        d_fim = oc.data_fim or oc.data
+        if d_fim < d_ini:
+            d_fim = d_ini
+        cur_d = d_ini
+        while cur_d <= d_fim:
+            if cur_d.weekday() < 5:
+                recalcular_presenca_para_data(oc.aluno, cur_d)
+            cur_d += timedelta(days=1)
 
 
 @receiver(post_delete, sender=DiaNaoLetivo)
